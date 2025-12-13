@@ -97,8 +97,10 @@ class SyslogLogSource:
             raise SyslogError(f"Invalid path: {e}") from e
 
         # Security: Check path is within allowed directories
+        # Resolve allowed directories too to handle symlinks (e.g., /tmp -> /private/tmp on macOS)
         is_allowed = any(
-            self._is_path_under(resolved, allowed_dir) for allowed_dir in self._allowed_directories
+            self._is_path_under(resolved, allowed_dir.resolve())
+            for allowed_dir in self._allowed_directories
         )
 
         if not is_allowed:

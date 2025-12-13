@@ -190,6 +190,7 @@ class DetailModal(ModalScreen[None]):
 
         # Try xclip first, then xsel
         for cmd in [["xclip", "-selection", "clipboard"], ["xsel", "--clipboard", "--input"]]:
+            process = None
             try:
                 process = subprocess.Popen(
                     cmd,
@@ -201,6 +202,12 @@ class DetailModal(ModalScreen[None]):
                 if process.returncode == 0:
                     self.notify("Copied to clipboard")
                     return
+            except subprocess.TimeoutExpired:
+                # Kill the process to prevent zombie
+                if process is not None:
+                    process.kill()
+                    process.wait()
+                continue
             except (subprocess.SubprocessError, FileNotFoundError):
                 continue
 
