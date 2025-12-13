@@ -156,11 +156,33 @@ Snapshot tests use separate directories for CI vs local:
 
 This prevents CI environment differences from causing false failures.
 
+## Action Logging (MANDATORY)
+
+**After completing significant work, append a summary to `ACTIONS.md`:**
+
+- What was done (features, fixes, refactors)
+- Files changed
+- Tests added/modified
+- Any issues encountered and how they were resolved
+
+Format:
+```markdown
+## YYYY-MM-DD: Brief Title
+
+**Changes:**
+- Item 1
+- Item 2
+
+**Files:** `file1.py`, `file2.py`
+
+**Tests:** Added X tests, all passing
+```
+
 ## Current Phase
 
-**Phase 1 (Foundation) - COMPLETE** ✅
+**Phase 2 (Syslog & Modals) - IN PROGRESS**
 
-Ready for Phase 2 (Syslog adapter, modals, config file support).
+See ACTIONS.md for detailed progress log.
 
 ## File Locations
 
