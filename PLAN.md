@@ -266,18 +266,18 @@ logview/
 
 ---
 
-### Phase 2: Local Log Source (Syslog)
+### Phase 2: Local Log Source (Syslog) ✅ COMPLETE
 **Goal:** First real log source, proving the adapter pattern works.
 
 **Deliverables:**
-- [ ] Syslog adapter (file-based, reads standard syslog format)
-- [ ] Syslog line parser with timestamp extraction
-- [ ] Filter modal UI (time range, severity, text search)
-- [ ] Log detail modal (scrollable, formatted JSON, copy support)
-- [ ] Context selector modal (switch between available sources)
-- [ ] Wire up context switching in main app
-- [ ] Error handling (file access, parse errors, display in UI)
-- [ ] Load configuration from JSON file on startup
+- [x] Syslog adapter (file-based, reads standard syslog format)
+- [x] Syslog line parser with timestamp extraction
+- [x] Filter modal UI (time range, severity, text search)
+- [x] Log detail modal (scrollable, formatted JSON, copy support)
+- [x] Context selector modal (switch between available sources)
+- [x] Wire up context switching in main app
+- [x] Error handling (file access, parse errors, display in UI)
+- [x] Load configuration from JSON file on startup
 
 **Implementation approach:**
 1. Focus on file-based syslog parsing only (not journalctl - different format)
@@ -309,6 +309,8 @@ logview/
 - Switching between mock and syslog contexts works
 - Time and text filtering produce correct results
 - Errors displayed gracefully without crashing
+
+**Completed:** 2024-12 - Full implementation with 136 tests passing
 
 ---
 
