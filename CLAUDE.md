@@ -20,6 +20,17 @@ mypy src/
 ruff check src/ tests/
 ```
 
+## Allowed Tools (No Approval Required)
+
+The following tools can be used freely without user approval:
+
+- `gh` - GitHub CLI (repos, PRs, issues, auth)
+- `git` - Version control operations
+- `pytest` - Running tests
+- `mypy` - Type checking
+- `ruff` - Linting and formatting
+- `WebSearch` - Web searches for documentation/solutions
+
 ## Architecture
 
 - `src/logview/adapters/` - Log source implementations (Protocol-based)
