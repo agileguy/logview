@@ -238,19 +238,19 @@ logview/
 
 ## Iterative Development Phases
 
-### Phase 1: Foundation (MVP)
+### Phase 1: Foundation (MVP) ✅ COMPLETE
 **Goal:** Runnable TUI with mock data, establishing patterns for all future work.
 
 **Deliverables:**
-- [ ] Project scaffolding (pyproject.toml, src layout)
-- [ ] Core domain models with Pydantic (LogEntry, Filter, Severity)
-- [ ] LogSource protocol definition
-- [ ] Mock adapter generating fake log data
-- [ ] Basic Textual app shell
-- [ ] Main list view displaying mock logs
-- [ ] Scrolling and basic navigation
-- [ ] Unit tests for domain types
-- [ ] Integration test for mock adapter
+- [x] Project scaffolding (pyproject.toml, src layout)
+- [x] Core domain models with Pydantic (LogEntry, Filter, Severity)
+- [x] LogSource protocol definition
+- [x] Mock adapter generating fake log data
+- [x] Basic Textual app shell
+- [x] Main list view displaying mock logs
+- [x] Scrolling and basic navigation
+- [x] Unit tests for domain types
+- [x] Integration test for mock adapter
 
 **Testing strategy:**
 - Domain types: pytest with parametrized tests
@@ -261,6 +261,8 @@ logview/
 - `pytest` passes with >70% coverage on domain
 - Running `python -m logview` displays scrollable fake logs
 - Type checking passes (`mypy src/`)
+
+**Completed:** 2024-12 - Initial commit with full project structure
 
 ---
 
@@ -740,27 +742,32 @@ async def test_context_modal_opens():
 
 ## Getting Started
 
-After approval, Phase 1 begins with:
+Project structure is complete. To set up development environment:
 
 ```bash
-# Create project with uv (recommended) or pip
-uv init logview
-cd logview
+# Install in development mode
+pip install -e ".[dev]"
 
-# Add dependencies
-uv add textual pydantic
-uv add --dev pytest pytest-asyncio hypothesis mypy ruff
+# Run tests
+pytest
 
-# Create directory structure
-mkdir -p src/logview/{adapters,domain,ui/{widgets,screens,styles},config}
-mkdir -p tests/{unit,integration,ui}
+# Type check
+mypy src/
 
-# Initialize packages
-touch src/logview/__init__.py
-touch src/logview/__main__.py
+# Lint
+ruff check src/ tests/
 
-# Start with domain models
-touch src/logview/domain/models.py
+# Run the application
+python -m logview
 ```
 
-First PR: Domain models + Mock adapter + Basic list view
+## Changelog
+
+### 2024-12 - Phase 1 Complete
+- Initial project structure created
+- All domain models implemented (LogEntry, Filter, Severity, TimeRange)
+- LogSource protocol defined with mock adapter
+- Basic Textual app with log list widget
+- JSON configuration schema with Pydantic
+- Comprehensive test suite (unit, integration, UI)
+- Project documentation (README.md, CLAUDE.md, PLAN.md)

@@ -76,7 +76,9 @@ ruff check src/ tests/
 
 ## Current Phase
 
-Phase 1 (Foundation) - Mock adapter working, basic TUI shell complete.
+**Phase 1 (Foundation) - COMPLETE** ✅
+
+Ready for Phase 2 (Syslog adapter, modals, config file support).
 
 ## File Locations
 
