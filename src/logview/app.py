@@ -63,6 +63,7 @@ class LogViewApp(App[None]):
         # Load configuration
         try:
             self._config = load_config(self._config_path)
+            self._apply_ui_settings()
             self._register_sources_from_config()
         except Exception as e:
             self.notify(f"Error loading config: {e}", severity="error")
@@ -75,6 +76,14 @@ class LogViewApp(App[None]):
         # Set first source as active
         if self._sources:
             self.set_active_source(self._sources[0])
+
+    def _apply_ui_settings(self) -> None:
+        """Apply UI settings from configuration."""
+        if not self._config:
+            return
+
+        # Apply theme (dark mode is default in Textual)
+        self.dark = self._config.ui.theme == "dark"
 
     def _register_sources_from_config(self) -> None:
         """Register log sources from configuration."""
