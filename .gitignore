@@ -100,3 +100,6 @@ Thumbs.db
 *.log
 .uv/
 uv.lock
+
+# CI-generated snapshots (local snapshots are tracked)
+__snapshots_ci__/

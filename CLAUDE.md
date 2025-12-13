@@ -139,6 +139,23 @@ If any check fails, fix the issues before pushing.
 - [ ] README.md examples still work
 - [ ] CLAUDE.md reflects actual project state
 
+## Continuous Integration
+
+GitHub Actions CI runs on all PRs and pushes to main:
+
+- **Lint**: `ruff check src/ tests/`
+- **Type Check**: `mypy src/`
+- **Test**: `pytest` on Python 3.11 and 3.12
+- **Coverage**: Must maintain >70% coverage
+
+### Snapshot Testing
+
+Snapshot tests use separate directories for CI vs local:
+- Local: `tests/__snapshots__/` (tracked in git)
+- CI: `tests/__snapshots_ci__/` (gitignored)
+
+This prevents CI environment differences from causing false failures.
+
 ## Current Phase
 
 **Phase 1 (Foundation) - COMPLETE** ✅
@@ -151,3 +168,4 @@ Ready for Phase 2 (Syslog adapter, modals, config file support).
 - Domain models: `src/logview/domain/models.py`
 - Config schema: `src/logview/config/schema.py`
 - Tests: `tests/`
+- CI workflow: `.github/workflows/ci.yml`

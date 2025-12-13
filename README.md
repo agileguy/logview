@@ -1,5 +1,7 @@
 # LogView
 
+[![CI](https://github.com/agileguy/logview/actions/workflows/ci.yml/badge.svg)](https://github.com/agileguy/logview/actions/workflows/ci.yml)
+
 A testable, responsive log viewer TUI with pluggable log source contexts.
 
 ## Features
