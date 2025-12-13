@@ -51,7 +51,6 @@ class LogViewApp(App[None]):
         self._sources: list[LogSource] = []
         self._active_source: LogSource | None = None
         self._current_filter: Filter = Filter(limit=100)
-        self._applying_config: bool = False
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -64,10 +63,12 @@ class LogViewApp(App[None]):
         # Load configuration
         try:
             self._config = load_config(self._config_path)
-            self._apply_ui_settings()
             self._register_sources_from_config()
         except Exception as e:
             self.notify(f"Error loading config: {e}", severity="error")
+
+        # Always apply UI settings (sets up theme watcher)
+        self._apply_ui_settings()
 
         # If no sources from config, register default mock
         if not self._sources:
@@ -80,32 +81,31 @@ class LogViewApp(App[None]):
 
     def _apply_ui_settings(self) -> None:
         """Apply UI settings from configuration."""
-        if not self._config:
-            return
-
-        # Apply theme (dark mode is default in Textual)
-        # Temporarily disable saving while we apply the config value
-        self._applying_config = True
-        self.dark = self._config.ui.theme == "dark"
-        self._applying_config = False
-
-    def watch_dark(self, dark: bool) -> None:
-        """Watch for theme changes and save to config.
-
-        Args:
-            dark: Whether dark mode is enabled.
-        """
-        # Don't save if we're just applying config on startup
-        if getattr(self, "_applying_config", False):
-            return
-
-        # Update and save config
         if self._config:
-            self._config.ui.theme = "dark" if dark else "light"
-            try:
-                save_config(self._config, self._config_path)
-            except Exception as e:
-                self.notify(f"Failed to save theme preference: {e}", severity="warning")
+            # Apply theme from config (dark mode is default in Textual)
+            self.theme = "textual-dark" if self._config.ui.theme == "dark" else "textual-light"
+
+    def action_toggle_dark(self) -> None:
+        """Toggle dark mode and save the preference to config."""
+        # Call parent implementation to actually toggle
+        super().action_toggle_dark()
+
+        # Save the new preference (theme is now "textual-dark" or "textual-light")
+        self._save_theme_preference()
+
+    def _save_theme_preference(self) -> None:
+        """Save current theme preference to config file."""
+        # Ensure we have a config to save
+        if self._config is None:
+            self._config = Config()
+
+        # Map Textual theme name to our config value
+        is_dark = self.theme == "textual-dark"
+        self._config.ui.theme = "dark" if is_dark else "light"
+        try:
+            save_config(self._config, self._config_path)
+        except Exception as e:
+            self.notify(f"Failed to save theme preference: {e}", severity="warning")
 
     def _register_sources_from_config(self) -> None:
         """Register log sources from configuration."""
