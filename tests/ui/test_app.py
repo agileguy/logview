@@ -14,7 +14,7 @@ class TestLogViewApp:
     async def test_app_starts(self) -> None:
         """Test that the app starts without errors."""
         app = LogViewApp()
-        async with app.run_test() as pilot:
+        async with app.run_test():
             # App should start and have a log list
             assert app.query_one("#log-list") is not None
 
@@ -22,7 +22,7 @@ class TestLogViewApp:
     async def test_app_has_header_and_footer(self) -> None:
         """Test that app has header and footer."""
         app = LogViewApp()
-        async with app.run_test() as pilot:
+        async with app.run_test():
             from textual.widgets import Footer, Header
 
             assert app.query_one(Header) is not None

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from logview.domain.models import Filter, FilterField, LogEntry
@@ -43,8 +44,7 @@ class GKELogSource:
             LogEntry objects from GKE.
         """
         raise NotImplementedError("GKE adapter not yet implemented (Phase 4)")
-        # This yield is never reached but needed for type checking
-        yield  # type: ignore[misc]
+        yield  # Makes this an async generator
 
     def validate_filter(self, log_filter: Filter) -> list[str]:
         """Validate a filter for GKE.

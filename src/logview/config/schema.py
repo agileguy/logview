@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -43,7 +43,7 @@ class MockContext(BaseModel):
 
 
 Context = Annotated[
-    Union[GKEContext, GCPContext, SyslogContext, MockContext],
+    GKEContext | GCPContext | SyslogContext | MockContext,
     Field(discriminator="type"),
 ]
 

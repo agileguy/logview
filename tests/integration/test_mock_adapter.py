@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
 import pytest
 
 from logview.adapters.mock import MockLogSource
-from logview.domain.models import Filter, Severity, TimeRange
+from logview.domain.models import Filter, Severity
 
 
 class TestMockLogSource:
@@ -51,7 +49,7 @@ class TestMockLogSource:
         entries2 = [e async for e in source2.fetch(log_filter)]
 
         assert len(entries1) == len(entries2)
-        for e1, e2 in zip(entries1, entries2):
+        for e1, e2 in zip(entries1, entries2, strict=True):
             assert e1.message == e2.message
             assert e1.severity == e2.severity
             assert e1.source == e2.source
@@ -69,7 +67,7 @@ class TestMockLogSource:
 
         # At least some entries should differ
         differences = sum(
-            1 for e1, e2 in zip(entries1, entries2) if e1.message != e2.message
+            1 for e1, e2 in zip(entries1, entries2, strict=True) if e1.message != e2.message
         )
         assert differences > 0
 
@@ -139,14 +137,8 @@ class TestMockLogSourceFiltering:
         """Test filtering by text search."""
         source = MockLogSource(seed=42)
 
-        # First, get some entries to find a searchable term
-        all_entries = [e async for e in source.fetch(Filter(limit=100))]
-
         # Find a message substring to search for
         search_term = "Request"  # Common in mock messages
-
-        # Reset and search
-        source = MockLogSource(seed=42)
         log_filter = Filter(text_search=search_term, limit=50)
         filtered_entries = [e async for e in source.fetch(log_filter)]
 

@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from logview.config.loader import load_config, save_config
 from logview.config.schema import (
@@ -166,12 +167,12 @@ class TestConfigValidation:
 
     def test_invalid_theme(self) -> None:
         """Test that invalid theme values are rejected."""
-        with pytest.raises(Exception):  # Pydantic validation error
+        with pytest.raises(ValidationError):
             UISettings(theme="invalid")  # type: ignore[arg-type]
 
     def test_invalid_credential_helper(self) -> None:
         """Test that invalid credential helper values are rejected."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SecuritySettings(credential_helper="invalid")  # type: ignore[arg-type]
 
     def test_context_type_discriminator(self) -> None:

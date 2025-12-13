@@ -35,6 +35,56 @@ ruff check src/ tests/
 4. **Type hints required** - mypy strict mode
 5. **Security first** - no credential storage, delegate to gcloud/kubectl
 
+## Testing & Quality Requirements (MANDATORY)
+
+**Every code change MUST pass all quality checks before push/PR:**
+
+### 1. Tests (MANDATORY)
+- **New functionality MUST have tests** - no exceptions
+- **All tests MUST pass** before pushing or creating PR
+- Test locations:
+  - Unit tests: `tests/unit/`
+  - Integration tests: `tests/integration/`
+  - UI tests: `tests/ui/`
+
+```bash
+# Run all tests (MUST pass)
+pytest
+
+# Run with coverage (target >70%)
+pytest --cov=src/logview
+```
+
+### 2. Type Checking (MANDATORY)
+- **mypy MUST pass** with no errors before push/PR
+- All new code must have type hints
+
+```bash
+# Type check (MUST pass)
+mypy src/
+```
+
+### 3. Linting (MANDATORY)
+- **ruff MUST pass** with no errors before push/PR
+
+```bash
+# Lint check (MUST pass)
+ruff check src/ tests/
+
+# Auto-fix issues
+ruff check --fix src/ tests/
+```
+
+### Pre-Push Checklist
+Run this sequence before every push/PR:
+
+```bash
+# All three MUST pass
+pytest && mypy src/ && ruff check src/ tests/
+```
+
+If any check fails, fix the issues before pushing.
+
 ## Documentation Requirements (MANDATORY)
 
 **Every code change that affects functionality MUST include documentation updates:**
@@ -68,7 +118,11 @@ ruff check src/ tests/
    - Modifying class behavior
    - Altering public APIs
 
-**Before committing, verify:**
+**Before committing/pushing, verify:**
+- [ ] New functionality has tests
+- [ ] `pytest` passes (all tests)
+- [ ] `mypy src/` passes (no type errors)
+- [ ] `ruff check src/ tests/` passes (no lint errors)
 - [ ] All affected documentation is updated
 - [ ] PLAN.md phase checklist reflects current state
 - [ ] README.md examples still work

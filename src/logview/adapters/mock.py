@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import random
+from collections.abc import AsyncIterator
 from datetime import datetime, timedelta
-from typing import AsyncIterator
 
 from logview.domain.models import Filter, FilterField, LogEntry, Severity
 
@@ -68,9 +68,12 @@ class MockLogSource:
 
         count = 0
         now = datetime.now()
+        cumulative_offset = 0.0
 
         while count < log_filter.limit:
-            entry = self._generate_entry(now, count)
+            # Each entry is 0.1 to 5.0 seconds after the previous (going backwards)
+            cumulative_offset += self._rng.uniform(0.1, 5.0)
+            entry = self._generate_entry(now, cumulative_offset)
 
             if entry.matches_filter(log_filter):
                 yield entry
@@ -101,18 +104,17 @@ class MockLogSource:
             FilterField(name="source", label="Source", options=self.SAMPLE_SOURCES),
         ]
 
-    def _generate_entry(self, base_time: datetime, index: int) -> LogEntry:
+    def _generate_entry(self, base_time: datetime, offset_seconds: float) -> LogEntry:
         """Generate a single log entry.
 
         Args:
             base_time: The base timestamp to work back from.
-            index: The entry index (used for timestamp offset).
+            offset_seconds: Seconds to subtract from base_time for timestamp.
 
         Returns:
             A generated LogEntry.
         """
         # Generate timestamp going backwards from now
-        offset_seconds = index * self._rng.uniform(0.1, 5.0)
         timestamp = base_time - timedelta(seconds=offset_seconds)
 
         # Pick a random message template and severity

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, AsyncIterator, Protocol, runtime_checkable
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from logview.domain.models import Filter, FilterField, LogEntry

@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from textual.widgets import DataTable
 
 from logview.adapters.mock import MockLogSource
 from logview.domain.models import Filter, Severity
 
 
-class LogList(DataTable):
+class LogList(DataTable[Any]):
     """A scrollable list of log entries."""
 
     SEVERITY_STYLES = {

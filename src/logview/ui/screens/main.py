@@ -5,7 +5,7 @@ from __future__ import annotations
 from textual.screen import Screen
 
 
-class MainScreen(Screen):
+class MainScreen(Screen[None]):
     """The main log viewing screen.
 
     This is a placeholder for future refactoring.

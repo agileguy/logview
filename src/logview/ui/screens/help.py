@@ -5,7 +5,6 @@ from __future__ import annotations
 from textual.screen import ModalScreen
 from textual.widgets import Static
 
-
 HELP_TEXT = """
 LogView - Keyboard Shortcuts
 
