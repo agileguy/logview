@@ -11,7 +11,7 @@ from textual.widgets import Footer, Header
 from logview.adapters.base import LogSource
 from logview.adapters.mock import MockLogSource
 from logview.adapters.syslog import SyslogLogSource
-from logview.config.loader import load_config
+from logview.config.loader import load_config, save_config
 from logview.config.schema import Config, GCPContext, GKEContext, MockContext, SyslogContext
 from logview.domain.models import Filter
 from logview.ui.screens.context import ContextModal
@@ -51,6 +51,7 @@ class LogViewApp(App[None]):
         self._sources: list[LogSource] = []
         self._active_source: LogSource | None = None
         self._current_filter: Filter = Filter(limit=100)
+        self._applying_config: bool = False
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -83,7 +84,28 @@ class LogViewApp(App[None]):
             return
 
         # Apply theme (dark mode is default in Textual)
+        # Temporarily disable saving while we apply the config value
+        self._applying_config = True
         self.dark = self._config.ui.theme == "dark"
+        self._applying_config = False
+
+    def watch_dark(self, dark: bool) -> None:
+        """Watch for theme changes and save to config.
+
+        Args:
+            dark: Whether dark mode is enabled.
+        """
+        # Don't save if we're just applying config on startup
+        if getattr(self, "_applying_config", False):
+            return
+
+        # Update and save config
+        if self._config:
+            self._config.ui.theme = "dark" if dark else "light"
+            try:
+                save_config(self._config, self._config_path)
+            except Exception as e:
+                self.notify(f"Failed to save theme preference: {e}", severity="warning")
 
     def _register_sources_from_config(self) -> None:
         """Register log sources from configuration."""
