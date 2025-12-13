@@ -35,6 +35,45 @@ ruff check src/ tests/
 4. **Type hints required** - mypy strict mode
 5. **Security first** - no credential storage, delegate to gcloud/kubectl
 
+## Documentation Requirements (MANDATORY)
+
+**Every code change that affects functionality MUST include documentation updates:**
+
+1. **PLAN.md** - Update when:
+   - Completing phase deliverables (check off items)
+   - Changing project scope or architecture
+   - Adding/removing planned features
+   - Modifying phase timelines or dependencies
+
+2. **README.md** - Update when:
+   - Adding new features or commands
+   - Changing installation steps
+   - Modifying keyboard shortcuts
+   - Updating configuration options
+   - Changing usage examples
+
+3. **CLAUDE.md** - Update when:
+   - Changing architecture or file locations
+   - Adding new development commands
+   - Modifying development guidelines
+   - Updating current phase status
+
+4. **configs/example.json** - Update when:
+   - Adding new configuration options
+   - Changing config schema
+   - Adding new context types
+
+5. **Docstrings/Comments** - Update when:
+   - Changing function signatures
+   - Modifying class behavior
+   - Altering public APIs
+
+**Before committing, verify:**
+- [ ] All affected documentation is updated
+- [ ] PLAN.md phase checklist reflects current state
+- [ ] README.md examples still work
+- [ ] CLAUDE.md reflects actual project state
+
 ## Current Phase
 
 Phase 1 (Foundation) - Mock adapter working, basic TUI shell complete.
