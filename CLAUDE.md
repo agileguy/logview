@@ -141,7 +141,7 @@ If any check fails, fix the issues before pushing.
 
 ## Continuous Integration
 
-GitHub Actions CI runs on all PRs and pushes to main:
+GitHub Actions CI runs on all PRs targeting main:
 
 - **Lint**: `ruff check src/ tests/`
 - **Type Check**: `mypy src/`

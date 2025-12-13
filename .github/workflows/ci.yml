@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -94,7 +92,7 @@ jobs:
           coverage xml
 
       - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.12' && github.event_name == 'push'
+        if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v4
         with:
           files: coverage.xml
