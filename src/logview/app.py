@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from textual.app import App, ComposeResult
@@ -9,6 +10,9 @@ from textual.widgets import Footer, Header
 
 from logview.adapters.base import LogSource
 from logview.adapters.mock import MockLogSource
+from logview.adapters.syslog import SyslogLogSource
+from logview.config.loader import load_config
+from logview.config.schema import Config, GCPContext, GKEContext, MockContext, SyslogContext
 from logview.domain.models import Filter
 from logview.ui.screens.context import ContextModal
 from logview.ui.screens.detail import DetailModal
@@ -35,9 +39,15 @@ class LogViewApp(App[None]):
         ("enter", "show_detail", "Detail"),
     ]
 
-    def __init__(self) -> None:
-        """Initialize the application."""
+    def __init__(self, config_path: Path | None = None) -> None:
+        """Initialize the application.
+
+        Args:
+            config_path: Optional path to config file. Uses default if not provided.
+        """
         super().__init__()
+        self._config_path = config_path
+        self._config: Config | None = None
         self._sources: list[LogSource] = []
         self._active_source: LogSource | None = None
         self._current_filter: Filter = Filter(limit=100)
@@ -49,14 +59,56 @@ class LogViewApp(App[None]):
         yield Footer()
 
     def on_mount(self) -> None:
-        """Handle mount event - set up initial sources."""
-        # Register default mock source
-        mock_source = MockLogSource(seed=42)
-        self.register_source(mock_source)  # type: ignore[arg-type]
+        """Handle mount event - load config and set up sources."""
+        # Load configuration
+        try:
+            self._config = load_config(self._config_path)
+            self._register_sources_from_config()
+        except Exception as e:
+            self.notify(f"Error loading config: {e}", severity="error")
 
-        # Set mock as default active source
+        # If no sources from config, register default mock
+        if not self._sources:
+            mock_source = MockLogSource(seed=42)
+            self.register_source(mock_source)  # type: ignore[arg-type]
+
+        # Set first source as active
         if self._sources:
             self.set_active_source(self._sources[0])
+
+    def _register_sources_from_config(self) -> None:
+        """Register log sources from configuration."""
+        if not self._config:
+            return
+
+        for context in self._config.contexts:
+            try:
+                source = self._create_source_from_context(context)
+                if source:
+                    self.register_source(source)
+            except Exception as e:
+                self.notify(f"Error creating source '{context.name}': {e}", severity="warning")
+
+    def _create_source_from_context(
+        self,
+        context: MockContext | SyslogContext | GCPContext | GKEContext,
+    ) -> LogSource | None:
+        """Create a log source from a config context.
+
+        Args:
+            context: The context configuration.
+
+        Returns:
+            A LogSource instance or None if the type is not supported yet.
+        """
+        if isinstance(context, MockContext):
+            return MockLogSource(seed=context.seed)  # type: ignore[return-value]
+        elif isinstance(context, SyslogContext):
+            return SyslogLogSource(file_path=context.path)  # type: ignore[return-value]
+        else:
+            # GCP and GKE not implemented yet
+            self.notify(f"Source type '{context.type}' not yet implemented", severity="warning")
+            return None
 
     def register_source(self, source: LogSource) -> None:
         """Register a log source.
