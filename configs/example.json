@@ -1,0 +1,56 @@
+{
+  "$schema": "https://logview.dev/schema/config.json",
+  "contexts": [
+    {
+      "name": "prod-gke",
+      "type": "gke",
+      "project": "my-gcp-project",
+      "cluster": "prod-cluster",
+      "default_namespace": "default"
+    },
+    {
+      "name": "staging-gke",
+      "type": "gke",
+      "project": "my-gcp-project",
+      "cluster": "staging-cluster"
+    },
+    {
+      "name": "gcp-audit",
+      "type": "gcp",
+      "project": "my-gcp-project",
+      "log_name": "cloudaudit.googleapis.com%2Factivity"
+    },
+    {
+      "name": "local",
+      "type": "syslog",
+      "path": "/var/log/syslog"
+    },
+    {
+      "name": "testing",
+      "type": "mock",
+      "seed": 42
+    }
+  ],
+  "presets": [
+    {
+      "name": "errors-last-hour",
+      "severity": "ERROR",
+      "time_range_minutes": 60
+    },
+    {
+      "name": "api-debug",
+      "pod": "api-*",
+      "severity": "DEBUG",
+      "namespace": "default"
+    }
+  ],
+  "ui": {
+    "theme": "dark",
+    "timestamp_format": "%Y-%m-%d %H:%M:%S",
+    "max_message_width": 80,
+    "show_metadata": false
+  },
+  "security": {
+    "credential_helper": "gcloud"
+  }
+}

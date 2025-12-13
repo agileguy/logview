@@ -1,0 +1,75 @@
+/* LogView Theme - Textual CSS */
+
+Screen {
+    background: $surface;
+}
+
+Header {
+    dock: top;
+    height: 1;
+    background: $primary;
+    color: $text;
+}
+
+Footer {
+    dock: bottom;
+    height: 1;
+    background: $primary;
+}
+
+/* Log List */
+#log-list {
+    height: 1fr;
+    border: solid $primary;
+}
+
+DataTable {
+    height: 1fr;
+}
+
+DataTable > .datatable--header {
+    background: $primary;
+    color: $text;
+    text-style: bold;
+}
+
+DataTable > .datatable--cursor {
+    background: $secondary;
+    color: $text;
+}
+
+/* Modal screens */
+ModalScreen {
+    align: center middle;
+    background: $surface 80%;
+}
+
+ModalScreen > Static {
+    width: 60;
+    height: auto;
+    padding: 1 2;
+    background: $surface;
+    border: thick $primary;
+}
+
+/* Severity colors */
+.severity-debug {
+    color: $text-muted;
+}
+
+.severity-info {
+    color: $text;
+}
+
+.severity-warn {
+    color: yellow;
+}
+
+.severity-error {
+    color: red;
+}
+
+.severity-critical {
+    color: red;
+    text-style: bold;
+}

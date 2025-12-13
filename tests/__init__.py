@@ -1,0 +1,1 @@
+"""LogView test suite."""
