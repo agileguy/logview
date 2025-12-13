@@ -1,9 +1,22 @@
 """Main Textual application for LogView."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header
 
+from logview.adapters.base import LogSource
+from logview.adapters.mock import MockLogSource
+from logview.domain.models import Filter
+from logview.ui.screens.context import ContextModal
+from logview.ui.screens.detail import DetailModal
+from logview.ui.screens.filter import FilterModal
 from logview.ui.widgets.log_list import LogList
+
+if TYPE_CHECKING:
+    pass
 
 
 class LogViewApp(App[None]):
@@ -16,9 +29,18 @@ class LogViewApp(App[None]):
         ("q", "quit", "Quit"),
         ("c", "show_context", "Context"),
         ("f", "show_filter", "Filter"),
+        ("r", "refresh", "Refresh"),
         ("?", "show_help", "Help"),
         ("/", "search", "Search"),
+        ("enter", "show_detail", "Detail"),
     ]
+
+    def __init__(self) -> None:
+        """Initialize the application."""
+        super().__init__()
+        self._sources: list[LogSource] = []
+        self._active_source: LogSource | None = None
+        self._current_filter: Filter = Filter(limit=100)
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -26,22 +48,107 @@ class LogViewApp(App[None]):
         yield LogList(id="log-list")
         yield Footer()
 
+    def on_mount(self) -> None:
+        """Handle mount event - set up initial sources."""
+        # Register default mock source
+        mock_source = MockLogSource(seed=42)
+        self.register_source(mock_source)  # type: ignore[arg-type]
+
+        # Set mock as default active source
+        if self._sources:
+            self.set_active_source(self._sources[0])
+
+    def register_source(self, source: LogSource) -> None:
+        """Register a log source.
+
+        Args:
+            source: The log source to register.
+        """
+        self._sources.append(source)
+
+    def set_active_source(self, source: LogSource) -> None:
+        """Set the active log source and refresh.
+
+        Args:
+            source: The source to make active.
+        """
+        self._active_source = source
+        log_list = self.query_one("#log-list", LogList)
+        log_list.set_source(source)
+        log_list.set_filter(self._current_filter)
+        self.call_later(log_list.refresh_logs)
+        self.sub_title = source.name
+
+    def set_filter(self, log_filter: Filter) -> None:
+        """Set the current filter and refresh.
+
+        Args:
+            log_filter: The filter to apply.
+        """
+        self._current_filter = log_filter
+        log_list = self.query_one("#log-list", LogList)
+        log_list.set_filter(log_filter)
+        self.call_later(log_list.refresh_logs)
+
     def action_show_context(self) -> None:
         """Show the context selector modal."""
-        # TODO: Implement in Phase 2
-        self.notify("Context selector not yet implemented")
+        if not self._sources:
+            self.notify("No log sources available")
+            return
+
+        active_name = self._active_source.name if self._active_source else None
+
+        def handle_selection(selected_name: str | None) -> None:
+            if selected_name:
+                for source in self._sources:
+                    if source.name == selected_name:
+                        self.set_active_source(source)
+                        self.notify(f"Switched to {source.name}")
+                        break
+
+        self.push_screen(
+            ContextModal(self._sources, active_source_name=active_name),
+            handle_selection,
+        )
 
     def action_show_filter(self) -> None:
         """Show the filter editor modal."""
-        # TODO: Implement in Phase 2
-        self.notify("Filter editor not yet implemented")
+
+        def handle_filter(new_filter: Filter | None) -> None:
+            if new_filter:
+                self.set_filter(new_filter)
+                self.notify("Filter applied")
+
+        self.push_screen(
+            FilterModal(self._current_filter),
+            handle_filter,
+        )
+
+    def action_refresh(self) -> None:
+        """Refresh the log list."""
+        log_list = self.query_one("#log-list", LogList)
+        self.call_later(log_list.refresh_logs)
+        self.notify("Refreshing logs...")
+
+    def action_show_detail(self) -> None:
+        """Show detail view for the selected entry."""
+        log_list = self.query_one("#log-list", LogList)
+        entry = log_list.get_selected_entry()
+        if entry:
+            self.push_screen(DetailModal(entry))
+        else:
+            self.notify("No entry selected")
 
     def action_show_help(self) -> None:
         """Show the help modal."""
-        # TODO: Implement in Phase 2
+        # TODO: Implement in later phase
         self.notify("Help not yet implemented")
 
     def action_search(self) -> None:
         """Show the search input."""
         # TODO: Implement in Phase 5
         self.notify("Search not yet implemented")
+
+    def on_log_list_entry_selected(self, event: LogList.EntrySelected) -> None:
+        """Handle log entry selection from the list."""
+        self.push_screen(DetailModal(event.entry))
