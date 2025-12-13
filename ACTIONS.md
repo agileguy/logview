@@ -63,3 +63,24 @@
 **Tests:** All 143 tests still passing
 
 **PR:** #1 updated with all fixes
+
+---
+
+## 2024-12-13: Semantic Versioning Implementation
+
+**Changes:**
+- Implemented semantic versioning system
+- Created `VERSION` file as single source of truth (set to 0.2.0)
+- Configured `pyproject.toml` for dynamic versioning via hatchling
+- Updated `__init__.py` to read version from VERSION file
+- Created `CHANGELOG.md` following Keep a Changelog format
+- Added mandatory versioning section to `CLAUDE.md`
+
+**Files:**
+- `VERSION` - New file, contains "0.2.0"
+- `CHANGELOG.md` - New file, version history
+- `pyproject.toml` - Dynamic versioning config
+- `src/logview/__init__.py` - Reads version from file
+- `CLAUDE.md` - Versioning requirements section
+
+**Tests:** All 143 tests still passing

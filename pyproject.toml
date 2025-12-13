@@ -1,6 +1,6 @@
 [project]
 name = "logview"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A testable, responsive log viewer TUI with pluggable log source contexts"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -45,6 +45,10 @@ logview = "logview.__main__:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "VERSION"
+pattern = "(?P<version>.+)"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/logview"]

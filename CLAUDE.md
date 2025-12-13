@@ -178,6 +178,67 @@ Format:
 **Tests:** Added X tests, all passing
 ```
 
+## Semantic Versioning (MANDATORY)
+
+This project follows [Semantic Versioning](https://semver.org/) (MAJOR.MINOR.PATCH):
+
+- **MAJOR**: Breaking changes (incompatible API changes)
+- **MINOR**: New features (backwards compatible)
+- **PATCH**: Bug fixes (backwards compatible)
+
+### Version Files (MUST update together)
+
+| File | Purpose |
+|------|---------|
+| `VERSION` | **Single source of truth** - contains version string only |
+| `CHANGELOG.md` | Human-readable history of changes per version |
+
+### When to Update Version
+
+**Bump PATCH (0.0.X)** for:
+- Bug fixes
+- Security patches
+- Documentation fixes
+
+**Bump MINOR (0.X.0)** for:
+- New features
+- New adapters or modals
+- New configuration options
+- Deprecations (with backwards compatibility)
+
+**Bump MAJOR (X.0.0)** for:
+- Breaking API changes
+- Removed features
+- Incompatible configuration changes
+
+### Version Update Process (MANDATORY)
+
+When releasing changes:
+
+1. **Update `VERSION`** file with new version number
+2. **Update `CHANGELOG.md`**:
+   - Move items from `[Unreleased]` to new version section
+   - Add release date
+   - Update comparison links at bottom
+3. **Commit** with message: `chore: bump version to X.Y.Z`
+4. **Tag** the release: `git tag vX.Y.Z`
+
+```bash
+# Example version bump workflow
+echo "0.3.0" > VERSION
+# Edit CHANGELOG.md to move [Unreleased] to [0.3.0]
+git add VERSION CHANGELOG.md
+git commit -m "chore: bump version to 0.3.0"
+git tag v0.3.0
+```
+
+### Accessing Version in Code
+
+```python
+from logview import __version__
+print(__version__)  # e.g., "0.2.0"
+```
+
 ## Current Phase
 
 **Phase 2 (Syslog & Modals) - IN PROGRESS**
@@ -191,3 +252,6 @@ See ACTIONS.md for detailed progress log.
 - Config schema: `src/logview/config/schema.py`
 - Tests: `tests/`
 - CI workflow: `.github/workflows/ci.yml`
+- Version: `VERSION`
+- Changelog: `CHANGELOG.md`
+- Action log: `ACTIONS.md`
