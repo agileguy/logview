@@ -1,0 +1,15 @@
+Jan 15 10:23:45 myhost sshd[1234]: Accepted publickey for user from 192.168.1.100 port 52413 ssh2
+Jan 15 10:23:46 myhost systemd[1]: Started Session 42 of user user.
+Jan 15 10:23:47 myhost kernel: [UFW BLOCK] IN=eth0 OUT= MAC=00:11:22:33:44:55 SRC=10.0.0.1 DST=192.168.1.1
+Jan 15 10:24:01 myhost CRON[5678]: (root) CMD (test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.hourly ))
+Jan 15 10:24:15 myhost nginx[9012]: 192.168.1.50 - - [15/Jan/2024:10:24:15 +0000] "GET /api/health HTTP/1.1" 200 15
+Jan 15 10:24:30 myhost postfix/smtpd[3456]: connect from unknown[10.0.0.50]
+Jan 15 10:24:31 myhost postfix/smtpd[3456]: disconnect from unknown[10.0.0.50] ehlo=1 quit=1
+Jan 15 10:25:00 myhost sudo[7890]: user : TTY=pts/0 ; PWD=/home/user ; USER=root ; COMMAND=/bin/cat /etc/shadow
+Jan 15 10:25:01 myhost sudo[7890]: pam_unix(sudo:session): session opened for user root by user(uid=1000)
+Jan 15 10:25:02 myhost sudo[7890]: pam_unix(sudo:session): session closed for user root
+Jan 15 10:26:00 myhost application[1111]: INFO: Application started successfully
+Jan 15 10:26:30 myhost application[1111]: WARNING: High memory usage detected: 85%
+Jan 15 10:27:00 myhost application[1111]: ERROR: Database connection failed: timeout after 30s
+Jan 15 10:27:30 myhost application[1111]: DEBUG: Retrying connection attempt 1 of 3
+Jan 15 10:28:00 myhost application[1111]: CRITICAL: Service unavailable, entering maintenance mode

@@ -1,0 +1,6 @@
+Jan 15 10:23:45 myhost sshd[1234]: Valid log line
+This line has no timestamp at all
+Jan 15 10:23:46 myhost systemd[1]: Another valid line
+
+Jan 15 badtime myhost broken[1]: Invalid timestamp format
+Jan 15 10:23:47 myhost kernel: Valid line after bad ones
