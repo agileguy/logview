@@ -73,17 +73,17 @@ class ContextModal(ModalScreen[int | None]):
     def __init__(
         self,
         sources: list[LogSource],
-        active_source_name: str | None = None,
+        active_source_index: int | None = None,
     ) -> None:
         """Initialize the context selector modal.
 
         Args:
             sources: List of available log sources.
-            active_source_name: Name of the currently active source.
+            active_source_index: Index of the currently active source.
         """
         super().__init__()
         self._sources = sources
-        self._active_source_name = active_source_name
+        self._active_source_index = active_source_index
 
     def compose(self) -> ComposeResult:
         """Compose the modal content."""
@@ -93,7 +93,7 @@ class ContextModal(ModalScreen[int | None]):
             # Create options for each source (use index as ID to handle duplicate names)
             options: list[Option] = []
             for idx, source in enumerate(self._sources):
-                is_active = source.name == self._active_source_name
+                is_active = idx == self._active_source_index
                 label = f"● {source.name}" if is_active else f"  {source.name}"
                 options.append(Option(label, id=str(idx)))
 
@@ -108,12 +108,9 @@ class ContextModal(ModalScreen[int | None]):
     def on_mount(self) -> None:
         """Handle mount event - select the active source by default."""
         option_list = self.query_one("#source-list", OptionList)
-        if self._active_source_name:
-            # Find and highlight the active source
-            for idx, source in enumerate(self._sources):
-                if source.name == self._active_source_name:
-                    option_list.highlighted = idx
-                    break
+        if self._active_source_index is not None:
+            # Highlight the active source directly by index
+            option_list.highlighted = self._active_source_index
 
     def action_cancel(self) -> None:
         """Cancel and close the modal."""

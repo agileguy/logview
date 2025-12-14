@@ -178,7 +178,13 @@ class LogViewApp(App[None]):
             self.notify("No log sources available")
             return
 
-        active_name = self._active_source.name if self._active_source else None
+        # Find active source index
+        active_index: int | None = None
+        if self._active_source:
+            try:
+                active_index = self._sources.index(self._active_source)
+            except ValueError:
+                pass
 
         def handle_selection(selected_index: int | None) -> None:
             if selected_index is not None and 0 <= selected_index < len(self._sources):
@@ -187,7 +193,7 @@ class LogViewApp(App[None]):
                 self.notify(f"Switched to {source.name}")
 
         self.push_screen(
-            ContextModal(self._sources, active_source_name=active_name),
+            ContextModal(self._sources, active_source_index=active_index),
             handle_selection,
         )
 

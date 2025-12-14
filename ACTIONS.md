@@ -170,3 +170,22 @@
 - `tests/unit/test_syslog_parser.py` - RFC 5424 tests, updated error message assertions
 
 **Tests:** 149 tests pass (6 new)
+
+---
+
+## 2024-12-13: Fix Duplicate Source Active Markers
+
+**Changes:**
+- Fixed bug where duplicate source names showed multiple active markers (●)
+  - ContextModal now receives active_source_index instead of active_source_name
+  - Uses index comparison for is_active check
+  - Uses index directly for highlighting on mount
+- Updated app.py to find and pass active source index
+- Updated tests to use new active_source_index parameter
+
+**Files:**
+- `src/logview/ui/screens/context.py` - Index-based active source tracking
+- `src/logview/app.py` - Pass active source index to ContextModal
+- `tests/ui/test_context_modal.py` - Updated to use active_source_index
+
+**Tests:** 149 tests pass

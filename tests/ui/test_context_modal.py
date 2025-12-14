@@ -134,7 +134,7 @@ class TestContextModal:
         async with app.run_test() as pilot:
             modal = ContextModal(
                 mock_sources,  # type: ignore[arg-type]
-                active_source_name="Syslog (/var/log/syslog)",
+                active_source_index=1,  # "Syslog (/var/log/syslog)" is at index 1
             )
             app.push_screen(modal)
             await pilot.pause()
@@ -197,7 +197,7 @@ class TestContextModalEmpty:
         """Test that the modal handles no active source."""
         app = LogViewApp()
         async with app.run_test() as pilot:
-            modal = ContextModal(mock_sources, active_source_name=None)  # type: ignore[arg-type]
+            modal = ContextModal(mock_sources, active_source_index=None)  # type: ignore[arg-type]
             app.push_screen(modal)
             await pilot.pause()
 
