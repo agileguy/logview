@@ -437,10 +437,60 @@ class LogViewApp(App[None]):
                 self.set_filter(new_filter)
                 self.notify("Filter applied")
 
+        # Get presets from config
+        presets = self._config.presets if self._config else []
+
         self.push_screen(
-            FilterModal(self._current_filter),
+            FilterModal(
+                self._current_filter,
+                presets=presets,
+                on_save_preset=self._save_preset,
+                on_delete_preset=self._delete_preset,
+            ),
             handle_filter,
         )
+
+    def _save_preset(self, preset: Any) -> None:
+        """Save a filter preset to config.
+
+        Args:
+            preset: The FilterPreset to save.
+        """
+        if self._config is None:
+            self._config = Config()
+
+        # Check if preset with same name exists
+        existing_idx = next(
+            (i for i, p in enumerate(self._config.presets) if p.name == preset.name),
+            None,
+        )
+        if existing_idx is not None:
+            self._config.presets[existing_idx] = preset
+        else:
+            self._config.presets.append(preset)
+
+        try:
+            save_config(self._config, self._config_path)
+            logger.info("Saved preset: %s", preset.name)
+        except Exception as e:
+            self.notify(f"Failed to save preset: {e}", severity="error")
+
+    def _delete_preset(self, name: str) -> None:
+        """Delete a filter preset from config.
+
+        Args:
+            name: Name of the preset to delete.
+        """
+        if self._config is None:
+            return
+
+        self._config.presets = [p for p in self._config.presets if p.name != name]
+
+        try:
+            save_config(self._config, self._config_path)
+            logger.info("Deleted preset: %s", name)
+        except Exception as e:
+            self.notify(f"Failed to delete preset: {e}", severity="error")
 
     def action_refresh(self) -> None:
         """Refresh the log list."""

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,7 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Select
 
+from logview.config.schema import FilterPreset
 from logview.domain.models import Filter, Severity, TimeRange
 
 if TYPE_CHECKING:
@@ -41,6 +43,7 @@ class FilterModal(ModalScreen[Filter | None]):
     """Modal for editing log filters.
 
     Allows configuring time range, severity level, and text search.
+    Supports loading and saving filter presets.
     Returns a Filter object or None if cancelled.
     """
 
@@ -52,7 +55,7 @@ class FilterModal(ModalScreen[Filter | None]):
     FilterModal > Vertical {
         width: 70;
         height: auto;
-        max-height: 30;
+        max-height: 35;
         background: $surface;
         border: thick $primary;
         padding: 1;
@@ -99,6 +102,21 @@ class FilterModal(ModalScreen[Filter | None]):
     FilterModal .limit-input {
         width: 20;
     }
+
+    FilterModal .preset-bar {
+        height: 3;
+        align: center middle;
+        margin-bottom: 1;
+    }
+
+    FilterModal #preset-select {
+        width: 1fr;
+    }
+
+    FilterModal .preset-btn {
+        width: auto;
+        margin-left: 1;
+    }
     """
 
     BINDINGS = [
@@ -106,19 +124,45 @@ class FilterModal(ModalScreen[Filter | None]):
         ("ctrl+enter", "apply", "Apply"),
     ]
 
-    def __init__(self, current_filter: Filter | None = None) -> None:
+    def __init__(
+        self,
+        current_filter: Filter | None = None,
+        presets: list[FilterPreset] | None = None,
+        on_save_preset: Callable[[FilterPreset], None] | None = None,
+        on_delete_preset: Callable[[str], None] | None = None,
+    ) -> None:
         """Initialize the filter modal.
 
         Args:
             current_filter: The current filter to edit, or None for defaults.
+            presets: List of saved filter presets.
+            on_save_preset: Callback when user saves a preset.
+            on_delete_preset: Callback when user deletes a preset.
         """
         super().__init__()
         self._current_filter = current_filter or Filter()
+        self._presets = presets or []
+        self._on_save_preset = on_save_preset
+        self._on_delete_preset = on_delete_preset
 
     def compose(self) -> ComposeResult:
         """Compose the modal content."""
         with Vertical():
             yield Label("Filter Logs", classes="filter-title")
+
+            # Presets section (only show if presets available or save callback exists)
+            if self._presets or self._on_save_preset:
+                yield Label("Presets:", classes="filter-label")
+                with Horizontal(classes="preset-bar"):
+                    preset_options: list[tuple[str, str]] = [("-- Select Preset --", "")]
+                    preset_options.extend(
+                        (preset.name, preset.name) for preset in self._presets
+                    )
+                    yield Select(preset_options, id="preset-select", value="")
+                    if self._on_save_preset:
+                        yield Button("Save", id="btn-save-preset", classes="preset-btn")
+                    if self._on_delete_preset and self._presets:
+                        yield Button("Delete", id="btn-del-preset", classes="preset-btn")
 
             # Time range section
             yield Label("Time Range:", classes="filter-label")
@@ -253,3 +297,154 @@ class FilterModal(ModalScreen[Filter | None]):
             self.action_apply()
         elif event.button.id == "btn-clear":
             self._clear_form()
+        elif event.button.id == "btn-save-preset":
+            self._save_preset()
+        elif event.button.id == "btn-del-preset":
+            self._delete_preset()
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle preset selection."""
+        if event.select.id == "preset-select" and event.value:
+            self._load_preset(str(event.value))
+
+    def _load_preset(self, name: str) -> None:
+        """Load a preset into the form.
+
+        Args:
+            name: Name of the preset to load.
+        """
+        preset = next((p for p in self._presets if p.name == name), None)
+        if not preset:
+            return
+
+        # Apply time range
+        if preset.time_range_minutes:
+            for idx, (_, delta) in enumerate(TIME_PRESETS):
+                if delta and delta.total_seconds() / 60 == preset.time_range_minutes:
+                    self.query_one("#time-select", Select).value = str(idx)
+                    break
+        else:
+            self.query_one("#time-select", Select).value = "0"
+
+        # Apply severity
+        if preset.severity:
+            try:
+                severity = Severity.from_string(preset.severity)
+                for idx, (_, sev) in enumerate(SEVERITY_OPTIONS):
+                    if sev == severity:
+                        self.query_one("#severity-select", Select).value = str(idx)
+                        break
+            except ValueError:
+                self.query_one("#severity-select", Select).value = "0"
+        else:
+            self.query_one("#severity-select", Select).value = "0"
+
+        # Apply text search
+        self.query_one("#text-search", Input).value = preset.text_search or ""
+
+        self.notify(f"Loaded preset: {name}")
+
+    def _save_preset(self) -> None:
+        """Save current filter settings as a preset."""
+        if not self._on_save_preset:
+            return
+
+        # Prompt for name
+        text_input = self.query_one("#text-search", Input)
+        current_text = text_input.value.strip()
+
+        # Generate default name from current settings
+        parts = []
+        time_select = self.query_one("#time-select", Select)
+        if time_select.value != Select.BLANK and time_select.value != "0":
+            time_idx = int(str(time_select.value))
+            parts.append(TIME_PRESETS[time_idx][0].lower().replace(" ", "-"))
+
+        severity_select = self.query_one("#severity-select", Select)
+        if severity_select.value != Select.BLANK and severity_select.value != "0":
+            sev_idx = int(str(severity_select.value))
+            parts.append(SEVERITY_OPTIONS[sev_idx][0].lower().replace("+", ""))
+
+        if current_text:
+            parts.append(current_text[:20])
+
+        if not parts:
+            parts.append("default")
+
+        name = "-".join(parts)
+
+        # Check if name already exists
+        existing = next((p for p in self._presets if p.name == name), None)
+        if existing:
+            # Update existing
+            pass
+
+        # Build preset
+        time_range_minutes = None
+        if time_select.value != Select.BLANK:
+            time_idx = int(str(time_select.value))
+            _, delta = TIME_PRESETS[time_idx]
+            if delta:
+                time_range_minutes = int(delta.total_seconds() / 60)
+
+        severity_str = None
+        if severity_select.value != Select.BLANK:
+            sev_idx = int(str(severity_select.value))
+            _, severity = SEVERITY_OPTIONS[sev_idx]
+            if severity:
+                severity_str = severity.value
+
+        preset = FilterPreset(
+            name=name,
+            severity=severity_str,
+            time_range_minutes=time_range_minutes,
+            text_search=current_text if current_text else None,
+        )
+
+        self._on_save_preset(preset)
+        self._presets.append(preset)
+
+        # Update dropdown
+        try:
+            preset_select = self.query_one("#preset-select", Select)
+            # Add new option
+            preset_select.set_options(
+                [("-- Select Preset --", "")]
+                + [(p.name, p.name) for p in self._presets]
+            )
+            preset_select.value = name
+        except Exception:
+            pass
+
+        self.notify(f"Saved preset: {name}")
+
+    def _delete_preset(self) -> None:
+        """Delete the currently selected preset."""
+        if not self._on_delete_preset:
+            return
+
+        try:
+            preset_select = self.query_one("#preset-select", Select)
+            selected = str(preset_select.value) if preset_select.value else ""
+        except Exception:
+            return
+
+        if not selected:
+            self.notify("Select a preset to delete", severity="warning")
+            return
+
+        # Remove from list
+        self._presets = [p for p in self._presets if p.name != selected]
+        self._on_delete_preset(selected)
+
+        # Update dropdown
+        try:
+            preset_select.set_options(
+                [("-- Select Preset --", "")]
+                + [(p.name, p.name) for p in self._presets]
+            )
+            preset_select.value = ""
+        except Exception:
+            pass
+
+        self.notify(f"Deleted preset: {selected}")

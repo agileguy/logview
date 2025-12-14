@@ -1,5 +1,27 @@
 # LogView Action Log
 
+## 2025-12-14: Phase 6 - Filter Presets
+
+**Changes:**
+- Added filter preset support to FilterModal
+  - Load preset from dropdown (applies time range, severity, text search)
+  - Save current filter settings as named preset
+  - Delete unused presets
+  - Presets stored in config.json and persist across sessions
+- Wired presets to app.py with save/delete callbacks
+- Auto-generated preset names from settings (e.g., "last-1-hour-error")
+
+**Files Added:**
+- `tests/ui/test_filter_presets.py` - 6 tests for preset functionality
+
+**Files Modified:**
+- `src/logview/ui/screens/filter.py` - Preset dropdown, save/delete buttons, load logic
+- `src/logview/app.py` - Preset save/delete callbacks, wiring to FilterModal
+
+**Tests:** 365 passed, 38 skipped
+
+---
+
 ## 2025-12-14: Phase 6 - Export Logs to JSON/JSONL
 
 **Changes:**
