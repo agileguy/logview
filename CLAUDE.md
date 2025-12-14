@@ -156,6 +156,53 @@ Snapshot tests use separate directories for CI vs local:
 
 This prevents CI environment differences from causing false failures.
 
+## Pull Request Management (MANDATORY)
+
+### Monitor Open PRs
+
+**When a PR is open, you MUST:**
+
+1. **Check CI status** after pushing:
+   ```bash
+   gh pr checks <PR_NUMBER>
+   ```
+
+2. **Fix any failing checks immediately** - do not leave PRs with red CI:
+   - Read the failure logs: `gh run view <RUN_ID> --log-failed`
+   - Fix the issue locally
+   - Push the fix
+   - Verify CI passes
+
+3. **Do not consider work complete until all checks pass**
+
+### Cursor Reviews (MANDATORY)
+
+**When Cursor Bugbot reviews a PR, you MUST:**
+
+1. **Check for review comments**:
+   ```bash
+   gh api repos/{owner}/{repo}/pulls/{pr}/comments
+   ```
+
+2. **Implement ALL suggestions** from Cursor reviews:
+   - Bug fixes (security, logic errors, resource leaks)
+   - Code improvements
+   - Missing edge cases
+
+3. **Push fixes and verify** the review issues are resolved
+
+4. **Only mark PR as ready** after:
+   - All CI checks pass
+   - All Cursor review suggestions implemented
+
+### PR Checklist
+
+Before considering a PR complete:
+- [ ] All CI checks pass (green)
+- [ ] Cursor review suggestions implemented
+- [ ] ACTIONS.md updated with changes
+- [ ] Version bumped if releasing (VERSION, CHANGELOG.md)
+
 ## Action Logging (MANDATORY)
 
 **After completing significant work, append a summary to `ACTIONS.md`:**
