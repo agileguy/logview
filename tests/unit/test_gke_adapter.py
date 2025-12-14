@@ -12,6 +12,7 @@ from logview.adapters.gcp import GCP_AVAILABLE
 from logview.adapters.gke import (
     GKEClusterNotFoundError,
     GKEError,
+    GKEInvalidFilterError,
     GKELogSource,
     _build_gke_filter,
     _parse_gke_log_entry,
@@ -301,34 +302,54 @@ class TestGKEFilterBuilding:
         assert "textPayload:" in filter_str
 
     def test_internal_wildcard_namespace_rejected(self) -> None:
-        """Test that internal wildcards in namespace are rejected."""
-        filter_str = _build_gke_filter(
-            Filter(fields={"namespace": "kube-*-system"}),
-            project="test-project",
-            cluster="my-cluster",
-        )
-        # Should NOT contain namespace filter (internal wildcard rejected)
-        assert "namespace_name" not in filter_str
+        """Test that internal wildcards in namespace raise error."""
+        with pytest.raises(GKEInvalidFilterError) as exc_info:
+            _build_gke_filter(
+                Filter(fields={"namespace": "kube-*-system"}),
+                project="test-project",
+                cluster="my-cluster",
+            )
+        assert "only trailing wildcards" in str(exc_info.value)
 
     def test_internal_wildcard_pod_rejected(self) -> None:
-        """Test that internal wildcards in pod name are rejected."""
-        filter_str = _build_gke_filter(
-            Filter(fields={"pod": "api-*-server"}),
-            project="test-project",
-            cluster="my-cluster",
-        )
-        # Should NOT contain pod filter (internal wildcard rejected)
-        assert "pod_name" not in filter_str
+        """Test that internal wildcards in pod name raise error."""
+        with pytest.raises(GKEInvalidFilterError) as exc_info:
+            _build_gke_filter(
+                Filter(fields={"pod": "api-*-server"}),
+                project="test-project",
+                cluster="my-cluster",
+            )
+        assert "only trailing wildcards" in str(exc_info.value)
 
     def test_non_trailing_wildcard_rejected(self) -> None:
-        """Test that non-trailing wildcards are rejected."""
-        filter_str = _build_gke_filter(
-            Filter(fields={"namespace": "*-system"}),
-            project="test-project",
-            cluster="my-cluster",
-        )
-        # Should NOT contain namespace filter
-        assert "namespace_name" not in filter_str
+        """Test that non-trailing wildcards raise error."""
+        with pytest.raises(GKEInvalidFilterError) as exc_info:
+            _build_gke_filter(
+                Filter(fields={"namespace": "*-system"}),
+                project="test-project",
+                cluster="my-cluster",
+            )
+        assert "only trailing wildcards" in str(exc_info.value)
+
+    def test_wildcard_only_namespace_rejected(self) -> None:
+        """Test that wildcard-only namespace pattern raises error."""
+        with pytest.raises(GKEInvalidFilterError) as exc_info:
+            _build_gke_filter(
+                Filter(fields={"namespace": "*"}),
+                project="test-project",
+                cluster="my-cluster",
+            )
+        assert "wildcard-only patterns are not allowed" in str(exc_info.value)
+
+    def test_wildcard_only_pod_rejected(self) -> None:
+        """Test that wildcard-only pod pattern raises error."""
+        with pytest.raises(GKEInvalidFilterError) as exc_info:
+            _build_gke_filter(
+                Filter(fields={"pod": "*"}),
+                project="test-project",
+                cluster="my-cluster",
+            )
+        assert "wildcard-only patterns are not allowed" in str(exc_info.value)
 
     def test_labels_invalid_pair_ignored(self) -> None:
         """Test that label pairs without = are ignored."""
@@ -374,6 +395,17 @@ class TestGKEFilterBuilding:
             cluster="my-cluster",
         )
         assert 'labels."k8s-pod/app"="nginx"' in filter_str
+
+    def test_labels_special_chars_escaped(self) -> None:
+        """Test that special characters in label values are escaped."""
+        filter_str = _build_gke_filter(
+            Filter(fields={"labels": 'app="quoted",path=back\\slash'}),
+            project="test-project",
+            cluster="my-cluster",
+        )
+        # Quotes and backslashes should be escaped
+        assert 'labels."k8s-pod/app"="\\"quoted\\""' in filter_str
+        assert 'labels."k8s-pod/path"="back\\\\slash"' in filter_str
 
 
 class TestGKELogEntryParsing:

@@ -58,6 +58,12 @@ class GKEClusterNotFoundError(GKEError):
         )
 
 
+class GKEInvalidFilterError(GKEError):
+    """Raised when an invalid filter pattern is provided."""
+
+    pass
+
+
 def _validate_cluster_name(cluster: str) -> None:
     """Validate GKE cluster name format.
 
@@ -147,12 +153,22 @@ def _build_gke_filter(
         # Only allow trailing wildcard, reject internal wildcards for safety
         if effective_namespace.endswith("*"):
             prefix = effective_namespace[:-1]  # Remove trailing *
+            if not prefix:
+                raise GKEInvalidFilterError(
+                    f"Invalid namespace pattern '{effective_namespace}': "
+                    "wildcard-only patterns are not allowed"
+                )
             if "*" in prefix:
-                logger.warning("Invalid namespace pattern (internal wildcards): %s", effective_namespace)
-            else:
-                parts.append(f'resource.labels.namespace_name=~"^{re.escape(prefix)}"')
+                raise GKEInvalidFilterError(
+                    f"Invalid namespace pattern '{effective_namespace}': "
+                    "only trailing wildcards are allowed (e.g., 'kube-*')"
+                )
+            parts.append(f'resource.labels.namespace_name=~"^{re.escape(prefix)}"')
         elif "*" in effective_namespace:
-            logger.warning("Invalid namespace pattern (wildcard not at end): %s", effective_namespace)
+            raise GKEInvalidFilterError(
+                f"Invalid namespace pattern '{effective_namespace}': "
+                "only trailing wildcards are allowed (e.g., 'kube-*')"
+            )
         else:
             parts.append(f'resource.labels.namespace_name="{effective_namespace}"')
 
@@ -165,12 +181,22 @@ def _build_gke_filter(
         # Only allow trailing wildcard, reject internal wildcards for safety
         if effective_pod.endswith("*"):
             prefix = effective_pod[:-1]  # Remove trailing *
+            if not prefix:
+                raise GKEInvalidFilterError(
+                    f"Invalid pod pattern '{effective_pod}': "
+                    "wildcard-only patterns are not allowed"
+                )
             if "*" in prefix:
-                logger.warning("Invalid pod pattern (internal wildcards): %s", effective_pod)
-            else:
-                parts.append(f'resource.labels.pod_name=~"^{re.escape(prefix)}"')
+                raise GKEInvalidFilterError(
+                    f"Invalid pod pattern '{effective_pod}': "
+                    "only trailing wildcards are allowed (e.g., 'api-*')"
+                )
+            parts.append(f'resource.labels.pod_name=~"^{re.escape(prefix)}"')
         elif "*" in effective_pod:
-            logger.warning("Invalid pod pattern (wildcard not at end): %s", effective_pod)
+            raise GKEInvalidFilterError(
+                f"Invalid pod pattern '{effective_pod}': "
+                "only trailing wildcards are allowed (e.g., 'api-*')"
+            )
         else:
             parts.append(f'resource.labels.pod_name="{effective_pod}"')
 
@@ -204,7 +230,10 @@ def _build_gke_filter(
 
     for key, value in effective_labels.items():
         # Pod labels are stored as labels."k8s-pod/<key>"
-        parts.append(f'labels."k8s-pod/{key}"="{value}"')
+        # Escape special characters in key and value for Cloud Logging filter syntax
+        escaped_key = key.replace("\\", "\\\\").replace('"', '\\"')
+        escaped_value = value.replace("\\", "\\\\").replace('"', '\\"')
+        parts.append(f'labels."k8s-pod/{escaped_key}"="{escaped_value}"')
 
     # Time range
     if log_filter.time_range:
