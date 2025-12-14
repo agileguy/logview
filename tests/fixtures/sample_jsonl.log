@@ -1,0 +1,5 @@
+{"timestamp": "2025-01-15T10:30:00", "level": "info", "message": "Application started"}
+{"timestamp": "2025-01-15T10:30:01", "level": "debug", "message": "Loading configuration", "config_file": "/etc/app.conf"}
+{"timestamp": "2025-01-15T10:30:02", "level": "info", "message": "Database connected", "db_host": "localhost"}
+{"timestamp": "2025-01-15T10:30:03", "level": "warn", "message": "Cache miss rate high", "rate": 0.45}
+{"timestamp": "2025-01-15T10:30:04", "level": "error", "message": "Failed to send email", "error": "SMTP timeout"}

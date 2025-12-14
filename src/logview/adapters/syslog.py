@@ -57,6 +57,7 @@ class SyslogLogSource:
         file_path: Path | str | None = None,
         year: int | None = None,
         allowed_directories: list[Path] | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize the syslog source.
 
@@ -65,6 +66,7 @@ class SyslogLogSource:
             year: Year to use for timestamps (syslog doesn't include year).
                   Defaults to current year.
             allowed_directories: Override allowed directories (for testing).
+            name: Custom display name. If not provided, generates from file path.
         """
         if file_path is None:
             self._path = Path("/var/log/syslog")
@@ -73,6 +75,7 @@ class SyslogLogSource:
 
         self._year = year
         self._validated = False
+        self._custom_name = name
         self._resolved_path: Path | None = None  # Set after validation to prevent TOCTOU
         self._allowed_directories = (
             allowed_directories if allowed_directories is not None else self.ALLOWED_DIRECTORIES
@@ -81,6 +84,8 @@ class SyslogLogSource:
     @property
     def name(self) -> str:
         """Human-readable name for this source."""
+        if self._custom_name:
+            return self._custom_name
         return f"Syslog ({self._path.name})"
 
     def _validate_path(self) -> None:

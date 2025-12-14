@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -9,10 +10,19 @@ from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header
 
 from logview.adapters.base import LogSource
+from logview.adapters.discovery import DiscoveredLog, discover_logs
+from logview.adapters.logfile import LogFileSource
 from logview.adapters.mock import MockLogSource
 from logview.adapters.syslog import SyslogLogSource
 from logview.config.loader import load_config, save_config
-from logview.config.schema import Config, GCPContext, GKEContext, MockContext, SyslogContext
+from logview.config.schema import (
+    Config,
+    GCPContext,
+    GKEContext,
+    LogFileContext,
+    MockContext,
+    SyslogContext,
+)
 from logview.domain.models import Filter
 from logview.ui.screens.context import ContextModal
 from logview.ui.screens.detail import DetailModal
@@ -50,6 +60,7 @@ class LogViewApp(App[None]):
         self._sources: list[LogSource] = []
         self._active_source: LogSource | None = None
         self._current_filter: Filter = Filter(limit=100)
+        self._registered_paths: set[Path] = set()  # Track registered file paths to avoid duplicates
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -115,13 +126,94 @@ class LogViewApp(App[None]):
             try:
                 source = self._create_source_from_context(context)
                 if source:
-                    self.register_source(source)
+                    # Track path for file-based sources to prevent duplicates
+                    # Expand tilde before resolving to ensure consistent path comparison
+                    source_path = None
+                    if isinstance(context, (SyslogContext, LogFileContext)):
+                        source_path = Path(os.path.expanduser(context.path))
+                    if not self.register_source(source, path=source_path):
+                        # Warn user about duplicate file path in config
+                        self.notify(
+                            f"Skipping duplicate source '{context.name}' (same file path)",
+                            severity="warning",
+                        )
             except Exception as e:
                 self.notify(f"Error creating source '{context.name}': {e}", severity="warning")
 
+        # Auto-discover log files in background to avoid blocking UI
+        # Use call_after_refresh to ensure event loop is running
+        self.call_after_refresh(self._schedule_discovery)
+
+    def _schedule_discovery(self) -> None:
+        """Schedule log discovery as an async task."""
+        import asyncio
+
+        try:
+            asyncio.create_task(self._discover_and_register_logs_async())
+        except RuntimeError:
+            # No running event loop - skip discovery
+            pass
+
+    async def _discover_and_register_logs_async(self) -> None:
+        """Discover log files from configured paths and register them (runs in worker)."""
+        if not self._config or not self._config.discovery:
+            return
+
+        discovery = self._config.discovery
+        if not discovery.paths:
+            return
+
+        try:
+            # Run discovery in thread to avoid blocking
+            discovered = await self._run_discovery_in_thread(
+                discovery.paths,
+                discovery.max_depth,
+                discovery.allowed_directories,
+            )
+
+            registered_count = 0
+            for log in discovered:
+                try:
+                    source = LogFileSource(
+                        name=log.name,
+                        path=str(log.path),
+                        format="auto",
+                        allowed_directories=discovery.allowed_directories,
+                    )
+                    # Pass path to avoid duplicates with configured sources
+                    if self.register_source(source, path=log.path):  # type: ignore[arg-type]
+                        registered_count += 1
+                except Exception:
+                    # Skip individual files that fail to load (silently)
+                    pass
+
+            if registered_count > 0:
+                self.notify(f"Discovered {registered_count} log file(s)")
+
+        except Exception as e:
+            self.notify(f"Log discovery error: {e}", severity="warning")
+
+    async def _run_discovery_in_thread(
+        self,
+        paths: list[str],
+        max_depth: int,
+        allowed_dirs: list[str],
+    ) -> list[DiscoveredLog]:
+        """Run log discovery in a thread to avoid blocking the event loop."""
+        import asyncio
+
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            discover_logs,
+            paths,
+            max_depth,
+            allowed_dirs,
+        )
+
     def _create_source_from_context(
         self,
-        context: MockContext | SyslogContext | GCPContext | GKEContext,
+        context: MockContext | SyslogContext | GCPContext | GKEContext | LogFileContext,
     ) -> LogSource | None:
         """Create a log source from a config context.
 
@@ -134,19 +226,50 @@ class LogViewApp(App[None]):
         if isinstance(context, MockContext):
             return MockLogSource(seed=context.seed)  # type: ignore[return-value]
         elif isinstance(context, SyslogContext):
-            return SyslogLogSource(file_path=context.path)  # type: ignore[return-value]
+            # Pass configured allowed_directories for security whitelist
+            allowed_paths: list[Path] | None = None
+            if self._config and self._config.discovery:
+                allowed_paths = [Path(os.path.expanduser(d)) for d in self._config.discovery.allowed_directories]
+            return SyslogLogSource(  # type: ignore[return-value]
+                file_path=context.path,
+                name=context.name,
+                allowed_directories=allowed_paths,
+            )
+        elif isinstance(context, LogFileContext):
+            # Pass configured allowed_directories for security whitelist
+            allowed_dirs = None
+            if self._config and self._config.discovery:
+                allowed_dirs = self._config.discovery.allowed_directories
+            return LogFileSource(  # type: ignore[return-value]
+                name=context.name,
+                path=context.path,
+                format=context.format,
+                allowed_directories=allowed_dirs,
+            )
         else:
             # GCP and GKE not implemented yet
             self.notify(f"Source type '{context.type}' not yet implemented", severity="warning")
             return None
 
-    def register_source(self, source: LogSource) -> None:
+    def register_source(self, source: LogSource, path: Path | None = None) -> bool:
         """Register a log source.
 
         Args:
             source: The log source to register.
+            path: Optional file path to track (prevents duplicate registrations).
+
+        Returns:
+            True if registered, False if path was already registered.
         """
+        if path is not None:
+            # Expand tilde and resolve to get canonical path for comparison
+            resolved = Path(os.path.expanduser(str(path))).resolve()
+            if resolved in self._registered_paths:
+                return False
+            self._registered_paths.add(resolved)
+
         self._sources.append(source)
+        return True
 
     def set_active_source(self, source: LogSource) -> None:
         """Set the active log source and refresh.

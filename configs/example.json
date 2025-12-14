@@ -2,6 +2,18 @@
   "$schema": "https://logview.dev/schema/config.json",
   "contexts": [
     {
+      "name": "app-logs",
+      "type": "logfile",
+      "path": "/var/log/myapp/application.log",
+      "format": "auto"
+    },
+    {
+      "name": "api-jsonl",
+      "type": "logfile",
+      "path": "/var/log/api/requests.jsonl",
+      "format": "jsonl"
+    },
+    {
       "name": "prod-gke",
       "type": "gke",
       "project": "my-gcp-project",
@@ -21,7 +33,7 @@
       "log_name": "cloudaudit.googleapis.com%2Factivity"
     },
     {
-      "name": "local",
+      "name": "local-syslog",
       "type": "syslog",
       "path": "/var/log/syslog"
     },
@@ -31,6 +43,11 @@
       "seed": 42
     }
   ],
+  "discovery": {
+    "paths": ["/var/log", "/home/user/logs"],
+    "max_depth": 3,
+    "allowed_directories": ["/var/log", "/opt", "/home"]
+  },
   "presets": [
     {
       "name": "errors-last-hour",

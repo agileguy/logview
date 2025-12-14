@@ -79,9 +79,9 @@ hypothesis>=6.0.0
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                   Adapter Layer                             │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌───────┐ │
-│  │     GCP     │ │     GKE     │ │   Syslog    │ │ Mock  │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └───────┘ │
+│  ┌───────┐ ┌───────┐ ┌─────────┐ ┌─────────┐ ┌───────┐    │
+│  │  GCP  │ │  GKE  │ │ Syslog  │ │ LogFile │ │ Mock  │    │
+│  └───────┘ └───────┘ └─────────┘ └─────────┘ └───────┘    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -184,6 +184,8 @@ logview/
 │       │   ├── gcp.py
 │       │   ├── gke.py
 │       │   ├── syslog.py
+│       │   ├── logfile.py        # Generic log file adapter
+│       │   ├── discovery.py      # Log file discovery service
 │       │   └── mock.py           # For testing
 │       ├── domain/               # Core business logic
 │       │   ├── __init__.py
@@ -314,7 +316,96 @@ logview/
 
 ---
 
-### Phase 3: GCP Cloud Logging
+### Phase 3: Application Logs
+**Goal:** View any text-based log file with format auto-detection.
+
+**Deliverables:**
+- [ ] Log discovery service (find readable logs in configured directories)
+- [ ] Generic file log adapter supporting multiple formats
+- [ ] Format parsers:
+  - Plain text (line-based, no timestamp parsing)
+  - JSON Lines (one JSON object per line)
+  - Syslog (reuse existing parser for RFC 3164/5424)
+- [ ] Auto-detection of log format based on content sampling
+- [ ] Configuration for discovery paths and allowed directories
+- [ ] Discovery action in UI (user-triggered, not automatic)
+
+**What this phase is NOT:**
+- NOT automatic context creation on startup (too slow, clutters UI)
+- NOT live file watching/tail -f (deferred to Phase 6)
+- NOT Nginx/Apache specific parsers (deferred to Phase 7)
+- NOT a replacement for syslog adapter (complements it)
+
+**Log discovery behavior:**
+- User triggers discovery via keybinding or menu
+- Scans configured directories (default: /var/log) up to max depth
+- Shows list of discovered files for user to select
+- Selected files added as contexts to configuration
+- Skips: binary files, compressed archives (.gz, .bz2, .xz), unreadable files
+
+**Configuration:**
+```json
+{
+  "contexts": [
+    {
+      "name": "my-app",
+      "type": "logfile",
+      "path": "/opt/myapp/logs/app.log",
+      "format": "auto"
+    },
+    {
+      "name": "api-logs",
+      "type": "logfile",
+      "path": "/var/log/myapi/server.log",
+      "format": "jsonl"
+    }
+  ],
+  "discovery": {
+    "paths": ["/var/log", "/opt/logs"],
+    "max_depth": 3,
+    "allowed_directories": ["/var/log", "/opt", "/home"]
+  }
+}
+```
+
+**Supported log formats:**
+- `auto` - Sample first 10 lines and detect format
+- `plain` - Each line is a log entry, timestamp from file mtime
+- `jsonl` - JSON Lines format, extracts timestamp/severity/message from JSON
+- `syslog` - Delegates to existing syslog parser
+
+**Format auto-detection logic:**
+1. Try to parse first line as JSON → jsonl format
+2. Try to match syslog pattern (RFC 3164/5424) → syslog format
+3. Default to plain text
+
+**JSON Lines field mapping:**
+- timestamp: looks for `timestamp`, `time`, `ts`, `@timestamp`, `date`
+- severity: looks for `level`, `severity`, `log_level`, `loglevel`
+- message: looks for `message`, `msg`, `text`, `log`
+- Remaining fields → metadata
+
+**Security considerations:**
+- Path validation against allowed_directories (reuse syslog security)
+- No symlink following outside allowed paths
+- Sanitize log content before display (reuse existing sanitization)
+
+**Testing strategy:**
+- Unit tests for format detection
+- Unit tests for JSON Lines parser
+- Integration tests with sample log files of each format
+- Discovery service tests with mock filesystem
+
+**Exit criteria:**
+- Can discover log files in /var/log via UI action
+- Can view plain text logs (each line = one entry)
+- Can view JSON Lines formatted logs
+- Format auto-detection works correctly
+- All security validations in place
+
+---
+
+### Phase 4: GCP Cloud Logging
 **Goal:** Cloud integration with proper authentication.
 
 **Deliverables:**
@@ -349,7 +440,7 @@ logview/
 
 ---
 
-### Phase 4: GKE Integration
+### Phase 5: GKE Integration
 **Goal:** Kubernetes-specific log viewing with cluster awareness.
 
 **Deliverables:**
@@ -381,7 +472,7 @@ logview/
 
 ---
 
-### Phase 5: Enhanced UX
+### Phase 6: Enhanced UX
 **Goal:** Polish and power-user features.
 
 **Deliverables:**
@@ -405,7 +496,7 @@ logview/
 
 ---
 
-### Phase 6: Additional Sources (Future)
+### Phase 7: Additional Sources (Future)
 **Goal:** Extensibility proven with more sources.
 
 **Potential adapters:**
@@ -417,7 +508,7 @@ logview/
 - [ ] Docker container logs
 - [ ] SSH remote syslog
 
-Each adapter follows established patterns from Phases 2-4.
+Each adapter follows established patterns from Phases 2-5.
 
 ---
 
@@ -584,7 +675,20 @@ class SyslogContext(BaseModel):
     path: str = "/var/log/syslog"
 
 
-Context = GKEContext | GCPContext | SyslogContext
+class LogFileContext(BaseModel):
+    name: str
+    type: Literal["logfile"]
+    path: str
+    format: Literal["auto", "plain", "syslog", "jsonl"] = "auto"
+
+
+class DiscoverySettings(BaseModel):
+    paths: list[str] = Field(default_factory=lambda: ["/var/log"])
+    max_depth: int = 3
+    allowed_directories: list[str] = Field(default_factory=lambda: ["/var/log", "/opt", "/home"])
+
+
+Context = GKEContext | GCPContext | SyslogContext | LogFileContext
 
 
 class FilterPreset(BaseModel):
@@ -612,6 +716,7 @@ class Config(BaseModel):
     presets: list[FilterPreset] = Field(default_factory=list)
     ui: UISettings = Field(default_factory=UISettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
+    discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
 ```
 
 ---
@@ -728,16 +833,21 @@ async def test_context_modal_opens():
 - Memory usage < 100MB for 50k log lines
 
 ### Phase 3
+- Log discovery completes in < 3s for /var/log
+- Format detection accuracy > 95% for plain/jsonl/syslog
+- JSON Lines parsing handles 10k entries in < 1s
+
+### Phase 4
 - GCP authentication succeeds on first try (with ADC)
 - Streaming updates appear within 2s
 - Error messages are actionable
 
-### Phase 4
+### Phase 5
 - Pod logs stream in real-time
 - Cluster switching takes < 3s
 - Namespace list loads in < 1s
 
-### Phase 5
+### Phase 6
 - All operations have keyboard shortcuts
 - Help is discoverable
 - Theme switch is instant

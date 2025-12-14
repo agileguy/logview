@@ -42,8 +42,17 @@ class MockContext(BaseModel):
     seed: int | None = None
 
 
+class LogFileContext(BaseModel):
+    """Generic log file context configuration."""
+
+    name: str
+    type: Literal["logfile"]
+    path: str
+    format: Literal["auto", "plain", "syslog", "jsonl"] = "auto"
+
+
 Context = Annotated[
-    GKEContext | GCPContext | SyslogContext | MockContext,
+    GKEContext | GCPContext | SyslogContext | MockContext | LogFileContext,
     Field(discriminator="type"),
 ]
 
@@ -74,6 +83,20 @@ class SecuritySettings(BaseModel):
     credential_helper: Literal["gcloud", "env", "keyring"] = "gcloud"
 
 
+class DiscoverySettings(BaseModel):
+    """Log file discovery settings.
+
+    Note: Discovery is opt-in. Set `paths` to enable auto-discovery.
+    """
+
+    # Default to empty - discovery only runs if paths explicitly configured
+    paths: list[str] = Field(default_factory=list)
+    max_depth: int = 3
+    allowed_directories: list[str] = Field(
+        default_factory=lambda: ["/var/log", "/opt", "/home"]
+    )
+
+
 class Config(BaseModel):
     """Root configuration model."""
 
@@ -81,3 +104,4 @@ class Config(BaseModel):
     presets: list[FilterPreset] = Field(default_factory=list)
     ui: UISettings = Field(default_factory=UISettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
+    discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)

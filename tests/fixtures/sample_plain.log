@@ -1,0 +1,10 @@
+Application starting up
+Loading modules
+DEBUG: Configuration loaded from /etc/app.conf
+INFO: Server listening on port 8080
+Processing request from 192.168.1.100
+WARNING: Request took longer than expected (2.5s)
+ERROR: Database connection lost
+Attempting reconnection...
+Connection restored
+CRITICAL: Out of disk space
