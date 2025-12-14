@@ -29,17 +29,22 @@ The following tools can be used freely without user approval:
 - `gh` - GitHub CLI (repos, PRs, issues, auth, runs, api)
 
 ### Python Development
-- `.venv/bin/*` - All virtual environment tools
-- `source .venv/bin/activate*` - Activate virtual environment
+- `.venv/bin/pytest:*` - Running tests
+- `.venv/bin/mypy:*` - Type checking (e.g., `.venv/bin/mypy src/`)
+- `.venv/bin/ruff:*` - Linting (e.g., `.venv/bin/ruff check src/ tests/`)
+- `.venv/bin/python3:*` - Python execution
+- `.venv/bin/pip:*` - Package management
+- `source .venv/bin/activate` - Activate virtual environment
 - `pip install:*` - Install packages
 - `pip show:*` - Show package info
-- `pytest:*` - Running tests
+- `pytest:*` - Running tests (system pytest)
 - `python -m pytest:*` - Running pytest as module
-- `mypy:*` - Type checking
+- `mypy:*` - Type checking (system mypy)
 - `ruff check:*` - Linting and formatting
 - `python:*` / `python3:*` - Python execution
 - `coverage run:*` / `coverage report:*` - Coverage tools
 - `timeout 3 python3:*` - Timeout-limited execution
+- `pipx inject:*` - pipx package injection
 - `find:*` - File finding
 
 ### Web

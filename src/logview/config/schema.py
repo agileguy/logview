@@ -14,6 +14,7 @@ class GKEContext(BaseModel):
     type: Literal["gke"]
     project: str
     cluster: str
+    location: str | None = None  # Cluster zone or region (e.g., "us-central1-a")
     default_namespace: str | None = None
 
 
