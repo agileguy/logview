@@ -223,6 +223,34 @@ class TestFilterBuilding:
         assert 'logName="custom-log"' in filter_str
         assert 'resource.type="k8s_container"' in filter_str
 
+    def test_text_search_escapes_backslashes(self) -> None:
+        """Test that backslashes in text search are escaped before quotes."""
+        # Backslash followed by quote: test\"data
+        filter_str = _build_filter(Filter(text_search='test\\"data'))
+        # Should produce: test\\"data (backslash escaped, then quote escaped)
+        assert 'textPayload:"test\\\\\\"data"' in filter_str
+
+    def test_text_search_escapes_backslash_only(self) -> None:
+        """Test that lone backslashes are escaped."""
+        filter_str = _build_filter(Filter(text_search="path\\to\\file"))
+        # Each backslash should be doubled
+        assert 'textPayload:"path\\\\to\\\\file"' in filter_str
+
+    def test_fields_skipped_when_params_provided(self) -> None:
+        """Test that fields are skipped when parameters already provide log_name/resource_type."""
+        log_filter = Filter(
+            fields={"log_name": "field-log", "resource_type": "field-resource"}
+        )
+        # When parameters are provided, they take precedence and fields are skipped
+        filter_str = _build_filter(log_filter, log_name="param-log", resource_type="param-resource")
+        # Should only have param values, not field values (which would cause duplicate conditions)
+        assert filter_str.count('logName=') == 1
+        assert filter_str.count('resource.type=') == 1
+        assert 'logName="param-log"' in filter_str
+        assert 'resource.type="param-resource"' in filter_str
+        assert 'logName="field-log"' not in filter_str
+        assert 'resource.type="field-resource"' not in filter_str
+
 
 class TestLogEntryParsing:
     """Tests for GCP log entry parsing."""

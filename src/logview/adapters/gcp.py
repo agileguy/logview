@@ -201,17 +201,20 @@ def _build_filter(
 
     # Text search
     if log_filter.text_search:
-        # Escape quotes in search text
+        # Escape backslashes first, then quotes (order matters!)
+        # Cloud Logging uses \\ for literal backslash and \" for literal quote
         # Wrap OR expression in parentheses to ensure correct precedence with AND
-        escaped = log_filter.text_search.replace('"', '\\"')
+        escaped = log_filter.text_search.replace("\\", "\\\\").replace('"', '\\"')
         parts.append(f'(textPayload:"{escaped}" OR jsonPayload:"{escaped}")')
 
     # Custom fields from filter.fields
+    # Skip log_name/resource_type if already provided via parameters to avoid
+    # duplicate conditions like logName="a" AND logName="b" which returns nothing
     if log_filter.fields:
         for key, value in log_filter.fields.items():
-            if key == "log_name" and value:
+            if key == "log_name" and value and not log_name:
                 parts.append(f'logName="{value}"')
-            elif key == "resource_type" and value:
+            elif key == "resource_type" and value and not resource_type:
                 parts.append(f'resource.type="{value}"')
 
     return " AND ".join(parts) if parts else ""
