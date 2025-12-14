@@ -1,5 +1,100 @@
 # LogView Action Log
 
+## 2025-12-14: Phase 6 Complete - Enhanced UX (PR #9)
+
+**Summary:**
+Phase 6 completed with comprehensive UX enhancements, critical bug fixes, and extensive documentation. All deliverables implemented and tested. Version bumped to 0.6.0.
+
+**Major Features:**
+- Enhanced status bar showing adapter type and active filters
+- Custom theme support (12 built-in Textual themes)
+- Theme persistence from command palette and settings modal
+- Comprehensive user manual (USER.md - 1,344 lines)
+- Help modal with keyboard shortcuts
+- Search within results with real-time filtering
+- Export to JSON/JSONL files
+- Filter presets (save, load, delete)
+- Settings modal with theme, timestamp format, message width, metadata toggle
+
+**Critical Bug Fixes:**
+- **Config file corruption**: Fixed theme changes via command palette wiping user config
+  - Now properly loads existing config from disk before saving
+  - Prevents loss of contexts, filter presets, and settings
+- **Theme persistence**: Fixed InvalidThemeError when using custom themes
+  - Only add "textual-" prefix to base themes (dark/light/ansi)
+  - Custom themes (catppuccin-mocha, dracula, etc.) use names as-is
+  - Removed non-existent themes from settings dropdown
+- **Theme watcher**: Implemented `watch_theme` to catch ALL theme changes
+  - Works from command palette, settings modal, toggle dark action
+  - Added `_loading_theme` flag to prevent double-saves during startup
+
+**Files Added:**
+- `USER.md` - Comprehensive 1,344-line user manual
+  - Getting Started, Configuration, Log Sources
+  - Viewing, Filtering, Searching workflows
+  - Themes, Export, Keyboard shortcuts
+  - Advanced features, Troubleshooting, FAQ
+  - 4 appendices with reference material
+
+**Files Modified:**
+- `src/logview/app.py` - Status bar, theme watcher, theme persistence fixes
+- `src/logview/ui/screens/settings.py` - 12 themes dropdown
+- `src/logview/config/schema.py` - Theme type changed to str
+- `tests/ui/test_app.py` - Theme persistence tests
+- `tests/ui/test_settings_modal.py` - Settings persistence tests
+- `README.md` - Themes section, keyboard shortcuts, documentation links
+- `CLAUDE.md` - Updated to Phase 6 complete
+- `PLAN.md` - Updated deliverables, added Phase 5 and 6 changelog entries
+- `CHANGELOG.md` - Added 0.6.0 release notes with all features and fixes
+- `configs/example.json` - Changed theme example to catppuccin-mocha
+- `VERSION` - Bumped to 0.6.0
+
+**Tests:** 417 passed, 38 skipped
+
+**Quality Checks:**
+- ✅ All tests pass (417 total)
+- ✅ mypy type checking passes
+- ✅ ruff linting passes
+- ✅ Manual testing: Theme persistence works from all sources
+- ✅ Manual testing: Custom themes load without errors
+- ✅ Manual testing: Config no longer gets corrupted
+
+**Commits (9 total):**
+1. `a04da24` - feat: enhance status bar with adapter info and active filters
+2. `386c295` - fix: preserve custom Textual themes and prevent config loss
+3. `c91eaa9` - chore: bump version to 0.6.0
+4. `dfcb098` - feat: add all Textual built-in themes to settings dropdown
+5. `b9da9ec` - fix: watch theme changes to persist any theme selection
+6. `ff6b2d0` - fix: theme persistence with proper prefix handling
+7. `115c4c5` - docs: update CHANGELOG with theme prefix fix
+8. `638f7f0` - docs: update documentation for Phase 6 completion and theme support
+9. `2e392ea` - docs: add comprehensive user manual (USER.md)
+
+**Branch:** `phase-6-enhanced-ux`
+**PR:** #9 - https://github.com/agileguy/logview/pull/9
+**Status:** Open, awaiting CI and review
+
+**Issues Resolved:**
+- Theme persistence not working from command palette
+- InvalidThemeError when using custom Textual themes
+- Config file being wiped when changing themes
+- Settings modal only showing dark/light themes
+
+**Phase 6 Deliverables Status:**
+- ✅ Help modal with keyboard shortcuts
+- ✅ Search within results (/ key, n/N navigation)
+- ✅ Export logs to JSON/JSONL
+- ✅ Filter presets (save, load, delete)
+- ✅ Settings modal (theme, timestamp, width, metadata)
+- ✅ Enhanced status bar (adapter info, active filters)
+- ✅ Custom theme support (12 themes)
+- ✅ Theme persistence (all sources)
+- ✅ Comprehensive user manual
+
+**Next:** Phase 7 (Additional Sources) or production deployment
+
+---
+
 ## 2025-12-14: Phase 6 - Settings Modal
 
 **Changes:**
