@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reuses GCP adapter's batch processing for memory efficiency
   - Cluster and namespace name validation
   - Graceful degradation when google-cloud-logging not installed
+
+### Security
+- **GKE Wildcard Validation**: Strict validation for wildcard patterns
+  - Only trailing wildcards allowed (`kube-*` ✓, `*-system` ✗, `kube-*-system` ✗)
+  - Wildcard-only patterns rejected (`*` ✗)
+  - Invalid patterns raise `GKEInvalidFilterError` with clear error messages
+  - `validate_filter` now validates wildcards before `fetch` (fail-fast)
+- **Quote Escaping**: All filter values properly escaped for Cloud Logging syntax
+  - Namespace, pod, container, labels, and text search values escaped
+  - Prevents filter syntax errors from special characters
 - **GCP Cloud Logging Adapter**: Query logs from Google Cloud Logging
   - Application Default Credentials (ADC) authentication
   - Graceful degradation when google-cloud-logging not installed

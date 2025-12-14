@@ -1,6 +1,6 @@
 # LogView Action Log
 
-## 2025-12-14: Phase 5 - GKE Integration
+## 2025-12-14: Phase 5 - GKE Integration (Complete)
 
 **Changes:**
 - Implemented GKE adapter using Cloud Logging API
@@ -14,9 +14,26 @@
 - Updated config schema with `location` field for GKE
 - Wired GKE adapter in app.py
 
+**Security Hardening (Code Review Fixes):**
+- Wildcard pattern validation: Only trailing wildcards allowed
+  - Rejects wildcard-only patterns (`*`)
+  - Rejects internal wildcards (`kube-*-system`)
+  - Rejects non-trailing wildcards (`*-system`)
+  - Raises `GKEInvalidFilterError` with clear error messages
+- Quote escaping: All filter values properly escaped
+  - Added `_escape_filter_value()` helper function
+  - Escapes namespace, pod, container, labels, text search
+- DRY code: Extracted `_build_wildcard_filter()` helper
+  - Single place to handle wildcard vs exact match logic
+  - Documents why quote escaping happens before regex escaping
+- Consistent validation: `validate_filter()` now validates wildcards
+  - Added `_validate_wildcard_or_name()` helper method
+  - Validates both namespace and pod patterns
+  - Catches invalid patterns before `fetch()` is called
+
 **Files Added:**
-- `src/logview/adapters/gke.py` - Complete GKE adapter implementation (615 lines)
-- `tests/unit/test_gke_adapter.py` - 44 unit tests for GKE adapter
+- `src/logview/adapters/gke.py` - Complete GKE adapter implementation (700+ lines)
+- `tests/unit/test_gke_adapter.py` - 58 unit tests for GKE adapter
 - `tests/integration/test_gke.py` - 20 integration tests (skipped in CI)
 
 **Files Modified:**
@@ -24,11 +41,11 @@
 - `src/logview/app.py` - Import and register GKELogSource
 - `configs/example.json` - Added location field to GKE examples
 - `PLAN.md` - Updated Phase 5 plan and marked complete
-- `README.md` - Added GKE setup documentation
-- `CHANGELOG.md` - Added GKE features to Unreleased
+- `README.md` - Added GKE setup documentation, marked Phase 5 complete
+- `CHANGELOG.md` - Added GKE features and security fixes to Unreleased
 - `CLAUDE.md` - Added explicit .venv/bin tool paths
 
-**Tests:** 320 passed, 38 skipped (64 GKE-specific tests added)
+**Tests:** 372 passed, 39 skipped (58 GKE unit tests, 20 GKE integration tests)
 
 ---
 

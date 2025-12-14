@@ -283,7 +283,7 @@ This project is under active development. See [PLAN.md](PLAN.md) for the roadmap
 - [x] Phase 2: Syslog & Modals
 - [x] Phase 3: Application Logs (logfile adapter with format auto-detection)
 - [x] Phase 4: GCP Cloud Logging
-- [ ] Phase 5: GKE integration
+- [x] Phase 5: GKE Integration
 - [ ] Phase 6: File watching & Enhanced UX
 - [ ] Phase 7: Extended format support
 

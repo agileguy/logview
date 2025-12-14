@@ -561,7 +561,7 @@ labels."k8s-pod/app"="my-app"  -- pod labels
 - Errors display helpful messages
 - Works without google-cloud-logging installed (shows install message)
 
-**Completed:** 2024-12 - Full implementation with 320 tests passing (64 GKE-specific)
+**Completed:** 2024-12 - Full implementation with 372 tests passing (58 GKE unit tests, 20 GKE integration tests)
 
 ---
 
