@@ -198,3 +198,16 @@
 - Updated GitHub Actions job permissions to allow `gh pr comment` (requires `pull-requests: write`)
 
 **Files:** `.github/workflows/claude-code-review.yml`
+
+---
+
+## 2025-12-14: Add push trigger to CI workflow for README badge accuracy
+
+**Changes:**
+- Updated CI workflow to run on pushes to `main` branch (in addition to pull requests)
+- Ensures CI badge in README.md reflects current main branch status
+- Previously, badge showed stale status from old failed push since workflow only ran on PRs
+
+**Files:** `.github/workflows/ci.yml`
+
+**Background:** The CI status badge was incorrectly showing "failing" despite recent PRs passing. This was because the workflow was configured with `on: pull_request` only, so the badge displayed the status of the last push to main (which had failed). Adding `on: push: branches: [main]` ensures the badge updates after each merge to main.
