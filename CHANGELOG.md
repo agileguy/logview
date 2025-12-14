@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2025-12-14
+
+### Added
+- **Enhanced Status Bar**: Show adapter type and active filters in status bar
+  - GCP adapter displays project ID
+  - GKE adapter displays cluster name and project
+  - Syslog/LogFile adapters display filename
+  - Active filters displayed: severity, text search, field filters, time range, limit
+  - Smart truncation of long values for readability
+- **Custom Theme Support**: Config now accepts any Textual theme name
+  - Support for catppuccin-mocha, dracula, nord, and other Textual themes
+  - Themes properly persist across restarts
+
+### Fixed
+- **Critical: Config file corruption** when toggling theme via command palette
+  - Previously created empty config instead of loading from disk
+  - Would wipe out user's contexts, filter presets, and settings
+  - Now properly loads existing config before saving theme changes
+- **Theme persistence** for custom Textual themes
+  - Schema now accepts any theme string instead of just "dark"/"light"
+  - Properly strips/adds "textual-" prefix when saving/loading
+
+### Added (Tests)
+- Settings persistence tests for theme and timestamp format changes
+- Custom theme validation tests
+
 ## [0.5.0] - 2025-12-14
 
 ### Added
@@ -145,7 +171,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI pipeline
 - Comprehensive test suite (pytest, mypy, ruff)
 
-[Unreleased]: https://github.com/agileguy/logview/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/agileguy/logview/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/agileguy/logview/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/agileguy/logview/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/agileguy/logview/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/agileguy/logview/compare/v0.2.0...v0.3.0
