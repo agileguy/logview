@@ -18,13 +18,15 @@
       "type": "gke",
       "project": "my-gcp-project",
       "cluster": "prod-cluster",
+      "location": "us-central1-a",
       "default_namespace": "default"
     },
     {
       "name": "staging-gke",
       "type": "gke",
       "project": "my-gcp-project",
-      "cluster": "staging-cluster"
+      "cluster": "staging-cluster",
+      "location": "us-west1-b"
     },
     {
       "name": "gcp-audit",

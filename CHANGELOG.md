@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **GKE (Google Kubernetes Engine) Adapter**: Query GKE logs via Cloud Logging API
+  - Uses k8s_container resource type for Kubernetes-specific queries
+  - Filter by namespace, pod name, container name (with wildcard support)
+  - Label selector support (`app=nginx,env=prod`)
+  - Location/zone filtering
+  - Reuses GCP adapter's batch processing for memory efficiency
+  - Cluster and namespace name validation
+  - Graceful degradation when google-cloud-logging not installed
+
+### Security
+- **GKE Wildcard Validation**: Strict validation for wildcard patterns
+  - Only trailing wildcards allowed (`kube-*` ✓, `*-system` ✗, `kube-*-system` ✗)
+  - Wildcard-only patterns rejected (`*` ✗)
+  - Invalid patterns raise `GKEInvalidFilterError` with clear error messages
+  - `validate_filter` now validates wildcards before `fetch` (fail-fast)
+- **Quote Escaping**: All filter values properly escaped for Cloud Logging syntax
+  - Namespace, pod, container, labels, and text search values escaped
+  - Prevents filter syntax errors from special characters
 - **GCP Cloud Logging Adapter**: Query logs from Google Cloud Logging
   - Application Default Credentials (ADC) authentication
   - Graceful degradation when google-cloud-logging not installed
@@ -19,12 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Log level configuration (DEBUG, INFO, WARNING, ERROR, CRITICAL)
   - Rotating file handler with configurable size and backup count
   - Default log location: `~/.config/logview/logview.log`
-  - Logging throughout all adapters (GCP, syslog, logfile, discovery)
+  - Logging throughout all adapters (GCP, GKE, syslog, logfile, discovery)
 - **Tree-Based Context Switcher**: Redesigned source selection
-  - Configured sources (syslog, GCP) displayed at root level
+  - Configured sources (syslog, GCP, GKE) displayed at root level
   - Discovered sources in collapsible "Discovered Logs" folder
   - Active source highlighted with "●" marker
-- Integration tests for GCP adapter (skipped in CI)
+- Integration tests for GCP and GKE adapters (skipped in CI)
 
 ### Changed
 - **Performance**: Memory-optimized fetch operations
