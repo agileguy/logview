@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
 from logview.adapters.gcp import (
     GCP_AVAILABLE,
     GCPAuthenticationError,
-    GCPError,
     GCPInvalidProjectError,
     GCPLogSource,
     GCPNotInstalledError,
@@ -55,7 +53,7 @@ class MockLogEntry:
 
     def __post_init__(self) -> None:
         if self.timestamp is None:
-            self.timestamp = datetime.now(timezone.utc)
+            self.timestamp = datetime.now(UTC)
         if self.resource is None:
             self.resource = MockResource()
         if self.labels is None:
@@ -135,7 +133,7 @@ class TestProjectIdValidation:
             ("a" * 31, "too long"),
             ("", "empty"),
         ]
-        for project_id, reason in invalid_ids:
+        for project_id, _reason in invalid_ids:
             with pytest.raises(GCPInvalidProjectError, match="Invalid project ID"):
                 _validate_project_id(project_id)
 
@@ -273,7 +271,7 @@ class TestLogEntryParsing:
 
     def test_parse_timestamp_with_timezone(self) -> None:
         """Test parsing entry with timezone-aware timestamp."""
-        ts = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        ts = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
         entry = MockLogEntry(timestamp=ts, text_payload="test")
         result = _parse_log_entry(entry, "test-project")
         # Should be converted to naive local time
