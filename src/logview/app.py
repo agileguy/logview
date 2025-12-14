@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -126,15 +127,18 @@ class LogViewApp(App[None]):
                 source = self._create_source_from_context(context)
                 if source:
                     # Track path for file-based sources to prevent duplicates
+                    # Expand tilde before resolving to ensure consistent path comparison
                     source_path = None
                     if isinstance(context, (SyslogContext, LogFileContext)):
-                        source_path = Path(context.path)
+                        source_path = Path(os.path.expanduser(context.path))
                     self.register_source(source, path=source_path)
             except Exception as e:
                 self.notify(f"Error creating source '{context.name}': {e}", severity="warning")
 
         # Auto-discover log files in background to avoid blocking UI
-        self.call_later(self._discover_and_register_logs_async)
+        import asyncio
+
+        asyncio.create_task(self._discover_and_register_logs_async())
 
     async def _discover_and_register_logs_async(self) -> None:
         """Discover log files from configured paths and register them (runs in worker)."""
@@ -235,7 +239,8 @@ class LogViewApp(App[None]):
             True if registered, False if path was already registered.
         """
         if path is not None:
-            resolved = path.resolve()
+            # Expand tilde and resolve to get canonical path for comparison
+            resolved = Path(os.path.expanduser(str(path))).resolve()
             if resolved in self._registered_paths:
                 return False
             self._registered_paths.add(resolved)

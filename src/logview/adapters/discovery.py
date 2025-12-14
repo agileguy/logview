@@ -161,15 +161,18 @@ def discover_logs(
         for root, dirs, files in os.walk(base_path):
             root_path = Path(root)
 
-            # Check depth
+            # Check depth - 0 means only base directory, 1 includes immediate children, etc.
             try:
                 depth = len(root_path.relative_to(base_path).parts)
             except ValueError:
                 continue
 
-            if depth > max_depth:
+            # Stop descending deeper than max_depth (but still process files at this level)
+            if depth >= max_depth:
                 dirs.clear()  # Don't descend further
-                continue
+
+            if depth > max_depth:
+                continue  # Skip this directory's files (only reachable if max_depth < 0)
 
             # Skip hidden directories
             dirs[:] = [d for d in dirs if not d.startswith(".")]

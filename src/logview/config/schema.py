@@ -84,9 +84,13 @@ class SecuritySettings(BaseModel):
 
 
 class DiscoverySettings(BaseModel):
-    """Log file discovery settings."""
+    """Log file discovery settings.
 
-    paths: list[str] = Field(default_factory=lambda: ["/var/log"])
+    Note: Discovery is opt-in. Set `paths` to enable auto-discovery.
+    """
+
+    # Default to empty - discovery only runs if paths explicitly configured
+    paths: list[str] = Field(default_factory=list)
     max_depth: int = 3
     allowed_directories: list[str] = Field(
         default_factory=lambda: ["/var/log", "/opt", "/home"]
