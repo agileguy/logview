@@ -109,6 +109,7 @@ class LogViewApp(App[None]):
         self._active_source: LogSource | None = None
         self._current_filter: Filter = Filter(limit=100)
         self._registered_paths: set[Path] = set()  # Track registered file paths to avoid duplicates
+        self._loading_theme: bool = False  # Flag to prevent saving during theme load
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -152,15 +153,33 @@ class LogViewApp(App[None]):
             theme_name = self._config.ui.theme
             if not theme_name.startswith("textual-"):
                 theme_name = f"textual-{theme_name}"
+
+            # Set flag to prevent watch_theme from saving during startup
+            self._loading_theme = True
             self.theme = theme_name
+            self._loading_theme = False
+
+    def watch_theme(self, theme: str) -> None:
+        """Watch for theme changes and persist to config.
+
+        This catches theme changes from:
+        - Textual's command palette theme picker
+        - Our settings modal
+        - action_toggle_dark
+        - Any other source
+        """
+        # Don't save during theme loading or if config not loaded yet
+        if self._loading_theme or self._config is None:
+            return
+
+        # Save the theme change
+        self._save_theme_preference()
 
     def action_toggle_dark(self) -> None:
         """Toggle dark mode and save the preference to config."""
         # Call parent implementation to actually toggle
+        # watch_theme will automatically save the change
         super().action_toggle_dark()
-
-        # Save the new preference (theme is now "textual-dark" or "textual-light")
-        self._save_theme_preference()
 
     def _save_theme_preference(self) -> None:
         """Save current theme preference to config file."""
@@ -646,10 +665,13 @@ class LogViewApp(App[None]):
                 try:
                     save_config(self._config, self._config_path)
                     # Apply theme change immediately
+                    # Set flag to prevent watch_theme from double-saving
+                    self._loading_theme = True
                     theme_name = new_settings.theme
                     if not theme_name.startswith("textual-"):
                         theme_name = f"textual-{theme_name}"
                     self.theme = theme_name
+                    self._loading_theme = False
                     self.notify("Settings saved")
                 except Exception as e:
                     self.notify(f"Failed to save settings: {e}", severity="error")
