@@ -51,6 +51,9 @@ The following tools can be used freely without user approval:
 - `src/logview/domain/` - Core models (LogEntry, Filter, Severity)
 - `src/logview/ui/` - Textual widgets and screens
 - `src/logview/config/` - JSON configuration with Pydantic schemas
+  - `schema.py` - Pydantic models including LoggingSettings
+  - `loader.py` - Config file loading/saving
+  - `logging.py` - Application logging setup (rotating file handler)
 
 ## Development Guidelines
 
@@ -335,7 +338,10 @@ Phases 1-4 complete. See ACTIONS.md for detailed progress log.
 
 - Main app: `src/logview/app.py`
 - Domain models: `src/logview/domain/models.py`
-- Config schema: `src/logview/config/schema.py`
+- Config: `src/logview/config/`
+  - `schema.py` - Pydantic models (Config, LoggingSettings, contexts)
+  - `loader.py` - Config file loading/saving
+  - `logging.py` - Application logging setup
 - Log adapters: `src/logview/adapters/`
   - `gcp.py` - GCP Cloud Logging adapter
   - `logfile.py` - Generic log file adapter with format auto-detection
@@ -348,3 +354,4 @@ Phases 1-4 complete. See ACTIONS.md for detailed progress log.
 - Version: `VERSION`
 - Changelog: `CHANGELOG.md`
 - Action log: `ACTIONS.md`
+- Application log: `~/.config/logview/logview.log` (runtime)

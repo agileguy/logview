@@ -79,20 +79,20 @@ class MockLoggingClient:
         self.last_filter: str | None = None
         self.last_order_by: str | None = None
         self.last_page_size: int | None = None
-        self.last_projects: list[str] | None = None
+        self.last_resource_names: list[str] | None = None
 
     def list_entries(
         self,
         filter_: str | None = None,
         order_by: str | None = None,
         page_size: int | None = None,
-        projects: list[str] | None = None,
+        resource_names: list[str] | None = None,
     ) -> list[MockLogEntry]:
         """Mock list_entries method."""
         self.last_filter = filter_
         self.last_order_by = order_by
         self.last_page_size = page_size
-        self.last_projects = projects
+        self.last_resource_names = resource_names
 
         if self.error:
             raise self.error
@@ -442,15 +442,15 @@ class TestGCPLogSource:
         assert "textPayload:" in client.last_filter
 
     @pytest.mark.asyncio
-    async def test_fetch_passes_projects_to_client(self) -> None:
-        """Test fetch passes project list to client."""
+    async def test_fetch_passes_resource_names_to_client(self) -> None:
+        """Test fetch passes resource names to client."""
         client = MockLoggingClient(entries=[])
         source = GCPLogSource(project_id="my-project-123", client=client)
 
         async for _ in source.fetch(Filter()):
             pass
 
-        assert client.last_projects == ["my-project-123"]
+        assert client.last_resource_names == ["projects/my-project-123"]
 
     def test_validate_filter_valid(self) -> None:
         """Test validate_filter with valid filter."""

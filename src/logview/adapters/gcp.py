@@ -8,12 +8,16 @@ from __future__ import annotations
 
 import asyncio
 import itertools
+import logging
 import re
 from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 from logview.domain.models import Filter, FilterField, LogEntry, Severity
+
+# Use standard logging - will be configured by app if available
+logger = logging.getLogger("logview.adapters.gcp")
 
 if TYPE_CHECKING:
     pass
@@ -25,8 +29,8 @@ _logging_client_class: Any = None
 _google_exceptions: Any = None
 
 try:
-    from google.api_core import exceptions as google_exceptions  # type: ignore[import-not-found]
-    from google.cloud import logging as google_logging  # type: ignore[import-not-found]
+    from google.api_core import exceptions as google_exceptions
+    from google.cloud import logging as google_logging
 
     GCP_AVAILABLE = True
     _logging_client_class = google_logging.Client
@@ -112,7 +116,7 @@ class LoggingClientProtocol(Protocol):
         filter_: str | None = None,
         order_by: str | None = None,
         page_size: int | None = None,
-        projects: list[str] | None = None,
+        resource_names: list[str] | None = None,
     ) -> Any:
         """List log entries."""
         ...
@@ -154,7 +158,9 @@ def _validate_project_id(project: str) -> None:
     # Must start with a letter, cannot end with a hyphen
     pattern = r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$"
     if not re.match(pattern, project):
+        logger.warning("Invalid project ID format: %s", project)
         raise GCPInvalidProjectError(project)
+    logger.debug("Project ID validated: %s", project)
 
 
 def _build_filter(
@@ -243,8 +249,20 @@ def _parse_log_entry(entry: Any, project: str) -> LogEntry:
     severity = GCP_SEVERITY_MAP.get(severity_str, Severity.INFO)
 
     # Get message - try different payload types
+    # The google-cloud-logging library uses 'payload' property which returns the appropriate payload
     message = ""
-    if hasattr(entry, "text_payload") and entry.text_payload:
+
+    # Try the unified payload property first (returns text_payload, json_payload, or proto_payload)
+    if hasattr(entry, "payload") and entry.payload:
+        payload = entry.payload
+        if isinstance(payload, str):
+            message = payload
+        elif isinstance(payload, dict):
+            message = payload.get("message") or payload.get("msg") or payload.get("textPayload") or str(payload)
+        else:
+            message = str(payload)
+    # Fall back to individual payload attributes
+    elif hasattr(entry, "text_payload") and entry.text_payload:
         message = entry.text_payload
     elif hasattr(entry, "json_payload") and entry.json_payload:
         # For JSON payloads, look for common message fields
@@ -255,6 +273,13 @@ def _parse_log_entry(entry: Any, project: str) -> LogEntry:
             message = str(payload)
     elif hasattr(entry, "proto_payload") and entry.proto_payload:
         message = str(entry.proto_payload)
+
+    # Log entry attributes for debugging empty messages
+    if not message:
+        logger.debug(
+            "Empty message for entry. Attributes: %s",
+            [attr for attr in dir(entry) if not attr.startswith("_")]
+        )
 
     # Get source (resource info)
     source = project
@@ -345,6 +370,7 @@ class GCPLogSource:
             GCPInvalidProjectError: If the project ID format is invalid.
         """
         if not GCP_AVAILABLE and client is None:
+            logger.error("GCP support not available - google-cloud-logging not installed")
             raise GCPNotInstalledError()
 
         _validate_project_id(project_id)
@@ -354,6 +380,12 @@ class GCPLogSource:
         self._resource_type = resource_type
         self._custom_name = name
         self._client = client
+        logger.info(
+            "GCPLogSource initialized: project=%s, log_name=%s, resource_type=%s",
+            project_id,
+            log_name,
+            resource_type,
+        )
 
     def _get_client(self) -> LoggingClientProtocol:
         """Get or create the logging client.
@@ -365,18 +397,24 @@ class GCPLogSource:
             GCPAuthenticationError: If authentication fails.
         """
         if self._client is not None:
+            logger.debug("Using existing GCP client")
             return self._client
 
         if not GCP_AVAILABLE:
+            logger.error("GCP library not available when creating client")
             raise GCPNotInstalledError()
 
+        logger.debug("Creating new GCP logging client for project: %s", self._project_id)
         try:
             self._client = _logging_client_class(project=self._project_id)
+            logger.info("GCP client created successfully for project: %s", self._project_id)
             return self._client
         except Exception as e:
             # Check for auth-related errors
             error_msg = str(e).lower()
+            logger.error("Failed to create GCP client: %s", e)
             if "credentials" in error_msg or "authentication" in error_msg:
+                logger.error("Authentication error detected - credentials may be missing or invalid")
                 raise GCPAuthenticationError() from e
             raise GCPError(f"Failed to create GCP client: {e}") from e
 
@@ -402,6 +440,7 @@ class GCPLogSource:
             GCPProjectNotFoundError: If project is not found.
             GCPQuotaExceededError: If quota is exceeded.
         """
+        logger.info("Fetching logs from GCP project: %s (limit: %d)", self._project_id, log_filter.limit)
         client = self._get_client()
 
         # Build the filter string
@@ -410,13 +449,16 @@ class GCPLogSource:
             log_name=self._log_name,
             resource_type=self._resource_type,
         )
+        logger.debug("GCP filter string: %s", filter_str or "(empty)")
 
         # Fetch entries
         count = 0
+        parse_errors = 0
         try:
             # Run in executor to not block the event loop
             # Use islice to limit entries fetched - prevents loading millions of
             # entries into memory when only a small limit is requested
+            logger.debug("Executing GCP list_entries request...")
             loop = asyncio.get_running_loop()
             entries = await loop.run_in_executor(
                 None,
@@ -426,27 +468,33 @@ class GCPLogSource:
                             filter_=filter_str or None,
                             order_by="timestamp desc",
                             page_size=min(log_filter.limit, 1000),
-                            projects=[self._project_id],
+                            resource_names=[f"projects/{self._project_id}"],
                         ),
                         log_filter.limit,
                     )
                 ),
             )
+            logger.debug("GCP returned %d entries", len(entries))
 
             for entry in entries:
                 try:
                     log_entry = _parse_log_entry(entry, self._project_id)
                     yield log_entry
                     count += 1
-                except Exception:
+                except Exception as e:
                     # Skip entries that fail to parse
+                    parse_errors += 1
+                    logger.debug("Failed to parse entry: %s", e)
                     continue
 
                 # Yield to event loop periodically
                 if count % 100 == 0:
                     await asyncio.sleep(0)
 
+            logger.info("GCP fetch complete: %d entries returned, %d parse errors", count, parse_errors)
+
         except Exception as e:
+            logger.error("GCP fetch failed: %s (%s)", e, type(e).__name__)
             self._handle_gcp_error(e)
 
     def _handle_gcp_error(self, error: Exception) -> None:
@@ -459,19 +507,26 @@ class GCPLogSource:
             Appropriate GCP error type.
         """
         if not GCP_AVAILABLE or _google_exceptions is None:
+            logger.error("GCP error (library not available): %s", error)
             raise GCPError(f"GCP error: {error}") from error
 
         if isinstance(error, _google_exceptions.Unauthenticated):
+            logger.error("GCP authentication failed - run: gcloud auth application-default login")
             raise GCPAuthenticationError() from error
         elif isinstance(error, _google_exceptions.PermissionDenied):
+            logger.error("GCP permission denied for project: %s", self._project_id)
             raise GCPPermissionError(self._project_id) from error
         elif isinstance(error, _google_exceptions.NotFound):
+            logger.error("GCP project not found: %s", self._project_id)
             raise GCPProjectNotFoundError(self._project_id) from error
         elif isinstance(error, _google_exceptions.ResourceExhausted):
+            logger.error("GCP quota exceeded")
             raise GCPQuotaExceededError() from error
         elif isinstance(error, _google_exceptions.GoogleAPIError):
+            logger.error("GCP API error: %s", error)
             raise GCPError(f"GCP API error: {error}") from error
         else:
+            logger.error("Unknown GCP error: %s (%s)", error, type(error).__name__)
             raise GCPError(f"GCP error: {error}") from error
 
     def validate_filter(self, log_filter: Filter) -> list[str]:

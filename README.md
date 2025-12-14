@@ -90,6 +90,33 @@ Create `~/.config/logview/config.json`:
 
 See `configs/example.json` for a complete example.
 
+### Application Logging
+
+LogView logs its own activity to help with debugging. Configure logging in your config file:
+
+```json
+{
+  "logging": {
+    "level": "DEBUG",
+    "file": "~/.config/logview/logview.log",
+    "max_size_mb": 10,
+    "backup_count": 3
+  }
+}
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `level` | `DEBUG` | Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL |
+| `file` | `~/.config/logview/logview.log` | Log file path (null for default) |
+| `max_size_mb` | `10` | Max log file size before rotation |
+| `backup_count` | `3` | Number of rotated log files to keep |
+
+To view logs while running:
+```bash
+tail -f ~/.config/logview/logview.log
+```
+
 ### GCP Cloud Logging Setup
 
 To use GCP Cloud Logging as a log source:

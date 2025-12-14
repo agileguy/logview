@@ -1,5 +1,47 @@
 # LogView Action Log
 
+## 2025-12-14: Application Logging & GCP Fixes
+
+**Changes:**
+- Implemented configurable application logging system
+  - New `LoggingSettings` in config schema (level, file, max_size_mb, backup_count)
+  - Rotating file handler with automatic rotation
+  - Default log location: `~/.config/logview/logview.log`
+  - Default log level: DEBUG
+- Added logging throughout all components:
+  - GCP adapter: client creation, fetch operations, error handling
+  - Syslog adapter: path validation, fetch operations
+  - LogFile adapter: format detection, fetch operations
+  - Discovery service: discovery progress
+  - Config loader: load/save operations
+  - Log list widget: refresh operations
+  - Main app: source registration, context switching
+- Fixed GCP adapter API compatibility:
+  - Changed `projects` parameter to `resource_names` (google-cloud-logging 3.x API)
+  - Added unified `payload` property support for message extraction
+  - JSON payloads now check `message`, `msg`, `textPayload` fields
+
+**Files Added:**
+- `src/logview/config/logging.py` - Logging setup module
+
+**Files Modified:**
+- `src/logview/config/schema.py` - Added LoggingSettings
+- `src/logview/adapters/gcp.py` - Added logging, fixed API compatibility
+- `src/logview/adapters/syslog.py` - Added logging
+- `src/logview/adapters/logfile.py` - Added logging
+- `src/logview/adapters/discovery.py` - Added logging
+- `src/logview/config/loader.py` - Added logging
+- `src/logview/ui/widgets/log_list.py` - Added logging
+- `src/logview/app.py` - Added logging setup
+- `tests/unit/test_gcp_adapter.py` - Updated mock for new API
+- `configs/example.json` - Added logging configuration
+- `README.md` - Added logging documentation
+- `CHANGELOG.md` - Added logging features and GCP fixes
+
+**Tests:** 274 passed, 17 skipped
+
+---
+
 ## 2025-12-14: Phase 4 - GCP Cloud Logging Adapter
 
 **Changes:**

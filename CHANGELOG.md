@@ -15,7 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive error handling (auth, permission, quota, project not found)
   - Project ID format validation
   - Protocol-based design for easy testing
+- **Application Logging**: Configurable logging for debugging
+  - Log level configuration (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  - Rotating file handler with configurable size and backup count
+  - Default log location: `~/.config/logview/logview.log`
+  - Logging throughout all adapters (GCP, syslog, logfile, discovery)
 - Integration tests for GCP adapter (skipped in CI)
+
+### Fixed
+- GCP adapter now uses `resource_names` parameter (API compatibility with google-cloud-logging 3.x)
+- GCP adapter handles unified `payload` property for message extraction
+- GCP JSON payloads now display correctly (supports `message`, `msg`, `textPayload` fields)
 
 ## [0.3.0] - 2024-12-14
 

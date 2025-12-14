@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -10,6 +11,8 @@ from typing import TYPE_CHECKING
 
 from logview.adapters.syslog_parser import ParsedSyslogLine, SyslogParseError, parse_syslog_line
 from logview.domain.models import FilterField, LogEntry, Severity
+
+logger = logging.getLogger("logview.adapters.syslog")
 
 if TYPE_CHECKING:
     from logview.domain.models import Filter
@@ -80,6 +83,7 @@ class SyslogLogSource:
         self._allowed_directories = (
             allowed_directories if allowed_directories is not None else self.ALLOWED_DIRECTORIES
         )
+        logger.debug("SyslogLogSource initialized: path=%s, name=%s", self._path, name)
 
     @property
     def name(self) -> str:
@@ -96,10 +100,13 @@ class SyslogLogSource:
             SyslogPermissionError: If file cannot be read.
             SyslogError: If path is outside allowed directories.
         """
+        logger.debug("Validating syslog path: %s", self._path)
+
         # Resolve any symlinks and relative paths
         try:
             resolved = self._path.resolve()
         except (OSError, ValueError) as e:
+            logger.error("Invalid path: %s", e)
             raise SyslogError(f"Invalid path: {e}") from e
 
         # Security: Check path is within allowed directories
@@ -111,23 +118,28 @@ class SyslogLogSource:
 
         if not is_allowed:
             # Don't reveal the actual path in the error
+            logger.warning("Path not in allowed directories: %s", resolved)
             raise SyslogError("Path is not in an allowed directory")
 
         # Check file exists
         if not resolved.exists():
+            logger.error("Syslog file not found: %s", resolved)
             raise SyslogFileNotFoundError(resolved)
 
         # Check file is readable
         if not os.access(resolved, os.R_OK):
+            logger.error("Permission denied for syslog file: %s", resolved)
             raise SyslogPermissionError(resolved)
 
         # Check it's actually a file
         if not resolved.is_file():
+            logger.error("Path is not a regular file: %s", resolved)
             raise SyslogError("Path is not a regular file")
 
         # Store resolved path to prevent TOCTOU attacks
         self._resolved_path = resolved
         self._validated = True
+        logger.debug("Path validated successfully: %s", resolved)
 
     @staticmethod
     def _is_path_under(path: Path, parent: Path) -> bool:
@@ -158,6 +170,8 @@ class SyslogLogSource:
         Raises:
             SyslogError: If file cannot be read.
         """
+        logger.info("Fetching syslog entries (limit: %d)", log_filter.limit)
+
         if not self._validated:
             self._validate_path()
 
@@ -196,11 +210,16 @@ class SyslogLogSource:
                         if count >= log_filter.limit:
                             break
 
+            logger.info("Syslog fetch complete: %d entries, %d parse errors", count, parse_errors)
+
         except FileNotFoundError as e:
+            logger.error("Syslog file not found during fetch")
             raise SyslogFileNotFoundError(self._path) from e
         except PermissionError as e:
+            logger.error("Permission denied during syslog fetch")
             raise SyslogPermissionError(self._path) from e
         except OSError as e:
+            logger.error("Error reading syslog: %s", e)
             raise SyslogError(f"Error reading syslog: {e}") from e
 
     def _parsed_to_entry(self, parsed: ParsedSyslogLine) -> LogEntry:

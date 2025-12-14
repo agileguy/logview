@@ -75,5 +75,11 @@
   },
   "security": {
     "credential_helper": "gcloud"
+  },
+  "logging": {
+    "level": "WARNING",
+    "file": null,
+    "max_size_mb": 10,
+    "backup_count": 3
   }
 }

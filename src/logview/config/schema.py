@@ -84,6 +84,15 @@ class SecuritySettings(BaseModel):
     credential_helper: Literal["gcloud", "env", "keyring"] = "gcloud"
 
 
+class LoggingSettings(BaseModel):
+    """Application logging settings."""
+
+    level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "DEBUG"
+    file: str | None = None  # Log file path, None means use default (~/.local/share/logview/logview.log)
+    max_size_mb: int = 10  # Max log file size before rotation
+    backup_count: int = 3  # Number of backup files to keep
+
+
 class DiscoverySettings(BaseModel):
     """Log file discovery settings.
 
@@ -106,3 +115,4 @@ class Config(BaseModel):
     ui: UISettings = Field(default_factory=UISettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
     discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
+    logging: LoggingSettings = Field(default_factory=LoggingSettings)

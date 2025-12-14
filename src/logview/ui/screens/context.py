@@ -7,18 +7,19 @@ from typing import TYPE_CHECKING
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Label, OptionList
-from textual.widgets.option_list import Option
+from textual.widgets import Button, Label, Tree
+from textual.widgets.tree import TreeNode
 
 if TYPE_CHECKING:
     from logview.adapters.base import LogSource
 
 
-class ContextModal(ModalScreen[int | None]):
+class ContextModal(ModalScreen[tuple[str, int] | None]):
     """Modal for selecting a log source context.
 
-    Displays a list of available log sources and allows the user
-    to select one. Returns the selected source index or None if cancelled.
+    Displays a tree of available log sources with configured sources at
+    root level and discovered sources in a collapsible "Discovered Logs" node.
+    Returns a tuple of (category, index) or None if cancelled.
     """
 
     DEFAULT_CSS = """
@@ -29,7 +30,7 @@ class ContextModal(ModalScreen[int | None]):
     ContextModal > Vertical {
         width: 60;
         height: auto;
-        max-height: 20;
+        max-height: 25;
         background: $surface;
         border: thick $primary;
         padding: 1;
@@ -42,9 +43,9 @@ class ContextModal(ModalScreen[int | None]):
         margin-bottom: 1;
     }
 
-    ContextModal OptionList {
+    ContextModal Tree {
         height: auto;
-        max-height: 10;
+        max-height: 15;
         margin-bottom: 1;
     }
 
@@ -58,11 +59,6 @@ class ContextModal(ModalScreen[int | None]):
     ContextModal Button {
         margin: 0 1;
     }
-
-    ContextModal .option-active {
-        text-style: bold;
-        color: $success;
-    }
     """
 
     BINDINGS = [
@@ -72,33 +68,36 @@ class ContextModal(ModalScreen[int | None]):
 
     def __init__(
         self,
-        sources: list[LogSource],
-        active_source_index: int | None = None,
+        configured_sources: list[LogSource],
+        discovered_sources: list[LogSource],
+        active_configured_index: int | None = None,
+        active_discovered_index: int | None = None,
     ) -> None:
         """Initialize the context selector modal.
 
         Args:
-            sources: List of available log sources.
-            active_source_index: Index of the currently active source.
+            configured_sources: List of sources from config file.
+            discovered_sources: List of auto-discovered sources.
+            active_configured_index: Index of active source in configured list.
+            active_discovered_index: Index of active source in discovered list.
         """
         super().__init__()
-        self._sources = sources
-        self._active_source_index = active_source_index
+        self._configured_sources = configured_sources
+        self._discovered_sources = discovered_sources
+        self._active_configured_index = active_configured_index
+        self._active_discovered_index = active_discovered_index
 
     def compose(self) -> ComposeResult:
         """Compose the modal content."""
         with Vertical():
             yield Label("Select Log Source", classes="context-title")
 
-            # Create options for each source (use index as ID to handle duplicate names)
-            options: list[Option] = []
-            for idx, source in enumerate(self._sources):
-                is_active = idx == self._active_source_index
-                label = f"● {source.name}" if is_active else f"  {source.name}"
-                options.append(Option(label, id=str(idx)))
+            # Create tree widget
+            tree: Tree[tuple[str, int]] = Tree("Log Sources", id="source-tree")
+            tree.show_root = False
+            tree.guide_depth = 2
 
-            option_list = OptionList(*options, id="source-list")
-            yield option_list
+            yield tree
 
             # Button bar
             with Vertical(classes="button-bar"):
@@ -106,11 +105,41 @@ class ContextModal(ModalScreen[int | None]):
                 yield Button("Cancel [Esc]", id="btn-cancel")
 
     def on_mount(self) -> None:
-        """Handle mount event - select the active source by default."""
-        option_list = self.query_one("#source-list", OptionList)
-        if self._active_source_index is not None:
-            # Highlight the active source directly by index
-            option_list.highlighted = self._active_source_index
+        """Handle mount event - populate tree and select active source."""
+        tree = self.query_one("#source-tree", Tree)
+
+        # Add configured sources at root level
+        active_node: TreeNode[tuple[str, int]] | None = None
+
+        for idx, source in enumerate(self._configured_sources):
+            is_active = idx == self._active_configured_index
+            label = f"● {source.name}" if is_active else source.name
+            node = tree.root.add_leaf(label, data=("configured", idx))
+            if is_active:
+                active_node = node
+
+        # Add discovered sources under a collapsible node
+        if self._discovered_sources:
+            discovered_node = tree.root.add(
+                f"Discovered Logs ({len(self._discovered_sources)})",
+                data=None,
+            )
+            # Start collapsed
+            discovered_node.collapse()
+
+            for idx, source in enumerate(self._discovered_sources):
+                is_active = idx == self._active_discovered_index
+                label = f"● {source.name}" if is_active else source.name
+                node = discovered_node.add_leaf(label, data=("discovered", idx))
+                if is_active:
+                    active_node = node
+                    # Expand the discovered node if active source is in it
+                    discovered_node.expand()
+
+        # Expand root and move cursor to active node
+        tree.root.expand()
+        if active_node:
+            tree.move_cursor(active_node)
 
     def action_cancel(self) -> None:
         """Cancel and close the modal."""
@@ -118,13 +147,14 @@ class ContextModal(ModalScreen[int | None]):
 
     def action_select(self) -> None:
         """Select the current context and close."""
-        option_list = self.query_one("#source-list", OptionList)
-        if option_list.highlighted is not None:
-            highlighted = option_list.highlighted
-            if highlighted < len(self._sources):
-                self.dismiss(highlighted)
-                return
-        self.dismiss(None)
+        tree = self.query_one("#source-tree", Tree)
+        node = tree.cursor_node
+        if node and node.data is not None:
+            self.dismiss(node.data)
+        else:
+            # If on a branch node (like "Discovered Logs"), toggle it
+            if node and node.allow_expand:
+                node.toggle()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
@@ -133,13 +163,7 @@ class ContextModal(ModalScreen[int | None]):
         elif event.button.id == "btn-select":
             self.action_select()
 
-    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        """Handle option selection (double-click or Enter on option)."""
-        if event.option.id:
-            # Option ID is the index as string
-            try:
-                idx = int(event.option.id)
-                if 0 <= idx < len(self._sources):
-                    self.dismiss(idx)
-            except ValueError:
-                pass
+    def on_tree_node_selected(self, event: Tree.NodeSelected[tuple[str, int]]) -> None:
+        """Handle tree node selection (double-click or Enter on leaf)."""
+        if event.node.data is not None:
+            self.dismiss(event.node.data)
