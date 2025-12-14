@@ -1,5 +1,29 @@
 # LogView Action Log
 
+## 2025-12-14: Phase 6 - Search Within Results
+
+**Changes:**
+- Implemented search within already-loaded log entries
+  - Search bar appears at bottom on `/` key, hides on Escape
+  - Case-insensitive text search filters displayed entries
+  - Real-time filtering as user types
+  - Match count displayed (e.g., "3/10 matches")
+  - Navigate matches with `n` (next) and `N` (previous)
+- Added LogList search methods: search(), clear_search(), next_match(), prev_match()
+- Updated help modal to document n/N keybindings
+
+**Files Added:**
+- `tests/ui/test_search.py` - 10 UI tests for search feature
+
+**Files Modified:**
+- `src/logview/app.py` - Search bar UI, actions, event handlers
+- `src/logview/ui/widgets/log_list.py` - Search filtering and navigation
+- `src/logview/ui/screens/help.py` - Added n/N keybindings
+
+**Tests:** 352 passed, 38 skipped
+
+---
+
 ## 2025-12-14: Phase 6 - Help Modal Implementation
 
 **Changes:**

@@ -103,6 +103,8 @@ class HelpModal(ModalScreen[None]):
                 yield Static("[b]f[/b]           Open filter editor", classes="help-row")
                 yield Static("[b]r[/b]           Refresh logs", classes="help-row")
                 yield Static("[b]/[/b]           Search within results", classes="help-row")
+                yield Static("[b]n[/b]           Next search match", classes="help-row")
+                yield Static("[b]N[/b]           Previous search match", classes="help-row")
                 yield Static("[b]e[/b]           Export visible logs", classes="help-row")
                 yield Static("", classes="help-section")
 

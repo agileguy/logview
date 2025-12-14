@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from textual.app import App, ComposeResult
-from textual.widgets import Footer, Header
+from textual.containers import Horizontal
+from textual.widgets import Footer, Header, Input, Label
 
 from logview.adapters.base import LogSource
 from logview.adapters.discovery import DiscoveredLog, discover_logs
@@ -51,8 +52,42 @@ class LogViewApp(App[None]):
         ("f", "show_filter", "Filter"),
         ("r", "refresh", "Refresh"),
         ("?", "show_help", "Help"),
-        ("/", "search", "Search"),
+        ("slash", "search", "Search"),
+        ("n", "next_match", "Next"),
+        ("N", "prev_match", "Prev"),
     ]
+
+    DEFAULT_CSS = """
+    #search-bar {
+        dock: bottom;
+        height: 3;
+        display: none;
+        background: $surface;
+        border-top: solid $primary;
+        padding: 0 1;
+    }
+
+    #search-bar.visible {
+        display: block;
+    }
+
+    #search-bar Label {
+        width: auto;
+        padding: 1 1;
+        color: $primary;
+        text-style: bold;
+    }
+
+    #search-bar Input {
+        width: 1fr;
+    }
+
+    #search-results {
+        width: auto;
+        padding: 1 1;
+        color: $text-muted;
+    }
+    """
 
     def __init__(self, config_path: Path | None = None) -> None:
         """Initialize the application.
@@ -74,6 +109,10 @@ class LogViewApp(App[None]):
         """Compose the application layout."""
         yield Header()
         yield LogList(id="log-list")
+        with Horizontal(id="search-bar"):
+            yield Label("Search:")
+            yield Input(placeholder="Type to search...", id="search-input")
+            yield Label("", id="search-results")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -422,8 +461,80 @@ class LogViewApp(App[None]):
 
     def action_search(self) -> None:
         """Show the search input."""
-        # TODO: Implement in Phase 5
-        self.notify("Search not yet implemented")
+        search_bar = self.query_one("#search-bar")
+        search_input = self.query_one("#search-input", Input)
+
+        # Toggle search bar visibility
+        if "visible" in search_bar.classes:
+            self._hide_search_bar()
+        else:
+            search_bar.add_class("visible")
+            search_input.focus()
+
+    def _hide_search_bar(self) -> None:
+        """Hide the search bar and clear search."""
+        search_bar = self.query_one("#search-bar")
+        search_input = self.query_one("#search-input", Input)
+        search_results = self.query_one("#search-results", Label)
+
+        search_bar.remove_class("visible")
+        search_input.value = ""
+        search_results.update("")
+
+        # Clear search in log list
+        log_list = self.query_one("#log-list", LogList)
+        log_list.clear_search()
+        log_list.focus()
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Handle search input changes."""
+        if event.input.id == "search-input":
+            log_list = self.query_one("#log-list", LogList)
+            log_list.search(event.value)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle search input submission (Enter key)."""
+        if event.input.id == "search-input":
+            # Move focus to log list to allow navigation
+            log_list = self.query_one("#log-list", LogList)
+            log_list.focus()
+
+    def on_log_list_search_results_changed(
+        self, event: LogList.SearchResultsChanged
+    ) -> None:
+        """Handle search results update."""
+        search_results = self.query_one("#search-results", Label)
+        if event.match_count > 0:
+            search_results.update(f"{event.current_match}/{event.match_count} matches")
+        elif self.query_one("#search-input", Input).value:
+            search_results.update("No matches")
+        else:
+            search_results.update("")
+
+    def action_next_match(self) -> None:
+        """Move to next search match."""
+        log_list = self.query_one("#log-list", LogList)
+        if log_list.is_searching():
+            log_list.next_match()
+        else:
+            self.notify("No active search (press / to search)")
+
+    def action_prev_match(self) -> None:
+        """Move to previous search match."""
+        log_list = self.query_one("#log-list", LogList)
+        if log_list.is_searching():
+            log_list.prev_match()
+        else:
+            self.notify("No active search (press / to search)")
+
+    def on_key(self, event: Any) -> None:
+        """Handle key events for search bar escape."""
+        # Check if search bar is visible and Escape is pressed
+        search_bar = self.query_one("#search-bar")
+        if "visible" in search_bar.classes and event.key == "escape":
+            self._hide_search_bar()
+            event.prevent_default()
+            event.stop()
 
     def on_log_list_entry_selected(self, event: LogList.EntrySelected) -> None:
         """Handle log entry selection from the list."""
