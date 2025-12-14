@@ -9,6 +9,7 @@ from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header
 
 from logview.adapters.base import LogSource
+from logview.adapters.discovery import discover_logs
 from logview.adapters.logfile import LogFileSource
 from logview.adapters.mock import MockLogSource
 from logview.adapters.syslog import SyslogLogSource
@@ -126,6 +127,41 @@ class LogViewApp(App[None]):
                     self.register_source(source)
             except Exception as e:
                 self.notify(f"Error creating source '{context.name}': {e}", severity="warning")
+
+        # Auto-discover log files from configured discovery paths
+        self._discover_and_register_logs()
+
+    def _discover_and_register_logs(self) -> None:
+        """Discover log files from configured paths and register them as sources."""
+        if not self._config or not self._config.discovery:
+            return
+
+        discovery = self._config.discovery
+        if not discovery.paths:
+            return
+
+        try:
+            discovered = discover_logs(
+                search_paths=discovery.paths,
+                max_depth=discovery.max_depth,
+                allowed_directories=discovery.allowed_directories,
+            )
+
+            for log in discovered:
+                try:
+                    source = LogFileSource(
+                        name=log.name,
+                        path=str(log.path),
+                        format="auto",
+                        allowed_directories=discovery.allowed_directories,
+                    )
+                    self.register_source(source)  # type: ignore[arg-type]
+                except Exception as e:
+                    # Skip individual files that fail to load
+                    self.notify(f"Skipping {log.name}: {e}", severity="warning")
+
+        except Exception as e:
+            self.notify(f"Log discovery error: {e}", severity="warning")
 
     def _create_source_from_context(
         self,
