@@ -36,7 +36,6 @@ class LogViewApp(App[None]):
         ("r", "refresh", "Refresh"),
         ("?", "show_help", "Help"),
         ("/", "search", "Search"),
-        ("enter", "show_detail", "Detail"),
     ]
 
     def __init__(self, config_path: Path | None = None) -> None:

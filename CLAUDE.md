@@ -199,9 +199,15 @@ This prevents CI environment differences from causing false failures.
 
 5. **Push fixes and verify** the review issues are resolved
 
-6. **Only mark PR as ready** after:
+6. **Check for NEW comments after fixing**:
+   - After pushing fixes, Cursor may review again and add new comments
+   - Always re-check the PR for new review comments after each push
+   - Repeat the fix cycle until no new comments appear
+
+7. **Only mark PR as ready** after:
    - All CI checks pass
    - **ALL** Cursor review suggestions implemented (not just some)
+   - **No new comments** on the latest commit
 
 ### PR Checklist
 

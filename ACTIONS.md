@@ -113,3 +113,22 @@
 - `CLAUDE.md` - Emphasize ALL cursor comments must be addressed
 
 **Tests:** All 143 tests pass
+
+---
+
+## 2024-12-13: Fix Double Detail Modal & PR Check Workflow
+
+**Changes:**
+- Fixed bug where Enter key opened detail modal twice
+  - App had both `enter` binding to `action_show_detail` AND message handler `on_log_list_entry_selected`
+  - Removed the redundant `enter` binding from BINDINGS list
+  - Modal now opens once via the message handler only
+- Updated CLAUDE.md to mandate checking for NEW comments after pushing fixes
+  - Added step 6: Check for new comments after fixing
+  - Updated step 7 to include "No new comments on latest commit" requirement
+
+**Files:**
+- `src/logview/app.py` - Removed duplicate enter binding (line 39)
+- `CLAUDE.md` - Added new comment check requirement in Cursor Reviews section
+
+**Tests:** All 143 tests pass
