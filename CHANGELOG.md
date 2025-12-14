@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-12-14
+
 ### Added
 - **GKE (Google Kubernetes Engine) Adapter**: Query GKE logs via Cloud Logging API
   - Uses k8s_container resource type for Kubernetes-specific queries
@@ -16,16 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reuses GCP adapter's batch processing for memory efficiency
   - Cluster and namespace name validation
   - Graceful degradation when google-cloud-logging not installed
-
-### Security
-- **GKE Wildcard Validation**: Strict validation for wildcard patterns
-  - Only trailing wildcards allowed (`kube-*` ✓, `*-system` ✗, `kube-*-system` ✗)
-  - Wildcard-only patterns rejected (`*` ✗)
-  - Invalid patterns raise `GKEInvalidFilterError` with clear error messages
-  - `validate_filter` now validates wildcards before `fetch` (fail-fast)
-- **Quote Escaping**: All filter values properly escaped for Cloud Logging syntax
-  - Namespace, pod, container, labels, and text search values escaped
-  - Prevents filter syntax errors from special characters
 - **GCP Cloud Logging Adapter**: Query logs from Google Cloud Logging
   - Application Default Credentials (ADC) authentication
   - Graceful degradation when google-cloud-logging not installed
@@ -43,6 +35,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Discovered sources in collapsible "Discovered Logs" folder
   - Active source highlighted with "●" marker
 - Integration tests for GCP and GKE adapters (skipped in CI)
+
+### Security
+- **GKE Wildcard Validation**: Strict validation for wildcard patterns
+  - Only trailing wildcards allowed (`kube-*` ✓, `*-system` ✗, `kube-*-system` ✗)
+  - Wildcard-only patterns rejected (`*` ✗)
+  - Invalid patterns raise `GKEInvalidFilterError` with clear error messages
+  - `validate_filter` now validates wildcards before `fetch` (fail-fast)
+- **Quote Escaping**: All filter values properly escaped for Cloud Logging syntax
+  - Namespace, pod, container, labels, and text search values escaped
+  - Prevents filter syntax errors from special characters
 
 ### Changed
 - **Performance**: Memory-optimized fetch operations
@@ -116,7 +118,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI pipeline
 - Comprehensive test suite (pytest, mypy, ruff)
 
-[Unreleased]: https://github.com/agileguy/logview/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/agileguy/logview/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/agileguy/logview/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/agileguy/logview/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/agileguy/logview/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/agileguy/logview/releases/tag/v0.1.0
