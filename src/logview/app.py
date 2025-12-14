@@ -669,7 +669,9 @@ class LogViewApp(App[None]):
                     # Set flag to prevent watch_theme from double-saving
                     self._loading_theme = True
                     theme_name = new_settings.theme
-                    if not theme_name.startswith("textual-"):
+                    # Only add "textual-" prefix for base themes (dark, light, ansi)
+                    # Custom themes (catppuccin-mocha, dracula, etc.) use names as-is
+                    if theme_name in ("dark", "light", "ansi") and not theme_name.startswith("textual-"):
                         theme_name = f"textual-{theme_name}"
                     self.theme = theme_name
                     self._loading_theme = False

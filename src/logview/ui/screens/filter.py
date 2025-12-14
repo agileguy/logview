@@ -373,12 +373,6 @@ class FilterModal(ModalScreen[Filter | None]):
 
         name = "-".join(parts)
 
-        # Check if name already exists
-        existing = next((p for p in self._presets if p.name == name), None)
-        if existing:
-            # Update existing
-            pass
-
         # Build preset
         time_range_minutes = None
         if time_select.value != Select.BLANK:
@@ -401,8 +395,16 @@ class FilterModal(ModalScreen[Filter | None]):
             text_search=current_text if current_text else None,
         )
 
+        # Check if name already exists
+        existing_idx = next((i for i, p in enumerate(self._presets) if p.name == name), None)
+        if existing_idx is not None:
+            # Update existing preset in place
+            self._presets[existing_idx] = preset
+        else:
+            # Append new preset
+            self._presets.append(preset)
+
         self._on_save_preset(preset)
-        self._presets.append(preset)
 
         # Update dropdown
         try:
