@@ -21,7 +21,7 @@ SyslogParseError: type[Exception] = Exception
 _parse_syslog_line: Callable[[str], Any] | None = None
 
 try:
-    from logview.adapters import syslog_parser  # type: ignore[attr-defined]
+    from logview.adapters import syslog_parser
     SYSLOG_AVAILABLE = True
     SyslogParseError = syslog_parser.SyslogParseError
     _parse_syslog_line = syslog_parser.parse_syslog_line
