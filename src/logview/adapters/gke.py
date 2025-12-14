@@ -106,6 +106,18 @@ def _validate_namespace(namespace: str) -> None:
     logger.debug("Namespace validated: %s", namespace)
 
 
+def _escape_filter_value(value: str) -> str:
+    """Escape a value for use in Cloud Logging filter strings.
+
+    Args:
+        value: The value to escape.
+
+    Returns:
+        Escaped value safe for Cloud Logging filter syntax.
+    """
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _build_gke_filter(
     log_filter: Filter,
     project: str,
@@ -158,14 +170,17 @@ def _build_gke_filter(
                     f"Invalid namespace pattern '{effective_namespace}': "
                     "only trailing wildcards are allowed (e.g., 'kube-*')"
                 )
-            parts.append(f'resource.labels.namespace_name=~"^{re.escape(prefix)}"')
+            # Escape quotes in prefix before regex escaping (regex backslashes are intentional)
+            safe_prefix = prefix.replace('"', '\\"')
+            parts.append(f'resource.labels.namespace_name=~"^{re.escape(safe_prefix)}"')
         elif "*" in effective_namespace:
             raise GKEInvalidFilterError(
                 f"Invalid namespace pattern '{effective_namespace}': "
                 "only trailing wildcards are allowed (e.g., 'kube-*')"
             )
         else:
-            parts.append(f'resource.labels.namespace_name="{effective_namespace}"')
+            escaped_ns = _escape_filter_value(effective_namespace)
+            parts.append(f'resource.labels.namespace_name="{escaped_ns}"')
 
     # Pod filter (from log_filter.fields)
     effective_pod = log_filter.fields.get("pod") if log_filter.fields else None
@@ -184,20 +199,24 @@ def _build_gke_filter(
                     f"Invalid pod pattern '{effective_pod}': "
                     "only trailing wildcards are allowed (e.g., 'api-*')"
                 )
-            parts.append(f'resource.labels.pod_name=~"^{re.escape(prefix)}"')
+            # Escape quotes in prefix before regex escaping (regex backslashes are intentional)
+            safe_prefix = prefix.replace('"', '\\"')
+            parts.append(f'resource.labels.pod_name=~"^{re.escape(safe_prefix)}"')
         elif "*" in effective_pod:
             raise GKEInvalidFilterError(
                 f"Invalid pod pattern '{effective_pod}': "
                 "only trailing wildcards are allowed (e.g., 'api-*')"
             )
         else:
-            parts.append(f'resource.labels.pod_name="{effective_pod}"')
+            escaped_pod = _escape_filter_value(effective_pod)
+            parts.append(f'resource.labels.pod_name="{escaped_pod}"')
 
     # Container filter (from log_filter.fields)
     effective_container = log_filter.fields.get("container") if log_filter.fields else None
 
     if effective_container:
-        parts.append(f'resource.labels.container_name="{effective_container}"')
+        escaped_container = _escape_filter_value(effective_container)
+        parts.append(f'resource.labels.container_name="{escaped_container}"')
 
     # Label filters (k8s pod labels, from log_filter.fields)
     effective_labels: dict[str, str] = {}
@@ -221,9 +240,8 @@ def _build_gke_filter(
 
     for key, value in effective_labels.items():
         # Pod labels are stored as labels."k8s-pod/<key>"
-        # Escape special characters in key and value for Cloud Logging filter syntax
-        escaped_key = key.replace("\\", "\\\\").replace('"', '\\"')
-        escaped_value = value.replace("\\", "\\\\").replace('"', '\\"')
+        escaped_key = _escape_filter_value(key)
+        escaped_value = _escape_filter_value(value)
         parts.append(f'labels."k8s-pod/{escaped_key}"="{escaped_value}"')
 
     # Time range
@@ -242,7 +260,7 @@ def _build_gke_filter(
 
     # Text search
     if log_filter.text_search and log_filter.text_search.strip():
-        escaped = log_filter.text_search.replace("\\", "\\\\").replace('"', '\\"')
+        escaped = _escape_filter_value(log_filter.text_search)
         parts.append(f'(textPayload:"{escaped}" OR jsonPayload:"{escaped}")')
 
     return " AND ".join(parts)
