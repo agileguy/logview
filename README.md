@@ -301,6 +301,13 @@ mypy src/
 ruff check src/ tests/
 ```
 
+## Documentation
+
+- **[USER.md](USER.md)**: Comprehensive user manual with detailed guides, workflows, and troubleshooting
+- **[PLAN.md](PLAN.md)**: Project roadmap and architecture documentation
+- **[CHANGELOG.md](CHANGELOG.md)**: Detailed version history and changes
+- **[ACTIONS.md](ACTIONS.md)**: Development activity log
+
 ## Project Status
 
 This project is under active development. See [PLAN.md](PLAN.md) for the roadmap.
