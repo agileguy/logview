@@ -141,12 +141,20 @@ If any check fails, fix the issues before pushing.
 
 ## Continuous Integration
 
-GitHub Actions CI runs on all PRs targeting main:
+GitHub Actions CI runs on all PRs targeting main and on pushes to main:
 
 - **Lint**: `ruff check src/ tests/`
 - **Type Check**: `mypy src/`
 - **Test**: `pytest` on Python 3.11 and 3.12
 - **Coverage**: Must maintain >70% coverage
+
+### CI Badge Behavior
+
+The README.md CI status badge reflects the status of the most recent CI run on the `main` branch. The workflow is configured to run on:
+- Pull requests targeting `main` (for pre-merge validation)
+- Pushes to `main` (to update badge status after merges)
+
+This ensures the badge accurately reflects the current state of the main branch rather than showing stale status from historical pushes.
 
 ### Snapshot Testing
 
