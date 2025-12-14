@@ -229,7 +229,7 @@ class LogViewApp(App[None]):
             # Pass configured allowed_directories for security whitelist
             allowed_paths: list[Path] | None = None
             if self._config and self._config.discovery:
-                allowed_paths = [Path(d) for d in self._config.discovery.allowed_directories]
+                allowed_paths = [Path(os.path.expanduser(d)) for d in self._config.discovery.allowed_directories]
             return SyslogLogSource(  # type: ignore[return-value]
                 file_path=context.path,
                 name=context.name,

@@ -140,17 +140,19 @@ def parse_jsonl_line(line: str) -> ParsedJsonlLine:
     Raises:
         JsonlParseError: If the line cannot be parsed.
     """
-    line = line.strip()
-    if not line:
-        raise JsonlParseError(line, "empty line")
+    # Preserve original line (minus trailing newline) for raw field
+    original_line = line.rstrip("\n\r")
+    stripped = line.strip()
+    if not stripped:
+        raise JsonlParseError(original_line, "empty line")
 
     try:
-        data = json.loads(line)
+        data = json.loads(stripped)
     except json.JSONDecodeError as e:
-        raise JsonlParseError(line, f"invalid JSON: {e}") from e
+        raise JsonlParseError(original_line, f"invalid JSON: {e}") from e
 
     if not isinstance(data, dict):
-        raise JsonlParseError(line, "JSON must be an object")
+        raise JsonlParseError(original_line, "JSON must be an object")
 
     # Extract timestamp
     ts_value = _find_field(data, TIMESTAMP_FIELDS)
@@ -172,7 +174,7 @@ def parse_jsonl_line(line: str) -> ParsedJsonlLine:
         message = str(msg_value)
     else:
         # Use the entire JSON as message if no message field
-        message = line
+        message = stripped
 
     # Build metadata from remaining fields
     metadata: dict[str, Any] = {}
@@ -190,7 +192,7 @@ def parse_jsonl_line(line: str) -> ParsedJsonlLine:
         message=message,
         severity=severity,
         metadata=metadata,
-        raw=line,
+        raw=original_line,
     )
 
 
