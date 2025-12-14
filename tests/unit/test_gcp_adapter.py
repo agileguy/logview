@@ -152,7 +152,7 @@ class TestFilterBuilding:
         assert "severity >= ERROR" in filter_str
 
     def test_time_range_filter(self) -> None:
-        """Test building time range filter."""
+        """Test building time range filter with naive datetimes (appends Z)."""
         start = datetime(2024, 1, 1, 0, 0, 0)
         end = datetime(2024, 1, 2, 0, 0, 0)
         time_range = TimeRange(start=start, end=end)
@@ -160,11 +160,23 @@ class TestFilterBuilding:
         assert 'timestamp >= "2024-01-01T00:00:00Z"' in filter_str
         assert 'timestamp <= "2024-01-02T00:00:00Z"' in filter_str
 
+    def test_time_range_filter_timezone_aware(self) -> None:
+        """Test building time range filter with timezone-aware datetimes (uses existing offset)."""
+        start = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
+        end = datetime(2024, 1, 2, 0, 0, 0, tzinfo=UTC)
+        time_range = TimeRange(start=start, end=end)
+        filter_str = _build_filter(Filter(time_range=time_range))
+        # Should use the existing timezone offset, not append extra Z
+        assert 'timestamp >= "2024-01-01T00:00:00+00:00"' in filter_str
+        assert 'timestamp <= "2024-01-02T00:00:00+00:00"' in filter_str
+        # Verify no double-Z (malformed timestamp)
+        assert "+00:00Z" not in filter_str
+
     def test_text_search_filter(self) -> None:
-        """Test building text search filter."""
+        """Test building text search filter with parentheses for correct AND/OR precedence."""
         filter_str = _build_filter(Filter(text_search="error"))
-        assert 'textPayload:"error"' in filter_str
-        assert 'jsonPayload:"error"' in filter_str
+        # Verify parentheses wrap the OR expression
+        assert '(textPayload:"error" OR jsonPayload:"error")' in filter_str
 
     def test_text_search_escapes_quotes(self) -> None:
         """Test that quotes in text search are escaped."""

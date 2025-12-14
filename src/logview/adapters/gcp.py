@@ -175,8 +175,13 @@ def _build_filter(
 
     # Time range
     if log_filter.time_range:
-        start_iso = log_filter.time_range.start.isoformat() + "Z"
-        end_iso = log_filter.time_range.end.isoformat() + "Z"
+        # Handle both naive and timezone-aware datetimes
+        # For naive datetimes, append Z to indicate UTC
+        # For timezone-aware, isoformat() already includes offset
+        start = log_filter.time_range.start
+        end = log_filter.time_range.end
+        start_iso = start.isoformat() if start.tzinfo else start.isoformat() + "Z"
+        end_iso = end.isoformat() if end.tzinfo else end.isoformat() + "Z"
         parts.append(f'timestamp >= "{start_iso}"')
         parts.append(f'timestamp <= "{end_iso}"')
 
@@ -196,8 +201,9 @@ def _build_filter(
     # Text search
     if log_filter.text_search:
         # Escape quotes in search text
+        # Wrap OR expression in parentheses to ensure correct precedence with AND
         escaped = log_filter.text_search.replace('"', '\\"')
-        parts.append(f'textPayload:"{escaped}" OR jsonPayload:"{escaped}"')
+        parts.append(f'(textPayload:"{escaped}" OR jsonPayload:"{escaped}")')
 
     # Custom fields from filter.fields
     if log_filter.fields:
