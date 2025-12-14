@@ -456,8 +456,10 @@ class TestGKELogSource:
 
     def test_invalid_project_id_raises_error(self) -> None:
         """Test that invalid project ID raises error."""
+        from logview.adapters.gcp import GCPInvalidProjectError
+
         client = MockLoggingClient()
-        with pytest.raises(Exception):  # GCPInvalidProjectError
+        with pytest.raises(GCPInvalidProjectError):
             GKELogSource(
                 project_id="INVALID",
                 cluster="my-cluster",
