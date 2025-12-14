@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **GCP Cloud Logging Adapter**: Query logs from Google Cloud Logging
+  - Application Default Credentials (ADC) authentication
+  - Graceful degradation when google-cloud-logging not installed
+  - Filter by project, log name, resource type, severity, time range, text search
+  - Comprehensive error handling (auth, permission, quota, project not found)
+  - Project ID format validation
+  - Protocol-based design for easy testing
+- Integration tests for GCP adapter (skipped in CI)
+
 ## [0.2.0] - 2024-12-13
 
 ### Added

@@ -24,6 +24,7 @@ class GCPContext(BaseModel):
     type: Literal["gcp"]
     project: str
     log_name: str | None = None
+    resource_type: str | None = None
 
 
 class SyslogContext(BaseModel):

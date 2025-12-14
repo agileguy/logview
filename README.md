@@ -70,6 +70,12 @@ Create `~/.config/logview/config.json`:
       "path": "/var/log/syslog"
     },
     {
+      "name": "gcp-logs",
+      "type": "gcp",
+      "project": "my-project",
+      "log_name": "cloudaudit.googleapis.com%2Factivity"
+    },
+    {
       "name": "prod-gke",
       "type": "gke",
       "project": "my-project",
@@ -83,6 +89,39 @@ Create `~/.config/logview/config.json`:
 ```
 
 See `configs/example.json` for a complete example.
+
+### GCP Cloud Logging Setup
+
+To use GCP Cloud Logging as a log source:
+
+1. **Install with GCP support**:
+   ```bash
+   pip install -e ".[gcp]"
+   ```
+
+2. **Authenticate with GCP**:
+   ```bash
+   gcloud auth application-default login
+   ```
+
+3. **Add a GCP context to your config**:
+   ```json
+   {
+     "name": "my-gcp-project",
+     "type": "gcp",
+     "project": "your-project-id",
+     "log_name": "cloudaudit.googleapis.com%2Factivity"
+   }
+   ```
+
+**Requirements**:
+- The `google-cloud-logging` package (installed with `.[gcp]`)
+- Valid Application Default Credentials (ADC)
+- `Logs Viewer` role on the GCP project
+
+**Optional fields**:
+- `log_name`: Filter to specific log (e.g., `cloudaudit.googleapis.com%2Factivity`)
+- `resource_type`: Filter by resource type (e.g., `gce_instance`, `k8s_container`)
 
 ## Security
 
@@ -170,9 +209,9 @@ ruff check src/ tests/
 This project is under active development. See [PLAN.md](PLAN.md) for the roadmap.
 
 - [x] Phase 1: Foundation (MVP)
-- [ ] Phase 2: Syslog & Modals
-- [ ] Phase 3: Application Logs (logfile adapter with format auto-detection)
-- [ ] Phase 4: GCP Cloud Logging
+- [x] Phase 2: Syslog & Modals
+- [x] Phase 3: Application Logs (logfile adapter with format auto-detection)
+- [x] Phase 4: GCP Cloud Logging
 - [ ] Phase 5: GKE integration
 - [ ] Phase 6: File watching & Enhanced UX
 - [ ] Phase 7: Extended format support

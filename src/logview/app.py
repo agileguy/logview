@@ -257,6 +257,7 @@ class LogViewApp(App[None]):
             return GCPLogSource(  # type: ignore[return-value]
                 project_id=context.project,
                 log_name=context.log_name,
+                resource_type=context.resource_type,
                 name=context.name,
             )
         else:

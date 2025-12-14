@@ -1,5 +1,43 @@
 # LogView Action Log
 
+## 2025-12-14: Phase 4 - GCP Cloud Logging Adapter
+
+**Changes:**
+- Implemented GCP Cloud Logging adapter (`src/logview/adapters/gcp.py`)
+- Graceful degradation when `google-cloud-logging` not installed
+- Application Default Credentials (ADC) authentication support
+- Filter building for Cloud Logging query syntax
+- Log entry parsing (text, JSON, proto payloads)
+- Project ID validation (6-30 chars, lowercase, letters/digits/hyphens)
+- Protocol-based design for testability (mock client injection)
+- Comprehensive error handling:
+  - `GCPNotInstalledError` - helpful install instructions
+  - `GCPAuthenticationError` - gcloud login instructions
+  - `GCPPermissionError` - role requirement info
+  - `GCPProjectNotFoundError` - project ID verification
+  - `GCPQuotaExceededError` - rate limiting info
+  - `GCPInvalidProjectError` - format requirements
+- Added 40 unit tests for GCP adapter
+- Added 16 integration tests (skipped in CI)
+- Wired GCP adapter to main app
+
+**Files Added:**
+- `src/logview/adapters/gcp.py` - GCP Cloud Logging adapter
+- `tests/unit/test_gcp_adapter.py` - 40 unit tests
+- `tests/integration/test_gcp.py` - 16 integration tests
+
+**Files Modified:**
+- `src/logview/app.py` - GCP adapter integration
+- `tests/conftest.py` - Added `gcp_integration` marker
+- `PLAN.md` - Updated Phase 4 plan with improvements
+- `README.md` - GCP setup instructions, project status
+- `CHANGELOG.md` - Phase 4 features
+- `CLAUDE.md` - Expanded allowed tools list
+
+**Tests:** 271 passed, 16 skipped (GCP integration tests)
+
+---
+
 ## 2025-12-14: PR #5 Bug Fixes and Documentation
 
 **Changes:**

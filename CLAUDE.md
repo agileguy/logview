@@ -24,11 +24,25 @@ ruff check src/ tests/
 
 The following tools can be used freely without user approval:
 
-- `gh` - GitHub CLI (repos, PRs, issues, auth)
-- `git` - Version control operations
-- `pytest` - Running tests
-- `mypy` - Type checking
-- `ruff` - Linting and formatting
+### Version Control & GitHub
+- `git` - All git operations (`git:*`)
+- `gh` - GitHub CLI (repos, PRs, issues, auth, runs, api)
+
+### Python Development
+- `.venv/bin/*` - All virtual environment tools
+- `source .venv/bin/activate*` - Activate virtual environment
+- `pip install:*` - Install packages
+- `pip show:*` - Show package info
+- `pytest:*` - Running tests
+- `python -m pytest:*` - Running pytest as module
+- `mypy:*` - Type checking
+- `ruff check:*` - Linting and formatting
+- `python:*` / `python3:*` - Python execution
+- `coverage run:*` / `coverage report:*` - Coverage tools
+- `timeout 3 python3:*` - Timeout-limited execution
+- `find:*` - File finding
+
+### Web
 - `WebSearch` - Web searches for documentation/solutions
 
 ## Architecture
@@ -313,7 +327,7 @@ print(__version__)  # e.g., "0.2.0"
 
 ## Current Phase
 
-**Phase 2 (Syslog & Modals) - IN PROGRESS**
+**Phase 4 (GCP Cloud Logging) - COMPLETE**
 
 See ACTIONS.md for detailed progress log.
 
@@ -323,7 +337,9 @@ See ACTIONS.md for detailed progress log.
 - Domain models: `src/logview/domain/models.py`
 - Config schema: `src/logview/config/schema.py`
 - Log adapters: `src/logview/adapters/`
+  - `gcp.py` - GCP Cloud Logging adapter
   - `logfile.py` - Generic log file adapter with format auto-detection
+  - `syslog.py` - Syslog file adapter
   - `jsonl_parser.py` - JSON Lines format parser
   - `plaintext_parser.py` - Plain text log parser
   - `discovery.py` - Log file discovery service
