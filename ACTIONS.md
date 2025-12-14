@@ -189,3 +189,12 @@
 - `tests/ui/test_context_modal.py` - Updated to use active_source_index
 
 **Tests:** 149 tests pass
+
+---
+
+## 2025-12-14: Fix Claude code review workflow PR comment permissions
+
+**Changes:**
+- Updated GitHub Actions job permissions to allow `gh pr comment` (requires `pull-requests: write`)
+
+**Files:** `.github/workflows/claude-code-review.yml`
