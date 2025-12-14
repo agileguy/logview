@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -144,9 +144,9 @@ def _parse_iso8601_timestamp(timestamp_str: str) -> datetime:
     # Try parsing with fromisoformat (Python 3.11+)
     dt = datetime.fromisoformat(timestamp_str)
 
-    # Convert to UTC then make naive (for consistency with RFC 3164)
+    # Convert to local time then make naive (for consistency with RFC 3164)
     if dt.tzinfo is not None:
-        dt = dt.astimezone(UTC).replace(tzinfo=None)
+        dt = dt.astimezone().replace(tzinfo=None)
 
     return dt
 
@@ -236,6 +236,11 @@ def _parse_rfc3164(line: str, year: int | None = None) -> ParsedSyslogLine:
         timestamp = datetime(year, month, day, hour, minute, second)
     except ValueError as e:
         raise SyslogParseError(line, f"invalid date/time: {e}") from e
+
+    # If timestamp is in the future, it's likely from the previous year
+    # (e.g., viewing Dec logs in January)
+    if timestamp > datetime.now():
+        timestamp = timestamp.replace(year=year - 1)
 
     pid = int(groups["pid"]) if groups["pid"] else None
     message = _sanitize_message(groups["message"])

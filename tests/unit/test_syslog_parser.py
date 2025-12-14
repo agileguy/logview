@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -160,12 +160,16 @@ class TestRFC5424Format:
     """Tests for RFC 5424 / ISO 8601 timestamp format parsing."""
 
     def test_parses_rfc5424_with_pid(self) -> None:
-        """Test parsing RFC 5424 format with PID (converts to UTC)."""
+        """Test parsing RFC 5424 format with PID (converts to local time)."""
         line = "2025-12-07T00:00:05.319366-07:00 boss rsyslogd[1045]: rsyslogd was HUPed"
         result = parse_syslog_line(line)
 
-        # -07:00 means 7 hours behind UTC, so 00:00:05-07:00 = 07:00:05 UTC
-        assert result.timestamp == datetime(2025, 12, 7, 7, 0, 5, 319366)
+        # Timestamp is converted to local time - compute expected value
+        from datetime import timedelta, timezone
+        tz_minus7 = timezone(timedelta(hours=-7))
+        original = datetime(2025, 12, 7, 0, 0, 5, 319366, tzinfo=tz_minus7)
+        expected = original.astimezone().replace(tzinfo=None)
+        assert result.timestamp == expected
         assert result.hostname == "boss"
         assert result.program == "rsyslogd"
         assert result.pid == 1045
@@ -182,22 +186,29 @@ class TestRFC5424Format:
         assert result.message == "Started service"
 
     def test_parses_rfc5424_utc_z(self) -> None:
-        """Test parsing RFC 5424 format with Z timezone."""
+        """Test parsing RFC 5424 format with Z timezone (converts to local time)."""
         line = "2025-01-15T14:30:00Z server nginx[999]: Connection accepted"
         result = parse_syslog_line(line)
 
-        assert result.timestamp == datetime(2025, 1, 15, 14, 30, 0)
+        # Z means UTC, convert to local time
+        original = datetime(2025, 1, 15, 14, 30, 0, tzinfo=UTC)
+        expected = original.astimezone().replace(tzinfo=None)
+        assert result.timestamp == expected
         assert result.hostname == "server"
         assert result.program == "nginx"
         assert result.pid == 999
 
     def test_parses_rfc5424_without_microseconds(self) -> None:
-        """Test parsing RFC 5424 format without microseconds (converts to UTC)."""
+        """Test parsing RFC 5424 format without microseconds (converts to local time)."""
         line = "2025-06-15T08:00:00+05:30 host app[1]: message"
         result = parse_syslog_line(line)
 
-        # +05:30 means 5.5 hours ahead of UTC, so 08:00:00+05:30 = 02:30:00 UTC
-        assert result.timestamp == datetime(2025, 6, 15, 2, 30, 0)
+        # +05:30 means 5.5 hours ahead of UTC, convert to local time
+        from datetime import timedelta, timezone
+        tz_plus530 = timezone(timedelta(hours=5, minutes=30))
+        original = datetime(2025, 6, 15, 8, 0, 0, tzinfo=tz_plus530)
+        expected = original.astimezone().replace(tzinfo=None)
+        assert result.timestamp == expected
         assert result.hostname == "host"
 
     def test_rfc5424_severity_detection(self) -> None:
