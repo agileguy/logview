@@ -565,27 +565,67 @@ labels."k8s-pod/app"="my-app"  -- pod labels
 
 ---
 
-### Phase 6: Enhanced UX
-**Goal:** Polish and power-user features.
+### Phase 6: Enhanced UX ⏳ IN PROGRESS
+**Goal:** Polish and power-user features for daily use.
+
+**Already Complete (from previous phases):**
+- [x] Copy log entry to clipboard (DetailModal)
+- [x] Color themes (light/dark via Textual, persisted to config)
+- [x] Responsive layout (Textual built-in)
+- [x] Mouse support (Textual built-in)
 
 **Deliverables:**
-- [ ] Filter presets (save/load common filters)
-- [ ] Search within current results (/ key)
-- [ ] Copy log entry to clipboard
-- [ ] Export visible logs to JSON file
-- [ ] Keyboard shortcut help modal
-- [ ] Color themes (light/dark via Textual CSS)
-- [ ] Responsive layout (terminal resize handling)
-- [ ] Mouse support (optional scrolling, clicking)
+- [ ] Keyboard shortcut help modal (styled, comprehensive)
+- [ ] Search/filter within current results (/ key, highlight matches)
+- [ ] Export visible logs to JSON/JSONL file
+- [ ] Filter presets UI (save current filter, load from list)
+- [ ] Status bar improvements (show active filter summary, entry count)
+
+**Implementation Order:**
+1. **Help Modal** - Quick win, users need to discover keybindings
+   - Styled modal with sections (Navigation, Actions, General)
+   - Show current context and filter info
+   - Dismiss with Escape or ?
+
+2. **Search Within Results** - High value for large log sets
+   - Input field appears at bottom when / pressed
+   - Case-insensitive text search
+   - Highlight matching entries in list
+   - n/N to jump to next/previous match
+   - Escape to clear search and close input
+
+3. **Export Logs** - Share/analyze logs externally
+   - `e` key opens export dialog
+   - Export visible (filtered) logs to JSON or JSONL
+   - Default filename with timestamp
+   - Notify on success with path
+
+4. **Filter Presets** - Power user efficiency
+   - Save current filter as named preset
+   - Load preset from list (integrate with filter modal)
+   - Delete unused presets
+   - Stored in config file (schema already exists)
+
+5. **Status Bar** - Better awareness of current state
+   - Show: context name, entry count, active filter summary
+   - Indicate when filter is active vs showing all
+
+**What this phase is NOT:**
+- NOT live file watching/tail -f (deferred - requires different architecture)
+- NOT syntax highlighting in log content (low value, high complexity)
+- NOT custom keybinding configuration (deferred)
 
 **Testing strategy:**
-- End-to-end tests with Textual pilot
-- Manual testing checklist for UX
+- Unit tests for export formatting
+- UI tests with Textual pilot for modals and search
+- Integration tests for preset save/load
 
 **Exit criteria:**
-- All keybindings documented and working
-- Resize handling works without crashes
-- Theme switching works
+- Help modal shows all keybindings with clear sections
+- Search highlights and navigates within visible logs
+- Export produces valid JSON/JSONL files
+- Presets save to and load from config file
+- Status bar shows context, count, and filter state
 
 ---
 
