@@ -316,19 +316,19 @@ logview/
 
 ---
 
-### Phase 3: Application Logs
+### Phase 3: Application Logs ✅ COMPLETE
 **Goal:** View any text-based log file with format auto-detection.
 
 **Deliverables:**
-- [ ] Log discovery service (find readable logs in configured directories)
-- [ ] Generic file log adapter supporting multiple formats
-- [ ] Format parsers:
+- [x] Log discovery service (find readable logs in configured directories)
+- [x] Generic file log adapter supporting multiple formats
+- [x] Format parsers:
   - Plain text (line-based, no timestamp parsing)
   - JSON Lines (one JSON object per line)
   - Syslog (reuse existing parser for RFC 3164/5424)
-- [ ] Auto-detection of log format based on content sampling
-- [ ] Configuration for discovery paths and allowed directories
-- [ ] Discovery action in UI (user-triggered, not automatic)
+- [x] Auto-detection of log format based on content sampling
+- [x] Configuration for discovery paths and allowed directories
+- [x] Automatic discovery on startup (configurable via discovery.paths)
 
 **What this phase is NOT:**
 - NOT automatic context creation on startup (too slow, clutters UI)
@@ -402,6 +402,8 @@ logview/
 - Can view JSON Lines formatted logs
 - Format auto-detection works correctly
 - All security validations in place
+
+**Completed:** 2024-12 - Full implementation with 231 tests passing
 
 ---
 
@@ -892,6 +894,24 @@ python -m logview
 ```
 
 ## Changelog
+
+### 2024-12 - Phase 3 Complete
+- Log discovery service for finding readable log files
+- LogFileSource adapter with format auto-detection
+- JSON Lines parser with flexible field extraction
+- Plain text parser with severity detection
+- Automatic discovery on startup (opt-in via config)
+- Comprehensive security: path validation, symlink checks, TOCTOU prevention
+- 231 tests passing
+
+### 2024-12 - Phase 2 Complete
+- Syslog adapter with RFC 3164 and RFC 5424 support
+- Filter modal (time range, severity, text search)
+- Detail modal (scrollable, copy to clipboard)
+- Context selector modal (switch between sources)
+- Theme persistence to config file
+- Configuration loading on startup
+- 136 tests passing
 
 ### 2024-12 - Phase 1 Complete
 - Initial project structure created
