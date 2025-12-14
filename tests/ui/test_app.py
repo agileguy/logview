@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from logview.app import LogViewApp
+from logview.config.schema import Config
 
 
 class TestLogViewApp:
@@ -59,3 +63,122 @@ class TestLogViewApp:
         async with app.run_test() as pilot:
             await pilot.press("?")
             # Should show notification (Phase 2 placeholder)
+
+
+class TestThemePersistence:
+    """Tests for theme persistence."""
+
+    @pytest.fixture
+    def config_file(self, tmp_path: Path) -> Path:
+        """Create a temporary config file."""
+        config_path = tmp_path / "config.json"
+        config = Config()
+        config.ui.theme = "dark"
+        config_path.write_text(json.dumps(config.model_dump(), indent=2))
+        return config_path
+
+    @pytest.mark.asyncio
+    async def test_toggle_dark_saves_to_config(self, config_file: Path) -> None:
+        """Test that toggling theme via action saves to config file."""
+        app = LogViewApp(config_path=config_file)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # Verify starting in dark mode
+            assert app.theme == "textual-dark"
+
+            # Toggle to light mode via action (as command palette would)
+            app.action_toggle_dark()
+            await pilot.pause()
+
+            # Verify config file was updated
+            saved_config = json.loads(config_file.read_text())
+            assert saved_config["ui"]["theme"] == "light"
+
+    @pytest.mark.asyncio
+    async def test_toggle_dark_to_dark_saves_to_config(self, tmp_path: Path) -> None:
+        """Test that toggling to dark theme saves to config file."""
+        config_path = tmp_path / "config.json"
+        config = Config()
+        config.ui.theme = "light"
+        config_path.write_text(json.dumps(config.model_dump(), indent=2))
+
+        app = LogViewApp(config_path=config_path)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # Verify starting in light mode
+            assert app.theme == "textual-light"
+
+            # Toggle to dark mode via action
+            app.action_toggle_dark()
+            await pilot.pause()
+
+            # Verify config file was updated
+            saved_config = json.loads(config_path.read_text())
+            assert saved_config["ui"]["theme"] == "dark"
+
+    @pytest.mark.asyncio
+    async def test_startup_does_not_save_config(self, config_file: Path) -> None:
+        """Test that loading config on startup doesn't trigger a save."""
+        original_content = config_file.read_text()
+
+        app = LogViewApp(config_path=config_file)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            # Give filesystem time to update mtime if a save occurred
+            await pilot.pause()
+
+        # File should not have been modified
+        assert config_file.read_text() == original_content
+
+    @pytest.mark.asyncio
+    async def test_theme_loads_from_config_dark(self, config_file: Path) -> None:
+        """Test that dark theme loads from config."""
+        app = LogViewApp(config_path=config_file)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            assert app.theme == "textual-dark"
+
+    @pytest.mark.asyncio
+    async def test_theme_loads_from_config_light(self, tmp_path: Path) -> None:
+        """Test that light theme loads from config."""
+        config_path = tmp_path / "config.json"
+        config = Config()
+        config.ui.theme = "light"
+        config_path.write_text(json.dumps(config.model_dump(), indent=2))
+
+        app = LogViewApp(config_path=config_path)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            assert app.theme == "textual-light"
+
+    @pytest.mark.asyncio
+    async def test_missing_config_defaults_to_dark(self, tmp_path: Path) -> None:
+        """Test that missing config file defaults to dark theme."""
+        config_path = tmp_path / "nonexistent.json"
+
+        app = LogViewApp(config_path=config_path)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            # Default config has theme="dark", but without config loaded Textual defaults to dark
+            assert app.theme == "textual-dark"
+
+    @pytest.mark.asyncio
+    async def test_toggle_dark_creates_config_if_missing(self, tmp_path: Path) -> None:
+        """Test that toggling theme creates config file if it doesn't exist."""
+        config_path = tmp_path / "new_config.json"
+        assert not config_path.exists()
+
+        app = LogViewApp(config_path=config_path)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # Toggle theme via action
+            app.action_toggle_dark()
+            await pilot.pause()
+
+            # Config file should now exist with light theme (toggled from dark default)
+            assert config_path.exists()
+            saved_config = json.loads(config_path.read_text())
+            assert saved_config["ui"]["theme"] == "light"
