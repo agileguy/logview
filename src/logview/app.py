@@ -147,8 +147,12 @@ class LogViewApp(App[None]):
     def _apply_ui_settings(self) -> None:
         """Apply UI settings from configuration."""
         if self._config:
-            # Apply theme from config (dark mode is default in Textual)
-            self.theme = "textual-dark" if self._config.ui.theme == "dark" else "textual-light"
+            # Apply theme from config
+            # Add "textual-" prefix if not already present (for compatibility)
+            theme_name = self._config.ui.theme
+            if not theme_name.startswith("textual-"):
+                theme_name = f"textual-{theme_name}"
+            self.theme = theme_name
 
     def action_toggle_dark(self) -> None:
         """Toggle dark mode and save the preference to config."""
@@ -162,11 +166,20 @@ class LogViewApp(App[None]):
         """Save current theme preference to config file."""
         # Ensure we have a config to save
         if self._config is None:
-            self._config = Config()
+            # Load existing config from disk to avoid losing settings
+            try:
+                self._config = load_config(self._config_path)
+            except Exception:
+                # If loading fails, create a new config
+                self._config = Config()
 
-        # Map Textual theme name to our config value
-        is_dark = self.theme == "textual-dark"
-        self._config.ui.theme = "dark" if is_dark else "light"
+        # Save the theme name, stripping "textual-" prefix if present
+        # This allows saving both built-in themes (dark/light) and custom themes
+        theme_name = self.theme
+        if theme_name.startswith("textual-"):
+            theme_name = theme_name[8:]  # Remove "textual-" prefix
+        self._config.ui.theme = theme_name
+
         try:
             save_config(self._config, self._config_path)
         except Exception as e:
@@ -620,7 +633,12 @@ class LogViewApp(App[None]):
     def action_show_settings(self) -> None:
         """Show the settings modal."""
         if self._config is None:
-            self._config = Config()
+            # Load existing config from disk to avoid losing settings
+            try:
+                self._config = load_config(self._config_path)
+            except Exception:
+                # If loading fails, create a new config
+                self._config = Config()
 
         def handle_save(new_settings: Any) -> None:
             if self._config:
@@ -628,11 +646,10 @@ class LogViewApp(App[None]):
                 try:
                     save_config(self._config, self._config_path)
                     # Apply theme change immediately
-                    self.theme = (
-                        "textual-dark"
-                        if new_settings.theme == "dark"
-                        else "textual-light"
-                    )
+                    theme_name = new_settings.theme
+                    if not theme_name.startswith("textual-"):
+                        theme_name = f"textual-{theme_name}"
+                    self.theme = theme_name
                     self.notify("Settings saved")
                 except Exception as e:
                     self.notify(f"Failed to save settings: {e}", severity="error")

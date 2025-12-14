@@ -165,10 +165,14 @@ class TestConfigLoader:
 class TestConfigValidation:
     """Tests for configuration validation."""
 
-    def test_invalid_theme(self) -> None:
-        """Test that invalid theme values are rejected."""
-        with pytest.raises(ValidationError):
-            UISettings(theme="invalid")  # type: ignore[arg-type]
+    def test_custom_theme(self) -> None:
+        """Test that custom theme values are accepted."""
+        # Any string is valid for theme (including Textual built-in themes)
+        settings = UISettings(theme="catppuccin-mocha")
+        assert settings.theme == "catppuccin-mocha"
+
+        settings2 = UISettings(theme="dark")
+        assert settings2.theme == "dark"
 
     def test_invalid_credential_helper(self) -> None:
         """Test that invalid credential helper values are rejected."""

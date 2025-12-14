@@ -198,7 +198,7 @@ class SettingsModal(ModalScreen[bool]):
 
             # Create new settings
             new_settings = UISettings(
-                theme=theme,  # type: ignore[arg-type]
+                theme=theme,
                 timestamp_format=timestamp_format,
                 max_message_width=max_width,
                 show_metadata=show_metadata,
