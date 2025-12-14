@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from textual.app import ComposeResult
@@ -203,7 +203,8 @@ class FilterModal(ModalScreen[Filter | None]):
             time_idx = int(str(time_select.value))
             _, delta = TIME_PRESETS[time_idx]
             if delta:
-                now = datetime.now()
+                # Use UTC for consistency with RFC 5424 timestamps
+                now = datetime.now(UTC).replace(tzinfo=None)
                 time_range = TimeRange(start=now - delta, end=now)
 
         # Get severity
