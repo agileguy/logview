@@ -224,16 +224,20 @@ class LogFileSource:
         Yields:
             LogEntry objects matching the filter.
         """
+        # Re-resolve and re-validate path to prevent TOCTOU attacks
+        # (symlink could be swapped after initial validation)
+        current_resolved = self._validate_path(self._original_path)
+
         entries: list[LogEntry] = []
 
         # Get file modification time for plain text timestamps
         try:
-            file_mtime = datetime.fromtimestamp(self._resolved_path.stat().st_mtime)
+            file_mtime = datetime.fromtimestamp(current_resolved.stat().st_mtime)
         except OSError:
             file_mtime = datetime.now()
 
         try:
-            with open(self._resolved_path, encoding="utf-8", errors="replace") as f:
+            with open(current_resolved, encoding="utf-8", errors="replace") as f:
                 for line_num, line in enumerate(f, 1):
                     if not line.strip():
                         continue
@@ -252,7 +256,7 @@ class LogFileSource:
 
         except OSError as e:
             # Don't include exception message as it may contain full file path
-            safe_name = self._resolved_path.name
+            safe_name = current_resolved.name
             raise LogFileError(
                 f"Error reading log file '{safe_name}': {type(e).__name__}"
             ) from e
