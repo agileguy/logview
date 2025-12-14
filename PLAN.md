@@ -489,34 +489,77 @@ logview/
 ---
 
 ### Phase 5: GKE Integration
-**Goal:** Kubernetes-specific log viewing with cluster awareness.
+**Goal:** Kubernetes-specific log viewing via Cloud Logging API.
+
+**Key Insight:** GKE logs are stored in Cloud Logging, not the Kubernetes API. This phase
+extends the GCP adapter with k8s-specific resource filters rather than direct k8s API access.
 
 **Deliverables:**
-- [ ] GKE adapter (extends GCP with k8s context)
-- [ ] Cluster selector
-- [ ] Namespace filtering
-- [ ] Pod/container filtering
-- [ ] Label selector support
-- [ ] Follow pod logs (streaming)
-- [ ] kubeconfig integration for authentication
+- [ ] GKE adapter using Cloud Logging API (extends GCP patterns)
+- [ ] k8s-specific filter building (`resource.type="k8s_container"`)
+- [ ] Namespace filtering via `resource.labels.namespace_name`
+- [ ] Pod/container filtering via `resource.labels.pod_name` and `container_name`
+- [ ] Label selector support via `labels.k8s-pod/<key>=<value>`
+- [ ] Location/zone filtering via `resource.labels.location`
+- [ ] Graceful degradation when google-cloud-logging not installed
+- [ ] Same batch processing patterns from Phase 4 (memory efficient)
+
+**What this phase is NOT:**
+- NOT streaming/tail mode (deferred to Phase 6)
+- NOT cluster discovery via k8s API (user specifies cluster in config)
+- NOT direct Kubernetes API access (Cloud Logging only)
 
 **Filter fields for GKE:**
-- Cluster name
-- Namespace
-- Pod name (prefix match)
-- Container name
-- Labels (key=value)
+- Cluster name (required, from config)
+- Namespace (optional, prefix match supported)
+- Pod name (optional, prefix match supported)
+- Container name (optional)
+- Labels (key=value pairs)
+- Location/zone (optional)
 - Time range
 - Severity
+- Text search
+
+**Cloud Logging filter syntax for GKE:**
+```
+resource.type="k8s_container"
+resource.labels.project_id="my-project"
+resource.labels.cluster_name="my-cluster"
+resource.labels.namespace_name="default"
+resource.labels.pod_name=~"api-server-.*"  -- regex for prefix
+resource.labels.container_name="app"
+labels."k8s-pod/app"="my-app"  -- pod labels
+```
+
+**Configuration:**
+```json
+{
+  "contexts": [
+    {
+      "name": "prod-gke",
+      "type": "gke",
+      "project": "my-project-id",
+      "cluster": "prod-cluster",
+      "location": "us-central1-a",
+      "default_namespace": "default"
+    }
+  ]
+}
+```
 
 **Testing strategy:**
-- Mock Kubernetes client for unit tests
-- Integration tests against kind/minikube (CI optional)
+- Unit tests with mocked Cloud Logging client (reuse Phase 4 patterns)
+- Mock responses for k8s_container resource type
+- Test filter building for various k8s combinations
+- Integration tests against real GKE (optional, skipped in CI)
+- Mark integration tests with `@pytest.mark.gke_integration`
 
 **Exit criteria:**
-- Can browse logs by cluster → namespace → pod
+- Can fetch GKE logs using k8s resource filters
+- Namespace and pod filtering produce correct results
 - Label filtering works correctly
-- Following works for running pods
+- Errors display helpful messages
+- Works without google-cloud-logging installed (shows install message)
 
 ---
 
