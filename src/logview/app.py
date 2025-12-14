@@ -9,7 +9,7 @@ from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header
 
 from logview.adapters.base import LogSource
-from logview.adapters.discovery import discover_logs
+from logview.adapters.discovery import DiscoveredLog, discover_logs
 from logview.adapters.logfile import LogFileSource
 from logview.adapters.mock import MockLogSource
 from logview.adapters.syslog import SyslogLogSource
@@ -59,6 +59,7 @@ class LogViewApp(App[None]):
         self._sources: list[LogSource] = []
         self._active_source: LogSource | None = None
         self._current_filter: Filter = Filter(limit=100)
+        self._registered_paths: set[Path] = set()  # Track registered file paths to avoid duplicates
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -124,15 +125,19 @@ class LogViewApp(App[None]):
             try:
                 source = self._create_source_from_context(context)
                 if source:
-                    self.register_source(source)
+                    # Track path for file-based sources to prevent duplicates
+                    source_path = None
+                    if isinstance(context, (SyslogContext, LogFileContext)):
+                        source_path = Path(context.path)
+                    self.register_source(source, path=source_path)
             except Exception as e:
                 self.notify(f"Error creating source '{context.name}': {e}", severity="warning")
 
-        # Auto-discover log files from configured discovery paths
-        self._discover_and_register_logs()
+        # Auto-discover log files in background to avoid blocking UI
+        self.call_later(self._discover_and_register_logs_async)
 
-    def _discover_and_register_logs(self) -> None:
-        """Discover log files from configured paths and register them as sources."""
+    async def _discover_and_register_logs_async(self) -> None:
+        """Discover log files from configured paths and register them (runs in worker)."""
         if not self._config or not self._config.discovery:
             return
 
@@ -141,12 +146,14 @@ class LogViewApp(App[None]):
             return
 
         try:
-            discovered = discover_logs(
-                search_paths=discovery.paths,
-                max_depth=discovery.max_depth,
-                allowed_directories=discovery.allowed_directories,
+            # Run discovery in thread to avoid blocking
+            discovered = await self._run_discovery_in_thread(
+                discovery.paths,
+                discovery.max_depth,
+                discovery.allowed_directories,
             )
 
+            registered_count = 0
             for log in discovered:
                 try:
                     source = LogFileSource(
@@ -155,13 +162,35 @@ class LogViewApp(App[None]):
                         format="auto",
                         allowed_directories=discovery.allowed_directories,
                     )
-                    self.register_source(source)  # type: ignore[arg-type]
-                except Exception as e:
-                    # Skip individual files that fail to load
-                    self.notify(f"Skipping {log.name}: {e}", severity="warning")
+                    # Pass path to avoid duplicates with configured sources
+                    if self.register_source(source, path=log.path):  # type: ignore[arg-type]
+                        registered_count += 1
+                except Exception:
+                    # Skip individual files that fail to load (silently)
+                    pass
+
+            if registered_count > 0:
+                self.notify(f"Discovered {registered_count} log file(s)")
 
         except Exception as e:
             self.notify(f"Log discovery error: {e}", severity="warning")
+
+    async def _run_discovery_in_thread(
+        self,
+        paths: list[str],
+        max_depth: int,
+        allowed_dirs: list[str],
+    ) -> list[DiscoveredLog]:
+        """Run log discovery in a thread to avoid blocking the event loop."""
+        import asyncio
+
+        return await asyncio.get_event_loop().run_in_executor(
+            None,
+            discover_logs,
+            paths,
+            max_depth,
+            allowed_dirs,
+        )
 
     def _create_source_from_context(
         self,
@@ -195,13 +224,24 @@ class LogViewApp(App[None]):
             self.notify(f"Source type '{context.type}' not yet implemented", severity="warning")
             return None
 
-    def register_source(self, source: LogSource) -> None:
+    def register_source(self, source: LogSource, path: Path | None = None) -> bool:
         """Register a log source.
 
         Args:
             source: The log source to register.
+            path: Optional file path to track (prevents duplicate registrations).
+
+        Returns:
+            True if registered, False if path was already registered.
         """
+        if path is not None:
+            resolved = path.resolve()
+            if resolved in self._registered_paths:
+                return False
+            self._registered_paths.add(resolved)
+
         self._sources.append(source)
+        return True
 
     def set_active_source(self, source: LogSource) -> None:
         """Set the active log source and refresh.
