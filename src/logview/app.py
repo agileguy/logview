@@ -131,14 +131,28 @@ class LogViewApp(App[None]):
                     source_path = None
                     if isinstance(context, (SyslogContext, LogFileContext)):
                         source_path = Path(os.path.expanduser(context.path))
-                    self.register_source(source, path=source_path)
+                    if not self.register_source(source, path=source_path):
+                        # Warn user about duplicate file path in config
+                        self.notify(
+                            f"Skipping duplicate source '{context.name}' (same file path)",
+                            severity="warning",
+                        )
             except Exception as e:
                 self.notify(f"Error creating source '{context.name}': {e}", severity="warning")
 
         # Auto-discover log files in background to avoid blocking UI
+        # Use call_after_refresh to ensure event loop is running
+        self.call_after_refresh(self._schedule_discovery)
+
+    def _schedule_discovery(self) -> None:
+        """Schedule log discovery as an async task."""
         import asyncio
 
-        asyncio.create_task(self._discover_and_register_logs_async())
+        try:
+            asyncio.create_task(self._discover_and_register_logs_async())
+        except RuntimeError:
+            # No running event loop - skip discovery
+            pass
 
     async def _discover_and_register_logs_async(self) -> None:
         """Discover log files from configured paths and register them (runs in worker)."""
@@ -188,7 +202,8 @@ class LogViewApp(App[None]):
         """Run log discovery in a thread to avoid blocking the event loop."""
         import asyncio
 
-        return await asyncio.get_event_loop().run_in_executor(
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
             None,
             discover_logs,
             paths,
