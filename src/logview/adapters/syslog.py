@@ -73,6 +73,7 @@ class SyslogLogSource:
 
         self._year = year
         self._validated = False
+        self._resolved_path: Path | None = None  # Set after validation to prevent TOCTOU
         self._allowed_directories = (
             allowed_directories if allowed_directories is not None else self.ALLOWED_DIRECTORIES
         )
@@ -119,6 +120,8 @@ class SyslogLogSource:
         if not resolved.is_file():
             raise SyslogError("Path is not a regular file")
 
+        # Store resolved path to prevent TOCTOU attacks
+        self._resolved_path = resolved
         self._validated = True
 
     @staticmethod
@@ -153,13 +156,16 @@ class SyslogLogSource:
         if not self._validated:
             self._validate_path()
 
+        # Use resolved path to prevent TOCTOU attacks
+        assert self._resolved_path is not None, "Path not validated"
+
         count = 0
         parse_errors = 0
         max_parse_errors = 100  # Don't spam errors for badly formatted files
 
         try:
             # Read file in blocking way, but yield to event loop periodically
-            with open(self._path, encoding="utf-8", errors="replace") as f:
+            with open(self._resolved_path, encoding="utf-8", errors="replace") as f:
                 for line_num, line in enumerate(f, start=1):
                     # Yield to event loop every 100 lines
                     if line_num % 100 == 0:

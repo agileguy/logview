@@ -179,21 +179,29 @@ This prevents CI environment differences from causing false failures.
 
 **When Cursor Bugbot reviews a PR, you MUST:**
 
-1. **Check for review comments**:
+1. **Check for ALL review comments** (not just the first few):
    ```bash
-   gh api repos/{owner}/{repo}/pulls/{pr}/comments
+   gh api repos/{owner}/{repo}/pulls/{pr}/comments | jq '.[].body'
    ```
 
-2. **Implement ALL suggestions** from Cursor reviews:
+2. **Count the total number of issues** and track each one:
+   ```bash
+   gh api repos/{owner}/{repo}/pulls/{pr}/comments | jq 'length'
+   ```
+
+3. **Implement EVERY suggestion** from Cursor reviews:
    - Bug fixes (security, logic errors, resource leaks)
    - Code improvements
    - Missing edge cases
+   - **Do not skip any comments** - address all of them
 
-3. **Push fixes and verify** the review issues are resolved
+4. **Verify each fix** is in place before considering it done
 
-4. **Only mark PR as ready** after:
+5. **Push fixes and verify** the review issues are resolved
+
+6. **Only mark PR as ready** after:
    - All CI checks pass
-   - All Cursor review suggestions implemented
+   - **ALL** Cursor review suggestions implemented (not just some)
 
 ### PR Checklist
 

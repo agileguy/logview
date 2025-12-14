@@ -97,3 +97,19 @@
 **Files:** `pyproject.toml`
 
 **Tests:** All 143 tests pass, coverage at 73%
+
+---
+
+## 2024-12-13: Fix Additional Cursor Review Issues
+
+**Changes:**
+- Fixed version reading for installed packages (use `importlib.metadata`)
+- Fixed TOCTOU vulnerability in syslog adapter (store and use resolved path)
+- Updated CLAUDE.md to emphasize checking ALL cursor comments
+
+**Files:**
+- `src/logview/__init__.py` - Use importlib.metadata for installed packages
+- `src/logview/adapters/syslog.py` - Store resolved path, use it in fetch()
+- `CLAUDE.md` - Emphasize ALL cursor comments must be addressed
+
+**Tests:** All 143 tests pass
