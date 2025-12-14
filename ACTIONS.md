@@ -1,5 +1,37 @@
 # LogView Action Log
 
+## 2025-12-14: Phase 5 - GKE Integration
+
+**Changes:**
+- Implemented GKE adapter using Cloud Logging API
+  - GKE logs are in Cloud Logging, not k8s API directly
+  - Uses `resource.type="k8s_container"` for k8s-specific queries
+  - Namespace, pod, container filtering with wildcard support
+  - Label selector support (k8s-pod labels)
+  - Location/zone filtering
+  - Reuses GCP adapter's batch processing for memory efficiency
+  - Cluster and namespace name validation
+- Updated config schema with `location` field for GKE
+- Wired GKE adapter in app.py
+
+**Files Added:**
+- `src/logview/adapters/gke.py` - Complete GKE adapter implementation (615 lines)
+- `tests/unit/test_gke_adapter.py` - 44 unit tests for GKE adapter
+- `tests/integration/test_gke.py` - 20 integration tests (skipped in CI)
+
+**Files Modified:**
+- `src/logview/config/schema.py` - Added location field to GKEContext
+- `src/logview/app.py` - Import and register GKELogSource
+- `configs/example.json` - Added location field to GKE examples
+- `PLAN.md` - Updated Phase 5 plan and marked complete
+- `README.md` - Added GKE setup documentation
+- `CHANGELOG.md` - Added GKE features to Unreleased
+- `CLAUDE.md` - Added explicit .venv/bin tool paths
+
+**Tests:** 320 passed, 38 skipped (64 GKE-specific tests added)
+
+---
+
 ## 2025-12-14: Tree-Based Context Switcher & Memory Optimizations
 
 **Changes:**

@@ -153,6 +153,47 @@ To use GCP Cloud Logging as a log source:
 - `log_name`: Filter to specific log (e.g., `cloudaudit.googleapis.com%2Factivity`)
 - `resource_type`: Filter by resource type (e.g., `gce_instance`, `k8s_container`)
 
+### GKE (Google Kubernetes Engine) Setup
+
+GKE logs are stored in Cloud Logging, so LogView queries them via the Cloud Logging API
+with Kubernetes-specific resource filters.
+
+1. **Install with GCP support** (same as GCP Cloud Logging):
+   ```bash
+   pip install -e ".[gcp]"
+   ```
+
+2. **Authenticate with GCP**:
+   ```bash
+   gcloud auth application-default login
+   ```
+
+3. **Add a GKE context to your config**:
+   ```json
+   {
+     "name": "prod-cluster",
+     "type": "gke",
+     "project": "your-project-id",
+     "cluster": "your-cluster-name",
+     "location": "us-central1-a",
+     "default_namespace": "default"
+   }
+   ```
+
+**Required fields**:
+- `project`: GCP project ID containing the cluster
+- `cluster`: GKE cluster name
+
+**Optional fields**:
+- `location`: Cluster zone or region (e.g., `us-central1-a`)
+- `default_namespace`: Default namespace filter
+
+**Filter fields** (available in filter modal):
+- `namespace`: Kubernetes namespace (supports wildcards: `kube-*`)
+- `pod`: Pod name (supports wildcards: `api-server-*`)
+- `container`: Container name
+- `labels`: Pod labels in `key=value,key2=value2` format
+
 ## Security
 
 ### Directory Allowlist
