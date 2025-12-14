@@ -144,10 +144,15 @@ def _build_gke_filter(
         effective_namespace = log_filter.fields["namespace"]
 
     if effective_namespace:
-        if "*" in effective_namespace:
-            # Prefix match using regex
-            prefix = effective_namespace.rstrip("*")
-            parts.append(f'resource.labels.namespace_name=~"^{re.escape(prefix)}"')
+        # Only allow trailing wildcard, reject internal wildcards for safety
+        if effective_namespace.endswith("*"):
+            prefix = effective_namespace[:-1]  # Remove trailing *
+            if "*" in prefix:
+                logger.warning("Invalid namespace pattern (internal wildcards): %s", effective_namespace)
+            else:
+                parts.append(f'resource.labels.namespace_name=~"^{re.escape(prefix)}"')
+        elif "*" in effective_namespace:
+            logger.warning("Invalid namespace pattern (wildcard not at end): %s", effective_namespace)
         else:
             parts.append(f'resource.labels.namespace_name="{effective_namespace}"')
 
@@ -157,10 +162,15 @@ def _build_gke_filter(
         effective_pod = log_filter.fields["pod"]
 
     if effective_pod:
-        if "*" in effective_pod:
-            # Prefix match using regex
-            prefix = effective_pod.rstrip("*")
-            parts.append(f'resource.labels.pod_name=~"^{re.escape(prefix)}"')
+        # Only allow trailing wildcard, reject internal wildcards for safety
+        if effective_pod.endswith("*"):
+            prefix = effective_pod[:-1]  # Remove trailing *
+            if "*" in prefix:
+                logger.warning("Invalid pod pattern (internal wildcards): %s", effective_pod)
+            else:
+                parts.append(f'resource.labels.pod_name=~"^{re.escape(prefix)}"')
+        elif "*" in effective_pod:
+            logger.warning("Invalid pod pattern (wildcard not at end): %s", effective_pod)
         else:
             parts.append(f'resource.labels.pod_name="{effective_pod}"')
 
@@ -178,9 +188,19 @@ def _build_gke_filter(
         # Parse labels string: "key1=value1,key2=value2"
         labels_str = log_filter.fields["labels"]
         for pair in labels_str.split(","):
+            pair = pair.strip()
+            if not pair:
+                continue
             if "=" in pair:
                 k, v = pair.split("=", 1)
-                effective_labels[k.strip()] = v.strip()
+                key_stripped = k.strip()
+                val_stripped = v.strip()
+                if key_stripped:
+                    effective_labels[key_stripped] = val_stripped
+                else:
+                    logger.warning("Invalid label pair (empty key): %s", pair)
+            else:
+                logger.warning("Invalid label pair (missing '='): %s", pair)
 
     for key, value in effective_labels.items():
         # Pod labels are stored as labels."k8s-pod/<key>"
@@ -201,7 +221,7 @@ def _build_gke_filter(
         parts.append(f"severity >= {gcp_severity}")
 
     # Text search
-    if log_filter.text_search:
+    if log_filter.text_search and log_filter.text_search.strip():
         escaped = log_filter.text_search.replace("\\", "\\\\").replace('"', '\\"')
         parts.append(f'(textPayload:"{escaped}" OR jsonPayload:"{escaped}")')
 

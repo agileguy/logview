@@ -300,6 +300,81 @@ class TestGKEFilterBuilding:
         assert "severity >= WARNING" in filter_str
         assert "textPayload:" in filter_str
 
+    def test_internal_wildcard_namespace_rejected(self) -> None:
+        """Test that internal wildcards in namespace are rejected."""
+        filter_str = _build_gke_filter(
+            Filter(fields={"namespace": "kube-*-system"}),
+            project="test-project",
+            cluster="my-cluster",
+        )
+        # Should NOT contain namespace filter (internal wildcard rejected)
+        assert "namespace_name" not in filter_str
+
+    def test_internal_wildcard_pod_rejected(self) -> None:
+        """Test that internal wildcards in pod name are rejected."""
+        filter_str = _build_gke_filter(
+            Filter(fields={"pod": "api-*-server"}),
+            project="test-project",
+            cluster="my-cluster",
+        )
+        # Should NOT contain pod filter (internal wildcard rejected)
+        assert "pod_name" not in filter_str
+
+    def test_non_trailing_wildcard_rejected(self) -> None:
+        """Test that non-trailing wildcards are rejected."""
+        filter_str = _build_gke_filter(
+            Filter(fields={"namespace": "*-system"}),
+            project="test-project",
+            cluster="my-cluster",
+        )
+        # Should NOT contain namespace filter
+        assert "namespace_name" not in filter_str
+
+    def test_labels_invalid_pair_ignored(self) -> None:
+        """Test that label pairs without = are ignored."""
+        filter_str = _build_gke_filter(
+            Filter(fields={"labels": "app=nginx,invalid-label,env=prod"}),
+            project="test-project",
+            cluster="my-cluster",
+        )
+        # Valid labels should be present
+        assert 'labels."k8s-pod/app"="nginx"' in filter_str
+        assert 'labels."k8s-pod/env"="prod"' in filter_str
+        # Invalid label should NOT be present
+        assert "invalid-label" not in filter_str
+
+    def test_labels_empty_key_ignored(self) -> None:
+        """Test that empty label keys are ignored."""
+        filter_str = _build_gke_filter(
+            Filter(fields={"labels": "=value,app=nginx"}),
+            project="test-project",
+            cluster="my-cluster",
+        )
+        # Valid label should be present
+        assert 'labels."k8s-pod/app"="nginx"' in filter_str
+        # Empty key should NOT create a filter
+        assert 'labels."k8s-pod/"' not in filter_str
+
+    def test_empty_text_search_ignored(self) -> None:
+        """Test that empty/whitespace text search is ignored."""
+        filter_str = _build_gke_filter(
+            Filter(text_search="   "),
+            project="test-project",
+            cluster="my-cluster",
+        )
+        # Should NOT contain text search filter
+        assert "textPayload" not in filter_str
+        assert "jsonPayload" not in filter_str
+
+    def test_labels_trailing_comma_handled(self) -> None:
+        """Test that trailing commas in labels are handled."""
+        filter_str = _build_gke_filter(
+            Filter(fields={"labels": "app=nginx,"}),
+            project="test-project",
+            cluster="my-cluster",
+        )
+        assert 'labels."k8s-pod/app"="nginx"' in filter_str
+
 
 class TestGKELogEntryParsing:
     """Tests for GKE log entry parsing."""
