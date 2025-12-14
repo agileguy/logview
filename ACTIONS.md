@@ -132,3 +132,22 @@
 - `CLAUDE.md` - Added new comment check requirement in Cursor Reviews section
 
 **Tests:** All 143 tests pass
+
+---
+
+## 2024-12-13: Fix Duplicate Source Names Context Switching
+
+**Changes:**
+- Fixed bug where duplicate source names caused incorrect context switching
+  - ContextModal used source.name as option ID, causing collisions
+  - Changed to use index as unique identifier
+  - Modal now returns int (index) instead of str (name)
+  - App handler updated to look up source by index
+- Updated CLAUDE.md to emphasize commit-review cycle must repeat until zero new comments
+
+**Files:**
+- `src/logview/ui/screens/context.py` - Use index as option ID, return index instead of name
+- `src/logview/app.py` - Handle index-based context selection
+- `CLAUDE.md` - Stronger emphasis on commit-review cycle completion
+
+**Tests:** All 143 tests pass

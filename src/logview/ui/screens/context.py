@@ -14,11 +14,11 @@ if TYPE_CHECKING:
     from logview.adapters.base import LogSource
 
 
-class ContextModal(ModalScreen[str | None]):
+class ContextModal(ModalScreen[int | None]):
     """Modal for selecting a log source context.
 
     Displays a list of available log sources and allows the user
-    to select one. Returns the selected source name or None if cancelled.
+    to select one. Returns the selected source index or None if cancelled.
     """
 
     DEFAULT_CSS = """
@@ -90,12 +90,12 @@ class ContextModal(ModalScreen[str | None]):
         with Vertical():
             yield Label("Select Log Source", classes="context-title")
 
-            # Create options for each source
+            # Create options for each source (use index as ID to handle duplicate names)
             options: list[Option] = []
-            for source in self._sources:
+            for idx, source in enumerate(self._sources):
                 is_active = source.name == self._active_source_name
                 label = f"● {source.name}" if is_active else f"  {source.name}"
-                options.append(Option(label, id=source.name))
+                options.append(Option(label, id=str(idx)))
 
             option_list = OptionList(*options, id="source-list")
             yield option_list
@@ -125,8 +125,7 @@ class ContextModal(ModalScreen[str | None]):
         if option_list.highlighted is not None:
             highlighted = option_list.highlighted
             if highlighted < len(self._sources):
-                selected_name = self._sources[highlighted].name
-                self.dismiss(selected_name)
+                self.dismiss(highlighted)
                 return
         self.dismiss(None)
 
@@ -140,4 +139,10 @@ class ContextModal(ModalScreen[str | None]):
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         """Handle option selection (double-click or Enter on option)."""
         if event.option.id:
-            self.dismiss(event.option.id)
+            # Option ID is the index as string
+            try:
+                idx = int(event.option.id)
+                if 0 <= idx < len(self._sources):
+                    self.dismiss(idx)
+            except ValueError:
+                pass

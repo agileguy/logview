@@ -180,13 +180,11 @@ class LogViewApp(App[None]):
 
         active_name = self._active_source.name if self._active_source else None
 
-        def handle_selection(selected_name: str | None) -> None:
-            if selected_name:
-                for source in self._sources:
-                    if source.name == selected_name:
-                        self.set_active_source(source)
-                        self.notify(f"Switched to {source.name}")
-                        break
+        def handle_selection(selected_index: int | None) -> None:
+            if selected_index is not None and 0 <= selected_index < len(self._sources):
+                source = self._sources[selected_index]
+                self.set_active_source(source)
+                self.notify(f"Switched to {source.name}")
 
         self.push_screen(
             ContextModal(self._sources, active_source_name=active_name),

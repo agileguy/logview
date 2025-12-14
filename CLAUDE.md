@@ -199,21 +199,24 @@ This prevents CI environment differences from causing false failures.
 
 5. **Push fixes and verify** the review issues are resolved
 
-6. **Check for NEW comments after fixing**:
-   - After pushing fixes, Cursor may review again and add new comments
-   - Always re-check the PR for new review comments after each push
-   - Repeat the fix cycle until no new comments appear
+6. **REPEAT the commit-review cycle until no new comments**:
+   - After pushing fixes, Cursor will review again and may add new comments
+   - **ALWAYS** re-check the PR for new review comments after each push
+   - If new comments appear, fix them and push again
+   - **Continue this cycle until a push yields ZERO new comments**
+   - This is MANDATORY - do not stop until the cycle completes with no comments
 
 7. **Only mark PR as ready** after:
    - All CI checks pass
    - **ALL** Cursor review suggestions implemented (not just some)
-   - **No new comments** on the latest commit
+   - **The commit-review cycle completed with no new comments**
 
 ### PR Checklist
 
 Before considering a PR complete:
 - [ ] All CI checks pass (green)
 - [ ] Cursor review suggestions implemented
+- [ ] Commit-review cycle repeated until no new comments appear
 - [ ] ACTIONS.md updated with changes
 - [ ] Version bumped if releasing (VERSION, CHANGELOG.md)
 
