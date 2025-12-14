@@ -198,10 +198,13 @@ class SettingsModal(ModalScreen[bool]):
             try:
                 max_width = int(width_input.value) if width_input.value else 80
                 if max_width < 20:
+                    self.notify("Width too small, using minimum (20)", severity="warning")
                     max_width = 20
-                if max_width > 500:
+                elif max_width > 500:
+                    self.notify("Width too large, using maximum (500)", severity="warning")
                     max_width = 500
             except ValueError:
+                self.notify("Invalid width, using default (80)", severity="warning")
                 max_width = 80
 
             # Get show metadata

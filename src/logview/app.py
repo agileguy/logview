@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
+from textual.timer import Timer
 from textual.widgets import Footer, Header, Input, Label
 
 from logview.adapters.base import LogSource
@@ -37,6 +38,9 @@ from logview.ui.screens.settings import SettingsModal
 from logview.ui.widgets.log_list import LogList
 
 logger = get_logger("app")
+
+# Theme name prefix for Textual built-in themes
+TEXTUAL_PREFIX = "textual-"
 
 if TYPE_CHECKING:
     pass
@@ -110,6 +114,7 @@ class LogViewApp(App[None]):
         self._current_filter: Filter = Filter(limit=100)
         self._registered_paths: set[Path] = set()  # Track registered file paths to avoid duplicates
         self._loading_theme: bool = False  # Flag to prevent saving during theme load
+        self._search_timer: Timer | None = None  # Timer for search input debouncing
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
@@ -152,13 +157,18 @@ class LogViewApp(App[None]):
             # Only add "textual-" prefix for base themes (dark, light, ansi)
             # Custom themes (catppuccin-mocha, dracula, etc.) use their names as-is
             theme_name = self._config.ui.theme
-            if theme_name in ("dark", "light", "ansi") and not theme_name.startswith("textual-"):
-                theme_name = f"textual-{theme_name}"
+            if theme_name.startswith(TEXTUAL_PREFIX):
+                logger.warning(f"Unexpected prefix in config theme: {theme_name}")
+                theme_name = theme_name[len(TEXTUAL_PREFIX):]
+            if theme_name in ("dark", "light", "ansi"):
+                theme_name = f"{TEXTUAL_PREFIX}{theme_name}"
 
             # Set flag to prevent watch_theme from saving during startup
             self._loading_theme = True
-            self.theme = theme_name
-            self._loading_theme = False
+            try:
+                self.theme = theme_name
+            finally:
+                self._loading_theme = False
 
     def watch_theme(self, theme: str) -> None:
         """Watch for theme changes and persist to config.
@@ -189,20 +199,22 @@ class LogViewApp(App[None]):
             # Load existing config from disk to avoid losing settings
             try:
                 self._config = load_config(self._config_path)
-            except Exception:
-                # If loading fails, create a new config
+            except (OSError, ValueError) as e:
+                # If loading fails (file error, JSON error, validation error), create new config
+                logger.warning("Failed to load config, creating new: %s", e)
                 self._config = Config()
 
         # Save the theme name, stripping "textual-" prefix if present
         # This allows saving both built-in themes (dark/light) and custom themes
         theme_name = self.theme
-        if theme_name.startswith("textual-"):
-            theme_name = theme_name[8:]  # Remove "textual-" prefix
+        if theme_name.startswith(TEXTUAL_PREFIX):
+            theme_name = theme_name[len(TEXTUAL_PREFIX):]  # Remove prefix
         self._config.ui.theme = theme_name
 
         try:
             save_config(self._config, self._config_path)
-        except Exception as e:
+        except OSError as e:
+            logger.error("Failed to save theme preference: %s", e)
             self.notify(f"Failed to save theme preference: {e}", severity="warning")
 
     def _register_sources_from_config(self) -> None:
@@ -656,8 +668,9 @@ class LogViewApp(App[None]):
             # Load existing config from disk to avoid losing settings
             try:
                 self._config = load_config(self._config_path)
-            except Exception:
-                # If loading fails, create a new config
+            except (OSError, ValueError) as e:
+                # If loading fails (file error, JSON error, validation error), create new config
+                logger.warning("Failed to load config, creating new: %s", e)
                 self._config = Config()
 
         def handle_save(new_settings: Any) -> None:
@@ -668,15 +681,21 @@ class LogViewApp(App[None]):
                     # Apply theme change immediately
                     # Set flag to prevent watch_theme from double-saving
                     self._loading_theme = True
-                    theme_name = new_settings.theme
-                    # Only add "textual-" prefix for base themes (dark, light, ansi)
-                    # Custom themes (catppuccin-mocha, dracula, etc.) use names as-is
-                    if theme_name in ("dark", "light", "ansi") and not theme_name.startswith("textual-"):
-                        theme_name = f"textual-{theme_name}"
-                    self.theme = theme_name
-                    self._loading_theme = False
+                    try:
+                        theme_name = new_settings.theme
+                        # Only add "textual-" prefix for base themes (dark, light, ansi)
+                        # Custom themes (catppuccin-mocha, dracula, etc.) use names as-is
+                        if theme_name.startswith(TEXTUAL_PREFIX):
+                            logger.warning(f"Unexpected prefix in config theme: {theme_name}")
+                            theme_name = theme_name[len(TEXTUAL_PREFIX):]
+                        if theme_name in ("dark", "light", "ansi"):
+                            theme_name = f"{TEXTUAL_PREFIX}{theme_name}"
+                        self.theme = theme_name
+                    finally:
+                        self._loading_theme = False
                     self.notify("Settings saved")
-                except Exception as e:
+                except OSError as e:
+                    logger.error("Failed to save settings: %s", e)
                     self.notify(f"Failed to save settings: {e}", severity="error")
 
         self.push_screen(
@@ -729,10 +748,27 @@ class LogViewApp(App[None]):
         log_list.focus()
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        """Handle search input changes."""
+        """Handle search input changes with 150ms debounce."""
         if event.input.id == "search-input":
-            log_list = self.query_one("#log-list", LogList)
-            log_list.search(event.value)
+            # Cancel existing timer if present
+            if self._search_timer is not None:
+                self._search_timer.stop()
+
+            # Set new timer to execute search after 150ms
+            self._search_timer = self.set_timer(
+                0.15,  # 150ms delay in seconds
+                lambda: self._execute_search(event.value),
+            )
+
+    def _execute_search(self, search_text: str) -> None:
+        """Execute the actual search operation.
+
+        Args:
+            search_text: The text to search for.
+        """
+        log_list = self.query_one("#log-list", LogList)
+        log_list.search(search_text)
+        self._search_timer = None  # Clear timer reference
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle search input submission (Enter key)."""

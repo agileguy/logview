@@ -8,11 +8,15 @@ from typing import TYPE_CHECKING
 
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
+from textual.css.query import NoMatches
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Select
 
+from logview.config.logging import get_logger
 from logview.config.schema import FilterPreset
 from logview.domain.models import Filter, Severity, TimeRange
+
+logger = get_logger("filter")
 
 if TYPE_CHECKING:
     pass
@@ -415,7 +419,8 @@ class FilterModal(ModalScreen[Filter | None]):
                 + [(p.name, p.name) for p in self._presets]
             )
             preset_select.value = name
-        except Exception:
+        except NoMatches:
+            logger.debug("Preset select widget not found, skipping dropdown update")
             pass
 
         self.notify(f"Saved preset: {name}")
@@ -428,7 +433,8 @@ class FilterModal(ModalScreen[Filter | None]):
         try:
             preset_select = self.query_one("#preset-select", Select)
             selected = str(preset_select.value) if preset_select.value else ""
-        except Exception:
+        except NoMatches:
+            logger.debug("Preset select widget not found")
             return
 
         if not selected:
@@ -446,7 +452,8 @@ class FilterModal(ModalScreen[Filter | None]):
                 + [(p.name, p.name) for p in self._presets]
             )
             preset_select.value = ""
-        except Exception:
+        except NoMatches:
+            logger.debug("Preset select widget not found, skipping dropdown update")
             pass
 
         self.notify(f"Deleted preset: {selected}")

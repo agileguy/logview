@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from logview.app import LogViewApp
@@ -123,6 +125,7 @@ class TestLogListSearch:
             await pilot.pause()
             search_input = app.query_one("#search-input")
             search_input.value = "test"
+            await asyncio.sleep(0.2)  # Wait for 150ms debounce timer to fire
             await pilot.pause()
             assert log_list.is_searching()
 

@@ -1,5 +1,55 @@
 # LogView Action Log
 
+## 2025-12-14: Search Debouncing and Code Quality Improvements
+
+**Summary:**
+Implemented search input debouncing (150ms delay) for better performance and addressed 5 code quality issues identified in code review.
+
+**Changes:**
+
+**Search Performance:**
+- Added 150ms debouncing to search input (`src/logview/app.py`)
+  - Prevents triggering search on every keystroke
+  - Significantly improves performance with large log sets
+  - Example: typing 10 characters now triggers 1 search instead of 10
+  - Uses Textual's `set_timer()` API with proper timer cancellation
+- Updated test to account for debounce delay (`tests/ui/test_search.py`)
+
+**Code Quality Fixes:**
+1. **Race condition fix** - Theme persistence now uses try/finally blocks
+   - Ensures `_loading_theme` flag always cleared even on exceptions
+   - Applied to `_apply_ui_settings()` and `action_show_settings()` in `app.py`
+
+2. **Theme prefix handling** - Replaced magic numbers with `TEXTUAL_PREFIX` constant
+   - Added logging for unexpected "textual-" prefix in config
+   - Improves maintainability and debugging
+
+3. **Exception handling** - Replaced broad `Exception` catches with specific types
+   - `OSError` (auto-fixed from `IOError`), `ValueError`, `NoMatches`
+   - Added proper error logging throughout
+   - Applied to config loading, saving, and UI widget queries
+
+4. **User feedback** - Settings modal now notifies users of invalid width input
+   - "Width too small, using minimum (20)"
+   - "Width too large, using maximum (500)"
+   - "Invalid width, using default (80)"
+
+5. **Logging improvements** - Added logger to filter modal for better debugging
+   - Widget query failures now logged at debug level
+
+**Files Modified:**
+- `src/logview/app.py` - Debouncing, try/finally, constants, exception handling
+- `src/logview/ui/screens/settings.py` - User notifications for invalid input
+- `src/logview/ui/screens/filter.py` - Specific exceptions, logging
+- `tests/ui/test_search.py` - Test updated for debounce delay
+
+**Testing:**
+- All 379 tests pass (38 skipped - GCP integration)
+- mypy: Success (no type errors)
+- ruff: All checks passed
+
+---
+
 ## 2025-12-14: Phase 6 Complete - Enhanced UX (PR #9)
 
 **Summary:**
