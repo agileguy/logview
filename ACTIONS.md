@@ -151,3 +151,22 @@
 - `CLAUDE.md` - Stronger emphasis on commit-review cycle completion
 
 **Tests:** All 143 tests pass
+
+---
+
+## 2024-12-13: Add RFC 5424 / ISO 8601 Timestamp Support
+
+**Changes:**
+- Added support for RFC 5424 / ISO 8601 timestamp format in syslog parser
+  - Modern rsyslog uses ISO 8601 timestamps (e.g., `2025-12-07T00:00:05.319366-07:00`)
+  - Parser now auto-detects format and parses both RFC 3164 and RFC 5424
+  - Handles timezone offsets (e.g., `-07:00`, `+00:00`, `Z`)
+  - Handles optional microseconds
+- Added 6 new tests for RFC 5424 format parsing
+- Updated user config to include syslog context
+
+**Files:**
+- `src/logview/adapters/syslog_parser.py` - RFC 5424 pattern and parsing functions
+- `tests/unit/test_syslog_parser.py` - RFC 5424 tests, updated error message assertions
+
+**Tests:** 149 tests pass (6 new)

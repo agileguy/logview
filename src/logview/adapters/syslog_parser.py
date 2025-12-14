@@ -1,4 +1,4 @@
-"""Syslog line parser for RFC 3164 (BSD syslog) format."""
+"""Syslog line parser for RFC 3164 (BSD syslog) and RFC 5424 formats."""
 
 from __future__ import annotations
 
@@ -22,6 +22,17 @@ RFC3164_PATTERN = re.compile(
     r"(?:\[(?P<pid>\d+)\])?:\s*"
     r"(?P<message>.*)$",
     re.IGNORECASE,
+)
+
+# RFC 5424 / ISO 8601 timestamp format (used by rsyslog on modern systems):
+# <YYYY-MM-DDTHH:MM:SS.ffffff+HH:MM> <hostname> <program>[<pid>]: <message>
+# Example: 2025-12-07T00:00:05.319366-07:00 boss rsyslogd[1045]: message
+RFC5424_PATTERN = re.compile(
+    r"^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[+-]\d{2}:\d{2}|Z)?)\s+"
+    r"(?P<hostname>\S+)\s+"
+    r"(?P<program>[^\[:]+)"
+    r"(?:\[(?P<pid>\d+)\])?:\s*"
+    r"(?P<message>.*)$",
 )
 
 # Map month abbreviations to numbers
@@ -114,13 +125,37 @@ def _sanitize_message(message: str) -> str:
     return message
 
 
-def parse_syslog_line(line: str, year: int | None = None) -> ParsedSyslogLine:
-    """Parse a single syslog line in RFC 3164 format.
+def _parse_iso8601_timestamp(timestamp_str: str) -> datetime:
+    """Parse an ISO 8601 timestamp string.
+
+    Args:
+        timestamp_str: Timestamp in ISO 8601 format (e.g., 2025-12-07T00:00:05.319366-07:00)
+
+    Returns:
+        datetime object (timezone-aware converted to naive UTC for consistency)
+
+    Raises:
+        ValueError: If the timestamp cannot be parsed.
+    """
+    # Handle timezone offset
+    if timestamp_str.endswith("Z"):
+        timestamp_str = timestamp_str[:-1] + "+00:00"
+
+    # Try parsing with fromisoformat (Python 3.11+)
+    dt = datetime.fromisoformat(timestamp_str)
+
+    # Convert to naive datetime (drop timezone for consistency with RFC 3164)
+    if dt.tzinfo is not None:
+        dt = dt.replace(tzinfo=None)
+
+    return dt
+
+
+def _parse_rfc5424(line: str) -> ParsedSyslogLine:
+    """Parse a syslog line in RFC 5424 / ISO 8601 format.
 
     Args:
         line: The syslog line to parse.
-        year: The year to use for the timestamp (syslog doesn't include year).
-              Defaults to current year.
 
     Returns:
         ParsedSyslogLine containing the parsed fields.
@@ -128,12 +163,46 @@ def parse_syslog_line(line: str, year: int | None = None) -> ParsedSyslogLine:
     Raises:
         SyslogParseError: If the line cannot be parsed.
     """
-    if not line or not line.strip():
-        raise SyslogParseError(line, "empty line")
+    match = RFC5424_PATTERN.match(line)
+    if not match:
+        raise SyslogParseError(line, "does not match RFC 5424 format")
 
-    line = line.strip()
+    groups = match.groupdict()
+
+    try:
+        timestamp = _parse_iso8601_timestamp(groups["timestamp"])
+    except ValueError as e:
+        raise SyslogParseError(line, f"invalid ISO 8601 timestamp: {e}") from e
+
+    pid = int(groups["pid"]) if groups["pid"] else None
+    message = _sanitize_message(groups["message"])
+    severity = _detect_severity(message)
+
+    return ParsedSyslogLine(
+        timestamp=timestamp,
+        hostname=groups["hostname"],
+        program=groups["program"].strip(),
+        pid=pid,
+        message=message,
+        severity=severity,
+        raw=line,
+    )
+
+
+def _parse_rfc3164(line: str, year: int | None = None) -> ParsedSyslogLine:
+    """Parse a syslog line in RFC 3164 (BSD syslog) format.
+
+    Args:
+        line: The syslog line to parse.
+        year: The year to use for the timestamp (syslog doesn't include year).
+
+    Returns:
+        ParsedSyslogLine containing the parsed fields.
+
+    Raises:
+        SyslogParseError: If the line cannot be parsed.
+    """
     match = RFC3164_PATTERN.match(line)
-
     if not match:
         raise SyslogParseError(line, "does not match RFC 3164 format")
 
@@ -168,10 +237,7 @@ def parse_syslog_line(line: str, year: int | None = None) -> ParsedSyslogLine:
     except ValueError as e:
         raise SyslogParseError(line, f"invalid date/time: {e}") from e
 
-    # Parse PID (may be None)
     pid = int(groups["pid"]) if groups["pid"] else None
-
-    # Sanitize message and detect severity
     message = _sanitize_message(groups["message"])
     severity = _detect_severity(message)
 
@@ -184,3 +250,39 @@ def parse_syslog_line(line: str, year: int | None = None) -> ParsedSyslogLine:
         severity=severity,
         raw=line,
     )
+
+
+def parse_syslog_line(line: str, year: int | None = None) -> ParsedSyslogLine:
+    """Parse a single syslog line in RFC 3164 or RFC 5424 format.
+
+    Automatically detects the format and parses accordingly.
+
+    Args:
+        line: The syslog line to parse.
+        year: The year to use for RFC 3164 timestamps (which don't include year).
+              Defaults to current year. Ignored for RFC 5424 format.
+
+    Returns:
+        ParsedSyslogLine containing the parsed fields.
+
+    Raises:
+        SyslogParseError: If the line cannot be parsed.
+    """
+    if not line or not line.strip():
+        raise SyslogParseError(line, "empty line")
+
+    line = line.strip()
+
+    # Try RFC 5424 first (ISO 8601 timestamps are more distinctive)
+    try:
+        return _parse_rfc5424(line)
+    except SyslogParseError:
+        pass
+
+    # Fall back to RFC 3164
+    try:
+        return _parse_rfc3164(line, year)
+    except SyslogParseError:
+        pass
+
+    raise SyslogParseError(line, "does not match RFC 3164 or RFC 5424 format")

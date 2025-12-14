@@ -106,14 +106,15 @@ class TestParseSyslogLine:
         with pytest.raises(SyslogParseError) as exc_info:
             parse_syslog_line("This is not a syslog line")
 
-        assert "does not match RFC 3164 format" in str(exc_info.value)
+        assert "does not match RFC 3164 or RFC 5424 format" in str(exc_info.value)
 
     def test_raises_on_invalid_month(self) -> None:
         """Test that invalid month raises SyslogParseError."""
         with pytest.raises(SyslogParseError) as exc_info:
             parse_syslog_line("Xyz 15 10:23:45 myhost prog[1]: msg")
 
-        assert "invalid month" in str(exc_info.value)
+        # With dual format support, invalid month falls through to "does not match"
+        assert "does not match RFC 3164 or RFC 5424 format" in str(exc_info.value)
 
     def test_sanitizes_ansi_escape_sequences(self) -> None:
         """Test that ANSI escape sequences are removed from messages."""
@@ -153,6 +154,67 @@ class TestParseSyslogLine:
             parse_syslog_line(bad_line)
 
         assert exc_info.value.line == bad_line
+
+
+class TestRFC5424Format:
+    """Tests for RFC 5424 / ISO 8601 timestamp format parsing."""
+
+    def test_parses_rfc5424_with_pid(self) -> None:
+        """Test parsing RFC 5424 format with PID."""
+        line = "2025-12-07T00:00:05.319366-07:00 boss rsyslogd[1045]: rsyslogd was HUPed"
+        result = parse_syslog_line(line)
+
+        assert result.timestamp == datetime(2025, 12, 7, 0, 0, 5, 319366)
+        assert result.hostname == "boss"
+        assert result.program == "rsyslogd"
+        assert result.pid == 1045
+        assert result.message == "rsyslogd was HUPed"
+
+    def test_parses_rfc5424_without_pid(self) -> None:
+        """Test parsing RFC 5424 format without PID."""
+        line = "2025-12-07T10:30:00+00:00 myhost systemd: Started service"
+        result = parse_syslog_line(line)
+
+        assert result.hostname == "myhost"
+        assert result.program == "systemd"
+        assert result.pid is None
+        assert result.message == "Started service"
+
+    def test_parses_rfc5424_utc_z(self) -> None:
+        """Test parsing RFC 5424 format with Z timezone."""
+        line = "2025-01-15T14:30:00Z server nginx[999]: Connection accepted"
+        result = parse_syslog_line(line)
+
+        assert result.timestamp == datetime(2025, 1, 15, 14, 30, 0)
+        assert result.hostname == "server"
+        assert result.program == "nginx"
+        assert result.pid == 999
+
+    def test_parses_rfc5424_without_microseconds(self) -> None:
+        """Test parsing RFC 5424 format without microseconds."""
+        line = "2025-06-15T08:00:00+05:30 host app[1]: message"
+        result = parse_syslog_line(line)
+
+        assert result.timestamp == datetime(2025, 6, 15, 8, 0, 0)
+        assert result.hostname == "host"
+
+    def test_rfc5424_severity_detection(self) -> None:
+        """Test severity detection in RFC 5424 messages."""
+        error_line = "2025-01-01T00:00:00Z host app[1]: ERROR failed to connect"
+        result = parse_syslog_line(error_line)
+        assert result.severity == "ERROR"
+
+        warn_line = "2025-01-01T00:00:00Z host app[1]: WARNING disk space low"
+        result = parse_syslog_line(warn_line)
+        assert result.severity == "WARN"
+
+    def test_rfc5424_sanitizes_messages(self) -> None:
+        """Test that RFC 5424 messages are sanitized."""
+        line = "2025-01-01T00:00:00Z host app[1]: \x1b[31mRed\x1b[0m text"
+        result = parse_syslog_line(line)
+
+        assert "\x1b" not in result.message
+        assert result.message == "Red text"
 
 
 class TestParseSyslogFixtures:
