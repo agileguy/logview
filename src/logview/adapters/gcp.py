@@ -7,6 +7,7 @@ Requires the google-cloud-logging package:
 from __future__ import annotations
 
 import asyncio
+import itertools
 import re
 from collections.abc import AsyncIterator
 from datetime import datetime
@@ -411,23 +412,25 @@ class GCPLogSource:
         count = 0
         try:
             # Run in executor to not block the event loop
+            # Use islice to limit entries fetched - prevents loading millions of
+            # entries into memory when only a small limit is requested
             loop = asyncio.get_running_loop()
             entries = await loop.run_in_executor(
                 None,
                 lambda: list(
-                    client.list_entries(
-                        filter_=filter_str or None,
-                        order_by="timestamp desc",
-                        page_size=min(log_filter.limit, 1000),
-                        projects=[self._project_id],
+                    itertools.islice(
+                        client.list_entries(
+                            filter_=filter_str or None,
+                            order_by="timestamp desc",
+                            page_size=min(log_filter.limit, 1000),
+                            projects=[self._project_id],
+                        ),
+                        log_filter.limit,
                     )
                 ),
             )
 
             for entry in entries:
-                if count >= log_filter.limit:
-                    break
-
                 try:
                     log_entry = _parse_log_entry(entry, self._project_id)
                     yield log_entry
