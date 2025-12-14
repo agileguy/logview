@@ -409,34 +409,72 @@ logview/
 **Goal:** Cloud integration with proper authentication.
 
 **Deliverables:**
-- [ ] GCP adapter using google-cloud-logging
-- [ ] Authentication via Application Default Credentials
-- [ ] Project selector (if multiple projects)
+- [ ] GCP adapter using google-cloud-logging library
+- [ ] Authentication via Application Default Credentials (ADC)
+- [ ] Graceful degradation when google-cloud-logging not installed
 - [ ] GCP-specific filters:
-  - Project ID
-  - Log name
-  - Resource type
-  - Severity
-- [ ] Streaming mode (tail -f equivalent)
-- [ ] Rate limiting / pagination handling
-- [ ] Secure credential handling documentation
-- [ ] Context switching window (enhanced UI for source selection)
-- [ ] Status bar information display (current context, log count, filter state)
+  - Project ID (required)
+  - Log name (optional, e.g., `cloudaudit.googleapis.com%2Factivity`)
+  - Resource type (optional, with common suggestions)
+  - Severity (minimum level)
+  - Time range
+  - Text search (uses Cloud Logging filter syntax)
+- [ ] Pagination handling for large result sets
+- [ ] Error handling:
+  - Authentication errors (clear guidance to run `gcloud auth application-default login`)
+  - Permission denied (project access)
+  - Quota exceeded (rate limiting)
+  - Project not found
+- [ ] Documentation for GCP setup and authentication
+
+**What this phase is NOT:**
+- NOT streaming/tail mode (deferred to Phase 6 - requires different API approach)
+- NOT project discovery/listing (user must know project ID)
+- NOT service account key file support (ADC only for security)
+
+**Configuration:**
+```json
+{
+  "contexts": [
+    {
+      "name": "prod-logs",
+      "type": "gcp",
+      "project": "my-project-id",
+      "log_name": "cloudaudit.googleapis.com%2Factivity"
+    },
+    {
+      "name": "all-gcp-logs",
+      "type": "gcp",
+      "project": "my-project-id"
+    }
+  ]
+}
+```
+
+**Common resource types (for documentation):**
+- `gce_instance` - Compute Engine VMs
+- `k8s_container` - GKE containers
+- `cloud_function` - Cloud Functions
+- `gae_app` - App Engine
+- `cloud_run_revision` - Cloud Run
 
 **Security considerations:**
-- Use `gcloud auth application-default login` (no credential storage)
-- Validate project IDs before API calls
-- Handle quota errors gracefully
+- Use `gcloud auth application-default login` (no credential storage in app)
+- Never log or display credentials
+- Validate project IDs before API calls (alphanumeric, hyphens only)
+- Handle quota errors gracefully with backoff
 
 **Testing strategy:**
-- Unit tests with mocked GCP client
-- Integration tests against real GCP (optional, CI skippable)
-- Security review checklist
+- Unit tests with mocked GCP client (no real credentials needed)
+- Mock client simulates various responses (success, errors, pagination)
+- Integration tests against real GCP (optional, skipped in CI by default)
+- Mark integration tests with `@pytest.mark.gcp_integration`
 
 **Exit criteria:**
-- Can authenticate and fetch GCP logs
-- Streaming updates work
-- No credentials in application logs
+- Can authenticate and fetch GCP logs with ADC
+- Errors display helpful messages (not stack traces)
+- Works without google-cloud-logging installed (shows "install gcp extra" message)
+- All unit tests pass without GCP credentials
 
 ---
 
