@@ -170,8 +170,8 @@ ruff check src/ tests/
 This project is under active development. See [PLAN.md](PLAN.md) for the roadmap.
 
 - [x] Phase 1: Foundation (MVP)
-- [ ] Phase 2: Syslog & Modals
-- [ ] Phase 3: Application Logs (logfile adapter with format auto-detection)
+- [x] Phase 2: Syslog & Modals
+- [x] Phase 3: Application Logs (logfile adapter with format auto-detection)
 - [ ] Phase 4: GCP Cloud Logging
 - [ ] Phase 5: GKE integration
 - [ ] Phase 6: File watching & Enhanced UX

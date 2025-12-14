@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2024-12-14
+
+### Added
+- **Log Discovery Service**: Automatically find readable log files in configured directories
+- **LogFile Adapter**: Generic log file adapter with format auto-detection
+- **JSON Lines Parser**: Parse JSONL format with flexible field extraction (timestamp, severity, message)
+- **Plain Text Parser**: Parse plain text logs with severity detection from content
+- **Automatic Discovery**: Opt-in startup discovery via `discovery.paths` config
+- **RFC 5424 Support**: Syslog parser now supports ISO 8601 timestamps with timezone
+
+### Fixed
+- JSONL timestamp edge cases and overflow errors (boundary values, invalid timestamps)
+- Syslog allowlist now respects configured `allowed_directories`
+- Tilde expansion in syslog allowlist paths
+- JSONL raw field preserves original whitespace
+- Duplicate source contexts warn user instead of silently dropping
+- Async discovery scheduling errors handled gracefully
+- Symlink TOCTOU vulnerability in discovery and LogFile adapter
+- Path leakage in error messages prevented
+- Empty allowlist correctly disables file access (no silent fallback)
+
+### Security
+- Path validation against configurable allowed_directories
+- Symlink escape prevention (resolved paths checked against allowlist)
+- TOCTOU attack prevention (re-validate paths on fetch)
+- No sensitive paths exposed in error messages
+
 ## [0.2.0] - 2024-12-13
 
 ### Added
@@ -41,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI pipeline
 - Comprehensive test suite (pytest, mypy, ruff)
 
-[Unreleased]: https://github.com/agileguy/logview/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/agileguy/logview/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/agileguy/logview/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/agileguy/logview/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/agileguy/logview/releases/tag/v0.1.0
