@@ -698,7 +698,7 @@ class TestGKELogSource:
         assert "namespace" in errors[0].lower()
 
     def test_validate_filter_wildcard_namespace_allowed(self) -> None:
-        """Test validate_filter allows wildcard namespace."""
+        """Test validate_filter allows valid wildcard namespace."""
         client = MockLoggingClient()
         source = GKELogSource(
             project_id="test-project-id",
@@ -707,6 +707,54 @@ class TestGKELogSource:
         )
         errors = source.validate_filter(Filter(fields={"namespace": "kube-*"}))
         assert errors == []
+
+    def test_validate_filter_rejects_wildcard_only_namespace(self) -> None:
+        """Test validate_filter rejects wildcard-only namespace."""
+        client = MockLoggingClient()
+        source = GKELogSource(
+            project_id="test-project-id",
+            cluster="my-cluster",
+            client=client,
+        )
+        errors = source.validate_filter(Filter(fields={"namespace": "*"}))
+        assert len(errors) == 1
+        assert "wildcard-only" in errors[0].lower()
+
+    def test_validate_filter_rejects_internal_wildcard_namespace(self) -> None:
+        """Test validate_filter rejects internal wildcard in namespace."""
+        client = MockLoggingClient()
+        source = GKELogSource(
+            project_id="test-project-id",
+            cluster="my-cluster",
+            client=client,
+        )
+        errors = source.validate_filter(Filter(fields={"namespace": "kube-*-system"}))
+        assert len(errors) == 1
+        assert "trailing wildcards" in errors[0].lower()
+
+    def test_validate_filter_rejects_non_trailing_wildcard_namespace(self) -> None:
+        """Test validate_filter rejects non-trailing wildcard in namespace."""
+        client = MockLoggingClient()
+        source = GKELogSource(
+            project_id="test-project-id",
+            cluster="my-cluster",
+            client=client,
+        )
+        errors = source.validate_filter(Filter(fields={"namespace": "*-system"}))
+        assert len(errors) == 1
+        assert "trailing wildcards" in errors[0].lower()
+
+    def test_validate_filter_rejects_invalid_wildcard_pod(self) -> None:
+        """Test validate_filter rejects invalid wildcard in pod."""
+        client = MockLoggingClient()
+        source = GKELogSource(
+            project_id="test-project-id",
+            cluster="my-cluster",
+            client=client,
+        )
+        errors = source.validate_filter(Filter(fields={"pod": "api-*-server"}))
+        assert len(errors) == 1
+        assert "pod" in errors[0].lower()
 
     def test_available_filters(self) -> None:
         """Test available_filters returns expected fields."""

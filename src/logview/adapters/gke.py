@@ -648,12 +648,49 @@ class GKELogSource:
         # Validate namespace format if provided
         if log_filter.fields and "namespace" in log_filter.fields:
             ns = log_filter.fields["namespace"]
-            if ns and "*" not in ns:
-                pattern = r"^[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$|^[a-z0-9]$"
-                if not re.match(pattern, ns):
-                    errors.append(f"Invalid namespace format: {ns}")
+            if ns:
+                ns_error = self._validate_wildcard_or_name(ns, "namespace")
+                if ns_error:
+                    errors.append(ns_error)
+
+        # Validate pod format if provided
+        if log_filter.fields and "pod" in log_filter.fields:
+            pod = log_filter.fields["pod"]
+            if pod:
+                pod_error = self._validate_wildcard_or_name(pod, "pod")
+                if pod_error:
+                    errors.append(pod_error)
 
         return errors
+
+    def _validate_wildcard_or_name(self, value: str, field_name: str) -> str | None:
+        """Validate a value that may be a name or wildcard pattern.
+
+        Args:
+            value: The value to validate.
+            field_name: Human-readable field name for error messages.
+
+        Returns:
+            Error message if invalid, None if valid.
+        """
+        if "*" in value:
+            # Wildcard pattern validation
+            if value == "*":
+                return f"Invalid {field_name} pattern '{value}': wildcard-only patterns are not allowed"
+            if not value.endswith("*"):
+                return f"Invalid {field_name} pattern '{value}': only trailing wildcards are allowed"
+            prefix = value[:-1]
+            if "*" in prefix:
+                return f"Invalid {field_name} pattern '{value}': only trailing wildcards are allowed"
+            # Validate the prefix as a partial DNS label
+            if prefix and not re.match(r"^[a-z0-9][a-z0-9-]*$", prefix):
+                return f"Invalid {field_name} pattern '{value}': prefix must be a valid partial DNS label"
+        else:
+            # Exact name validation
+            pattern = r"^[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$|^[a-z0-9]$"
+            if not re.match(pattern, value):
+                return f"Invalid {field_name} format: {value}"
+        return None
 
     def available_filters(self) -> list[FilterField]:
         """Get available filter fields for GKE.
