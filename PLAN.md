@@ -79,9 +79,9 @@ hypothesis>=6.0.0
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                   Adapter Layer                             │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌───────┐ │
-│  │     GCP     │ │     GKE     │ │   Syslog    │ │ Mock  │ │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └───────┘ │
+│  ┌───────┐ ┌───────┐ ┌─────────┐ ┌────────┐ ┌───────┐     │
+│  │  GCP  │ │  GKE  │ │ Syslog  │ │ AppLog │ │ Mock  │     │
+│  └───────┘ └───────┘ └─────────┘ └────────┘ └───────┘     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -184,6 +184,7 @@ logview/
 │       │   ├── gcp.py
 │       │   ├── gke.py
 │       │   ├── syslog.py
+│       │   ├── applog.py         # Generic application logs
 │       │   └── mock.py           # For testing
 │       ├── domain/               # Core business logic
 │       │   ├── __init__.py
@@ -296,7 +297,95 @@ logview/
 
 ---
 
-### Phase 3: GCP Cloud Logging
+### Phase 3: Application Logs
+**Goal:** Generic log file viewer with auto-discovery and custom paths.
+
+**Deliverables:**
+- [ ] Application log adapter (generic plain-text log files)
+- [ ] Auto-discovery of logs in /var/log and subdirectories
+- [ ] Custom log path support via configuration
+- [ ] Log format auto-detection:
+  - Plain text (line-based)
+  - Common log formats (Apache, Nginx access/error logs)
+  - JSON lines format
+  - Timestamped formats with various patterns
+- [ ] Context auto-generation for discovered logs
+- [ ] UI for adding custom log paths
+- [ ] File watching for live updates (tail -f equivalent)
+- [ ] Graceful handling of log rotation
+
+**Auto-discovery behavior:**
+- On startup, scan /var/log recursively for readable log files
+- Create a context for each discovered .log file and common log names
+- Skip binary files, compressed archives (.gz, .bz2, .xz)
+- Respect file permissions (only show readable files)
+- Group related logs (e.g., syslog, syslog.1, syslog.2.gz)
+
+**Custom log configuration:**
+```json
+{
+  "contexts": [
+    {
+      "name": "my-app",
+      "type": "applog",
+      "path": "/opt/myapp/logs/app.log",
+      "format": "auto"
+    },
+    {
+      "name": "nginx-access",
+      "type": "applog",
+      "path": "/var/log/nginx/access.log",
+      "format": "nginx_access"
+    }
+  ],
+  "applog_settings": {
+    "auto_discover": true,
+    "discover_paths": ["/var/log"],
+    "max_discover_depth": 3,
+    "custom_paths": [
+      "/opt/myapp/logs",
+      "~/logs"
+    ]
+  }
+}
+```
+
+**Supported log formats:**
+- `auto` - Attempt to detect format automatically
+- `plain` - Simple line-based, no parsing
+- `syslog` - RFC 3164/5424 syslog format
+- `nginx_access` - Nginx access log format
+- `nginx_error` - Nginx error log format
+- `apache_combined` - Apache combined log format
+- `jsonl` - JSON Lines (one JSON object per line)
+
+**Filter fields for application logs:**
+- Time range (if timestamps detected)
+- Text search (grep-like)
+- Severity (if detected in log format)
+- File path pattern
+
+**Security considerations:**
+- Validate all paths are within allowed directories
+- No symlink following outside allowed paths
+- Sanitize log content before display
+- Don't expose full paths in error messages
+
+**Testing strategy:**
+- Unit tests for format detection
+- Integration tests with sample log files
+- Tests for auto-discovery with mock filesystem
+- Permission handling tests
+
+**Exit criteria:**
+- Auto-discovers logs in /var/log on startup
+- Can add custom log paths via config
+- Multiple log formats parsed correctly
+- Live file watching works
+
+---
+
+### Phase 4: GCP Cloud Logging
 **Goal:** Cloud integration with proper authentication.
 
 **Deliverables:**
@@ -329,7 +418,7 @@ logview/
 
 ---
 
-### Phase 4: GKE Integration
+### Phase 5: GKE Integration
 **Goal:** Kubernetes-specific log viewing with cluster awareness.
 
 **Deliverables:**
@@ -361,7 +450,7 @@ logview/
 
 ---
 
-### Phase 5: Enhanced UX
+### Phase 6: Enhanced UX
 **Goal:** Polish and power-user features.
 
 **Deliverables:**
@@ -385,7 +474,7 @@ logview/
 
 ---
 
-### Phase 6: Additional Sources (Future)
+### Phase 7: Additional Sources (Future)
 **Goal:** Extensibility proven with more sources.
 
 **Potential adapters:**
@@ -397,7 +486,7 @@ logview/
 - [ ] Docker container logs
 - [ ] SSH remote syslog
 
-Each adapter follows established patterns from Phases 2-4.
+Each adapter follows established patterns from Phases 2-5.
 
 ---
 
@@ -564,7 +653,14 @@ class SyslogContext(BaseModel):
     path: str = "/var/log/syslog"
 
 
-Context = GKEContext | GCPContext | SyslogContext
+class AppLogContext(BaseModel):
+    name: str
+    type: Literal["applog"]
+    path: str
+    format: Literal["auto", "plain", "syslog", "nginx_access", "nginx_error", "apache_combined", "jsonl"] = "auto"
+
+
+Context = GKEContext | GCPContext | SyslogContext | AppLogContext
 
 
 class FilterPreset(BaseModel):
@@ -708,16 +804,21 @@ async def test_context_modal_opens():
 - Memory usage < 100MB for 50k log lines
 
 ### Phase 3
+- Auto-discovery completes in < 5s for typical /var/log
+- Format detection accuracy > 90% for common formats
+- File watching updates appear within 1s
+
+### Phase 4
 - GCP authentication succeeds on first try (with ADC)
 - Streaming updates appear within 2s
 - Error messages are actionable
 
-### Phase 4
+### Phase 5
 - Pod logs stream in real-time
 - Cluster switching takes < 3s
 - Namespace list loads in < 1s
 
-### Phase 5
+### Phase 6
 - All operations have keyboard shortcuts
 - Help is discoverable
 - Theme switch is instant
