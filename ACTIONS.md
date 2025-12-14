@@ -211,3 +211,12 @@
 **Files:** `.github/workflows/ci.yml`
 
 **Background:** The CI status badge was incorrectly showing "failing" despite recent PRs passing. This was because the workflow was configured with `on: pull_request` only, so the badge displayed the status of the last push to main (which had failed). Adding `on: push: branches: [main]` ensures the badge updates after each merge to main.
+
+---
+
+## 2025-12-14: Avoid duplicate CI runs on PR merge
+
+**Changes:**
+- Removed `on: push` for `main` from the CI workflow to prevent duplicate runs when PRs are merged (PR event + merge-commit push).
+
+**Files:** `.github/workflows/ci.yml`
