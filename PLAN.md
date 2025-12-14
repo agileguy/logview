@@ -579,7 +579,10 @@ labels."k8s-pod/app"="my-app"  -- pod labels
 - [x] Search/filter within current results (/ key, filter matches)
 - [x] Export visible logs to JSON/JSONL file
 - [x] Filter presets UI (save current filter, load from list)
-- [ ] Status bar improvements (deferred - current footer is sufficient)
+- [x] Settings modal with theme, timestamp format, message width, metadata toggle
+- [x] Enhanced status bar (shows adapter type, active filters)
+- [x] Custom theme support (12 built-in Textual themes)
+- [x] Theme persistence from command palette and settings modal
 
 **Implementation Order:**
 1. **Help Modal** - Quick win, users need to discover keybindings
@@ -834,7 +837,7 @@ class FilterPreset(BaseModel):
 
 
 class UISettings(BaseModel):
-    theme: Literal["dark", "light"] = "dark"
+    theme: str = "dark"  # Any Textual theme: dark, light, ansi, catppuccin-mocha, etc.
     timestamp_format: str = "%Y-%m-%d %H:%M:%S"
     max_message_width: int = 80
     show_metadata: bool = False
@@ -1025,6 +1028,26 @@ python -m logview
 ```
 
 ## Changelog
+
+### 2025-12 - Phase 6 Complete
+- Help modal with keyboard shortcuts reference
+- Search within results (/ key, n/N navigation)
+- Export logs to JSON/JSONL files
+- Filter presets (save, load, delete)
+- Settings modal with theme, timestamp format, message width, metadata toggle
+- Enhanced status bar showing adapter type and active filters
+- Custom theme support (12 built-in Textual themes)
+- Theme persistence from command palette and settings modal
+- Fixed InvalidThemeError with proper prefix handling for custom themes
+- 417 tests passing, 38 skipped (GCP/GKE integration)
+
+### 2024-12 - Phase 5 Complete
+- GKE adapter using Cloud Logging API
+- Kubernetes-specific filters (namespace, pod, container, labels)
+- Wildcard support for namespace and pod filters
+- Location/zone filtering
+- Batch processing for memory efficiency
+- 372 tests passing, 58 GKE unit tests, 20 GKE integration tests
 
 ### 2024-12 - Phase 4 Complete
 - GCP Cloud Logging adapter with ADC authentication

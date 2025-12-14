@@ -56,6 +56,8 @@ python -m logview
 | `s` | Settings (theme, timestamp format) |
 | `?` | Help |
 | `r` | Refresh logs |
+| `Ctrl+T` | Toggle dark/light mode |
+| `Ctrl+P` | Command palette (change theme, run actions) |
 | `q` | Quit |
 
 ## Configuration
@@ -90,12 +92,32 @@ Create `~/.config/logview/config.json`:
     }
   ],
   "ui": {
-    "theme": "dark"
+    "theme": "dark",
+    "timestamp_format": "%Y-%m-%d %H:%M:%S",
+    "max_message_width": 80,
+    "show_metadata": false
   }
 }
 ```
 
 See `configs/example.json` for a complete example.
+
+### Themes
+
+LogView supports 12 built-in themes that can be changed via the settings modal (`s` key) or the command palette (`Ctrl+P`):
+
+- **Base themes**: dark (default), light, ansi
+- **Custom themes**: catppuccin-latte, catppuccin-mocha, dracula, flexoki, gruvbox, monokai, nord, solarized-light, tokyo-night
+
+Theme changes persist automatically to your config file. You can also toggle between dark and light mode with `Ctrl+T`.
+
+**Settings Modal (`s` key)**:
+- Theme selection (dropdown with all available themes)
+- Timestamp format (common presets or custom format string)
+- Max message width for wrapping
+- Show/hide metadata in log list
+
+All settings changes are saved immediately to your config file.
 
 ### Application Logging
 
