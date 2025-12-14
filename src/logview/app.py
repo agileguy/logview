@@ -9,10 +9,18 @@ from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header
 
 from logview.adapters.base import LogSource
+from logview.adapters.logfile import LogFileSource
 from logview.adapters.mock import MockLogSource
 from logview.adapters.syslog import SyslogLogSource
 from logview.config.loader import load_config, save_config
-from logview.config.schema import Config, GCPContext, GKEContext, MockContext, SyslogContext
+from logview.config.schema import (
+    Config,
+    GCPContext,
+    GKEContext,
+    LogFileContext,
+    MockContext,
+    SyslogContext,
+)
 from logview.domain.models import Filter
 from logview.ui.screens.context import ContextModal
 from logview.ui.screens.detail import DetailModal
@@ -121,7 +129,7 @@ class LogViewApp(App[None]):
 
     def _create_source_from_context(
         self,
-        context: MockContext | SyslogContext | GCPContext | GKEContext,
+        context: MockContext | SyslogContext | GCPContext | GKEContext | LogFileContext,
     ) -> LogSource | None:
         """Create a log source from a config context.
 
@@ -135,6 +143,12 @@ class LogViewApp(App[None]):
             return MockLogSource(seed=context.seed)  # type: ignore[return-value]
         elif isinstance(context, SyslogContext):
             return SyslogLogSource(file_path=context.path)  # type: ignore[return-value]
+        elif isinstance(context, LogFileContext):
+            return LogFileSource(  # type: ignore[return-value]
+                name=context.name,
+                path=context.path,
+                format=context.format,
+            )
         else:
             # GCP and GKE not implemented yet
             self.notify(f"Source type '{context.type}' not yet implemented", severity="warning")
