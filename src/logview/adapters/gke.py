@@ -118,6 +118,51 @@ def _escape_filter_value(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
+def _build_wildcard_filter(
+    field_name: str,
+    pattern: str,
+    label_name: str,
+) -> str:
+    """Build a wildcard or exact match filter for a resource label.
+
+    Args:
+        field_name: Human-readable field name for error messages (e.g., "namespace", "pod").
+        pattern: The filter pattern, possibly ending with * for wildcard.
+        label_name: The Cloud Logging label name (e.g., "resource.labels.namespace_name").
+
+    Returns:
+        Filter expression for the label.
+
+    Raises:
+        GKEInvalidFilterError: If the pattern contains invalid wildcards.
+    """
+    if pattern.endswith("*"):
+        prefix = pattern[:-1]  # Remove trailing *
+        if not prefix:
+            raise GKEInvalidFilterError(
+                f"Invalid {field_name} pattern '{pattern}': "
+                "wildcard-only patterns are not allowed"
+            )
+        if "*" in prefix:
+            raise GKEInvalidFilterError(
+                f"Invalid {field_name} pattern '{pattern}': "
+                f"only trailing wildcards are allowed (e.g., 'prefix-*')"
+            )
+        # Quote escaping must happen BEFORE re.escape() because re.escape() only handles
+        # regex metacharacters, not Cloud Logging string delimiters. The backslashes from
+        # re.escape() are intentional regex syntax and should not be further escaped.
+        safe_prefix = prefix.replace('"', '\\"')
+        return f'{label_name}=~"^{re.escape(safe_prefix)}"'
+    elif "*" in pattern:
+        raise GKEInvalidFilterError(
+            f"Invalid {field_name} pattern '{pattern}': "
+            f"only trailing wildcards are allowed (e.g., 'prefix-*')"
+        )
+    else:
+        escaped = _escape_filter_value(pattern)
+        return f'{label_name}="{escaped}"'
+
+
 def _build_gke_filter(
     log_filter: Filter,
     project: str,
@@ -157,59 +202,17 @@ def _build_gke_filter(
         effective_namespace = log_filter.fields["namespace"]
 
     if effective_namespace:
-        # Only allow trailing wildcard, reject internal wildcards for safety
-        if effective_namespace.endswith("*"):
-            prefix = effective_namespace[:-1]  # Remove trailing *
-            if not prefix:
-                raise GKEInvalidFilterError(
-                    f"Invalid namespace pattern '{effective_namespace}': "
-                    "wildcard-only patterns are not allowed"
-                )
-            if "*" in prefix:
-                raise GKEInvalidFilterError(
-                    f"Invalid namespace pattern '{effective_namespace}': "
-                    "only trailing wildcards are allowed (e.g., 'kube-*')"
-                )
-            # Escape quotes in prefix before regex escaping (regex backslashes are intentional)
-            safe_prefix = prefix.replace('"', '\\"')
-            parts.append(f'resource.labels.namespace_name=~"^{re.escape(safe_prefix)}"')
-        elif "*" in effective_namespace:
-            raise GKEInvalidFilterError(
-                f"Invalid namespace pattern '{effective_namespace}': "
-                "only trailing wildcards are allowed (e.g., 'kube-*')"
-            )
-        else:
-            escaped_ns = _escape_filter_value(effective_namespace)
-            parts.append(f'resource.labels.namespace_name="{escaped_ns}"')
+        parts.append(
+            _build_wildcard_filter("namespace", effective_namespace, "resource.labels.namespace_name")
+        )
 
     # Pod filter (from log_filter.fields)
     effective_pod = log_filter.fields.get("pod") if log_filter.fields else None
 
     if effective_pod:
-        # Only allow trailing wildcard, reject internal wildcards for safety
-        if effective_pod.endswith("*"):
-            prefix = effective_pod[:-1]  # Remove trailing *
-            if not prefix:
-                raise GKEInvalidFilterError(
-                    f"Invalid pod pattern '{effective_pod}': "
-                    "wildcard-only patterns are not allowed"
-                )
-            if "*" in prefix:
-                raise GKEInvalidFilterError(
-                    f"Invalid pod pattern '{effective_pod}': "
-                    "only trailing wildcards are allowed (e.g., 'api-*')"
-                )
-            # Escape quotes in prefix before regex escaping (regex backslashes are intentional)
-            safe_prefix = prefix.replace('"', '\\"')
-            parts.append(f'resource.labels.pod_name=~"^{re.escape(safe_prefix)}"')
-        elif "*" in effective_pod:
-            raise GKEInvalidFilterError(
-                f"Invalid pod pattern '{effective_pod}': "
-                "only trailing wildcards are allowed (e.g., 'api-*')"
-            )
-        else:
-            escaped_pod = _escape_filter_value(effective_pod)
-            parts.append(f'resource.labels.pod_name="{escaped_pod}"')
+        parts.append(
+            _build_wildcard_filter("pod", effective_pod, "resource.labels.pod_name")
+        )
 
     # Container filter (from log_filter.fields)
     effective_container = log_filter.fields.get("container") if log_filter.fields else None
