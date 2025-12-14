@@ -174,13 +174,14 @@ def discover_logs(
             for filename in files:
                 file_path = root_path / filename
 
-                # Skip if already seen (via symlinks)
+                # Resolve symlinks to get the real path
                 try:
                     resolved = file_path.resolve()
-                    if resolved in seen_paths:
-                        continue
-                    seen_paths.add(resolved)
                 except OSError:
+                    continue
+
+                # Skip if already seen (check only, don't add yet)
+                if resolved in seen_paths:
                     continue
 
                 # Security check: validate resolved path is still in allowed directories
@@ -200,6 +201,10 @@ def discover_logs(
                 # Check if likely text file
                 if not _is_likely_text_file(file_path):
                     continue
+
+                # Only mark as seen after passing all filters
+                # This prevents a skipped file from blocking a wanted file with the same target
+                seen_paths.add(resolved)
 
                 # Get file size
                 try:

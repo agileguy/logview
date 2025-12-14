@@ -248,12 +248,13 @@ class LogFileSource:
         """Parse a line according to the detected format."""
         if self._format == "jsonl":
             jsonl_parsed = parse_jsonl_line(line)
+            # Put "line" last to ensure it can't be overwritten by parsed metadata
             return LogEntry(
                 timestamp=jsonl_parsed.timestamp,
                 severity=Severity.from_string(jsonl_parsed.severity),
                 message=jsonl_parsed.message,
                 source=self._name,
-                metadata={"line": str(line_num), **jsonl_parsed.metadata},
+                metadata={**jsonl_parsed.metadata, "line": str(line_num)},
                 raw=jsonl_parsed.raw,
             )
 
