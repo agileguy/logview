@@ -1,6 +1,6 @@
 [project]
 name = "logview"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A testable, responsive log viewer TUI with pluggable log source contexts"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -46,6 +46,10 @@ logview = "logview.__main__:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "VERSION"
+pattern = "(?P<version>.+)"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/logview"]
 
@@ -81,6 +85,19 @@ ignore = ["E501"]  # line too long, handled by formatter
 [tool.coverage.run]
 source = ["src/logview"]
 branch = true
+omit = [
+    # Entry point - hard to test
+    "src/logview/__main__.py",
+    # Placeholder adapters (Phase 3+)
+    "src/logview/adapters/gcp.py",
+    "src/logview/adapters/gke.py",
+    # Placeholder UI components (Phase 3+)
+    "src/logview/domain/context.py",
+    "src/logview/ui/screens/help.py",
+    "src/logview/ui/screens/main.py",
+    "src/logview/ui/widgets/log_entry.py",
+    "src/logview/ui/widgets/status_bar.py",
+]
 
 [tool.coverage.report]
 exclude_lines = [

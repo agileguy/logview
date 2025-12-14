@@ -141,12 +141,20 @@ If any check fails, fix the issues before pushing.
 
 ## Continuous Integration
 
-GitHub Actions CI runs on all PRs targeting main:
+GitHub Actions CI runs on all PRs targeting main and on pushes to main:
 
 - **Lint**: `ruff check src/ tests/`
 - **Type Check**: `mypy src/`
 - **Test**: `pytest` on Python 3.11 and 3.12
 - **Coverage**: Must maintain >70% coverage
+
+### CI Badge Behavior
+
+The README.md CI status badge reflects the status of the most recent CI run on the `main` branch. The workflow is configured to run on:
+- Pull requests targeting `main` (for pre-merge validation)
+- Pushes to `main` (to update badge status after merges)
+
+This ensures the badge accurately reflects the current state of the main branch rather than showing stale status from historical pushes.
 
 ### Snapshot Testing
 
@@ -155,6 +163,153 @@ Snapshot tests use separate directories for CI vs local:
 - CI: `tests/__snapshots_ci__/` (gitignored)
 
 This prevents CI environment differences from causing false failures.
+
+## Pull Request Management (MANDATORY)
+
+### Monitor Open PRs
+
+**When a PR is open, you MUST:**
+
+1. **Check CI status** after pushing:
+   ```bash
+   gh pr checks <PR_NUMBER>
+   ```
+
+2. **Fix any failing checks immediately** - do not leave PRs with red CI:
+   - Read the failure logs: `gh run view <RUN_ID> --log-failed`
+   - Fix the issue locally
+   - Push the fix
+   - Verify CI passes
+
+3. **Do not consider work complete until all checks pass**
+
+### Cursor Reviews (MANDATORY)
+
+**When Cursor Bugbot reviews a PR, you MUST:**
+
+1. **Check for ALL review comments** (not just the first few):
+   ```bash
+   gh api repos/{owner}/{repo}/pulls/{pr}/comments | jq '.[].body'
+   ```
+
+2. **Count the total number of issues** and track each one:
+   ```bash
+   gh api repos/{owner}/{repo}/pulls/{pr}/comments | jq 'length'
+   ```
+
+3. **Implement EVERY suggestion** from Cursor reviews:
+   - Bug fixes (security, logic errors, resource leaks)
+   - Code improvements
+   - Missing edge cases
+   - **Do not skip any comments** - address all of them
+
+4. **Verify each fix** is in place before considering it done
+
+5. **Push fixes and verify** the review issues are resolved
+
+6. **REPEAT the commit-review cycle until no new comments**:
+   - After pushing fixes, Cursor will review again and may add new comments
+   - **ALWAYS** re-check the PR for new review comments after each push
+   - If new comments appear, fix them and push again
+   - **Continue this cycle until a push yields ZERO new comments**
+   - This is MANDATORY - do not stop until the cycle completes with no comments
+
+7. **Only mark PR as ready** after:
+   - All CI checks pass
+   - **ALL** Cursor review suggestions implemented (not just some)
+   - **The commit-review cycle completed with no new comments**
+
+### PR Checklist
+
+Before considering a PR complete:
+- [ ] All CI checks pass (green)
+- [ ] Cursor review suggestions implemented
+- [ ] Commit-review cycle repeated until no new comments appear
+- [ ] ACTIONS.md updated with changes
+- [ ] Version bumped if releasing (VERSION, CHANGELOG.md)
+
+## Action Logging (MANDATORY)
+
+**After completing significant work, append a summary to `ACTIONS.md`:**
+
+- What was done (features, fixes, refactors)
+- Files changed
+- Tests added/modified
+- Any issues encountered and how they were resolved
+
+Format:
+```markdown
+## YYYY-MM-DD: Brief Title
+
+**Changes:**
+- Item 1
+- Item 2
+
+**Files:** `file1.py`, `file2.py`
+
+**Tests:** Added X tests, all passing
+```
+
+## Semantic Versioning (MANDATORY)
+
+This project follows [Semantic Versioning](https://semver.org/) (MAJOR.MINOR.PATCH):
+
+- **MAJOR**: Breaking changes (incompatible API changes)
+- **MINOR**: New features (backwards compatible)
+- **PATCH**: Bug fixes (backwards compatible)
+
+### Version Files (MUST update together)
+
+| File | Purpose |
+|------|---------|
+| `VERSION` | **Single source of truth** - contains version string only |
+| `CHANGELOG.md` | Human-readable history of changes per version |
+
+### When to Update Version
+
+**Bump PATCH (0.0.X)** for:
+- Bug fixes
+- Security patches
+- Documentation fixes
+
+**Bump MINOR (0.X.0)** for:
+- New features
+- New adapters or modals
+- New configuration options
+- Deprecations (with backwards compatibility)
+
+**Bump MAJOR (X.0.0)** for:
+- Breaking API changes
+- Removed features
+- Incompatible configuration changes
+
+### Version Update Process (MANDATORY)
+
+When releasing changes:
+
+1. **Update `VERSION`** file with new version number
+2. **Update `CHANGELOG.md`**:
+   - Move items from `[Unreleased]` to new version section
+   - Add release date
+   - Update comparison links at bottom
+3. **Commit** with message: `chore: bump version to X.Y.Z`
+4. **Tag** the release: `git tag vX.Y.Z`
+
+```bash
+# Example version bump workflow
+echo "0.3.0" > VERSION
+# Edit CHANGELOG.md to move [Unreleased] to [0.3.0]
+git add VERSION CHANGELOG.md
+git commit -m "chore: bump version to 0.3.0"
+git tag v0.3.0
+```
+
+### Accessing Version in Code
+
+```python
+from logview import __version__
+print(__version__)  # e.g., "0.2.0"
+```
 
 ## Current Phase
 
