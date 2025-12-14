@@ -187,12 +187,12 @@ class TestGKEFilterBuilding:
         assert 'resource.labels.cluster_name="my-cluster"' in filter_str
 
     def test_namespace_filter(self) -> None:
-        """Test namespace filter."""
+        """Test namespace filter from default_namespace."""
         filter_str = _build_gke_filter(
             Filter(),
             project="test-project",
             cluster="my-cluster",
-            namespace="default",
+            default_namespace="default",
         )
         assert 'resource.labels.namespace_name="default"' in filter_str
 

@@ -111,22 +111,17 @@ def _build_gke_filter(
     project: str,
     cluster: str,
     location: str | None = None,
-    namespace: str | None = None,
-    pod: str | None = None,
-    container: str | None = None,
-    labels: dict[str, str] | None = None,
+    default_namespace: str | None = None,
 ) -> str:
     """Build a Cloud Logging filter string for GKE logs.
 
     Args:
-        log_filter: The filter configuration.
+        log_filter: The filter configuration (may contain namespace, pod,
+            container, labels fields).
         project: GCP project ID.
         cluster: GKE cluster name.
         location: Optional cluster location (zone or region).
-        namespace: Optional namespace filter.
-        pod: Optional pod name filter (supports prefix with *).
-        container: Optional container name filter.
-        labels: Optional pod label filters.
+        default_namespace: Optional default namespace (used if not in log_filter.fields).
 
     Returns:
         Cloud Logging filter string.
@@ -144,8 +139,8 @@ def _build_gke_filter(
     if location:
         parts.append(f'resource.labels.location="{location}"')
 
-    # Namespace filter
-    effective_namespace = namespace
+    # Namespace filter (from log_filter.fields or default_namespace)
+    effective_namespace = default_namespace
     if log_filter.fields and "namespace" in log_filter.fields:
         effective_namespace = log_filter.fields["namespace"]
 
@@ -172,10 +167,8 @@ def _build_gke_filter(
         else:
             parts.append(f'resource.labels.namespace_name="{effective_namespace}"')
 
-    # Pod filter
-    effective_pod = pod
-    if log_filter.fields and "pod" in log_filter.fields:
-        effective_pod = log_filter.fields["pod"]
+    # Pod filter (from log_filter.fields)
+    effective_pod = log_filter.fields.get("pod") if log_filter.fields else None
 
     if effective_pod:
         # Only allow trailing wildcard, reject internal wildcards for safety
@@ -200,16 +193,14 @@ def _build_gke_filter(
         else:
             parts.append(f'resource.labels.pod_name="{effective_pod}"')
 
-    # Container filter
-    effective_container = container
-    if log_filter.fields and "container" in log_filter.fields:
-        effective_container = log_filter.fields["container"]
+    # Container filter (from log_filter.fields)
+    effective_container = log_filter.fields.get("container") if log_filter.fields else None
 
     if effective_container:
         parts.append(f'resource.labels.container_name="{effective_container}"')
 
-    # Label filters (k8s pod labels)
-    effective_labels = labels.copy() if labels else {}
+    # Label filters (k8s pod labels, from log_filter.fields)
+    effective_labels: dict[str, str] = {}
     if log_filter.fields and "labels" in log_filter.fields:
         # Parse labels string: "key1=value1,key2=value2"
         labels_str = log_filter.fields["labels"]
@@ -518,7 +509,7 @@ class GKELogSource:
             project=self._project_id,
             cluster=self._cluster,
             location=self._location,
-            namespace=self._namespace,
+            default_namespace=self._namespace,
         )
         logger.debug("GKE filter string: %s", filter_str)
 
