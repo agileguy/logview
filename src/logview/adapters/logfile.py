@@ -142,7 +142,10 @@ class LogFileSource:
         self._name = name
         self._original_path = path
         self._format: LogFormat = format
-        self._allowed_directories = allowed_directories or ["/var/log", "/opt", "/home"]
+        # Use default only when None, not for empty list (empty = no access)
+        self._allowed_directories = (
+            ["/var/log", "/opt", "/home"] if allowed_directories is None else allowed_directories
+        )
 
         # Resolve and validate path
         self._resolved_path = self._validate_path(path)

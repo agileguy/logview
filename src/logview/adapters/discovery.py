@@ -138,7 +138,10 @@ def discover_logs(
     Returns:
         List of discovered log files.
     """
-    allowed_dirs = allowed_directories or ["/var/log", "/opt", "/home"]
+    # Use default only when None, not for empty list (empty = no access)
+    allowed_dirs = (
+        ["/var/log", "/opt", "/home"] if allowed_directories is None else allowed_directories
+    )
     discovered: list[DiscoveredLog] = []
     seen_paths: set[Path] = set()
 
@@ -190,25 +193,25 @@ def discover_logs(
                 if not _is_path_allowed(resolved, allowed_dirs):
                     continue
 
-                # Apply filters
+                # Apply filters based on original path name (for rotated log detection, etc.)
                 if _should_skip_file(file_path):
                     continue
 
-                # Check if readable - skip unreadable files
-                if not _is_readable(file_path):
+                # Use resolved path for all file operations to prevent TOCTOU attacks
+                # where symlink target could be swapped after validation
+                if not _is_readable(resolved):
                     continue
 
-                # Check if likely text file
-                if not _is_likely_text_file(file_path):
+                if not _is_likely_text_file(resolved):
                     continue
 
                 # Only mark as seen after passing all filters
                 # This prevents a skipped file from blocking a wanted file with the same target
                 seen_paths.add(resolved)
 
-                # Get file size
+                # Get file size using resolved path
                 try:
-                    size = file_path.stat().st_size
+                    size = resolved.stat().st_size
                 except OSError:
                     size = 0
 
