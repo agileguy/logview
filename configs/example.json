@@ -33,6 +33,12 @@
       "log_name": "cloudaudit.googleapis.com%2Factivity"
     },
     {
+      "name": "gcp-compute",
+      "type": "gcp",
+      "project": "my-gcp-project",
+      "resource_type": "gce_instance"
+    },
+    {
       "name": "local-syslog",
       "type": "syslog",
       "path": "/var/log/syslog"
@@ -69,5 +75,11 @@
   },
   "security": {
     "credential_helper": "gcloud"
+  },
+  "logging": {
+    "level": "WARNING",
+    "file": null,
+    "max_size_mb": 10,
+    "backup_count": 3
   }
 }

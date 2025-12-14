@@ -1,5 +1,113 @@
 # LogView Action Log
 
+## 2025-12-14: Tree-Based Context Switcher & Memory Optimizations
+
+**Changes:**
+- Redesigned context selector modal with Tree widget
+  - Configured sources (syslog, GCP) displayed at root level
+  - Discovered sources in collapsible "Discovered Logs" folder
+  - Active source highlighted with "●" marker
+  - Returns tuple[str, int] for (category, index) selection
+- Memory-optimized fetch operations
+  - GCP adapter: Batch processing (100 entries at a time) instead of loading all at once
+  - LogFile adapter: Heap-based top-N selection using heapq instead of full list sort
+- Separate tracking of configured vs discovered sources in app
+- Fixed context modal cursor positioning (use move_cursor instead of select_node)
+- Added mypy configuration to ignore missing google imports in CI
+
+**Files Modified:**
+- `src/logview/ui/screens/context.py` - Complete rewrite to use Tree widget
+- `src/logview/app.py` - Separate configured/discovered source tracking
+- `src/logview/adapters/gcp.py` - Batch processing, functools.partial for type safety
+- `src/logview/adapters/logfile.py` - Heap-based top-N selection
+- `tests/ui/test_context_modal.py` - Updated for new modal structure
+- `pyproject.toml` - Added mypy override for google.* imports
+- Documentation: PLAN.md, README.md, CHANGELOG.md
+
+**Tests:** 277 passed, 17 skipped
+
+---
+
+## 2025-12-14: Application Logging & GCP Fixes
+
+**Changes:**
+- Implemented configurable application logging system
+  - New `LoggingSettings` in config schema (level, file, max_size_mb, backup_count)
+  - Rotating file handler with automatic rotation
+  - Default log location: `~/.config/logview/logview.log`
+  - Default log level: DEBUG
+- Added logging throughout all components:
+  - GCP adapter: client creation, fetch operations, error handling
+  - Syslog adapter: path validation, fetch operations
+  - LogFile adapter: format detection, fetch operations
+  - Discovery service: discovery progress
+  - Config loader: load/save operations
+  - Log list widget: refresh operations
+  - Main app: source registration, context switching
+- Fixed GCP adapter API compatibility:
+  - Changed `projects` parameter to `resource_names` (google-cloud-logging 3.x API)
+  - Added unified `payload` property support for message extraction
+  - JSON payloads now check `message`, `msg`, `textPayload` fields
+
+**Files Added:**
+- `src/logview/config/logging.py` - Logging setup module
+
+**Files Modified:**
+- `src/logview/config/schema.py` - Added LoggingSettings
+- `src/logview/adapters/gcp.py` - Added logging, fixed API compatibility
+- `src/logview/adapters/syslog.py` - Added logging
+- `src/logview/adapters/logfile.py` - Added logging
+- `src/logview/adapters/discovery.py` - Added logging
+- `src/logview/config/loader.py` - Added logging
+- `src/logview/ui/widgets/log_list.py` - Added logging
+- `src/logview/app.py` - Added logging setup
+- `tests/unit/test_gcp_adapter.py` - Updated mock for new API
+- `configs/example.json` - Added logging configuration
+- `README.md` - Added logging documentation
+- `CHANGELOG.md` - Added logging features and GCP fixes
+
+**Tests:** 274 passed, 17 skipped
+
+---
+
+## 2025-12-14: Phase 4 - GCP Cloud Logging Adapter
+
+**Changes:**
+- Implemented GCP Cloud Logging adapter (`src/logview/adapters/gcp.py`)
+- Graceful degradation when `google-cloud-logging` not installed
+- Application Default Credentials (ADC) authentication support
+- Filter building for Cloud Logging query syntax
+- Log entry parsing (text, JSON, proto payloads)
+- Project ID validation (6-30 chars, lowercase, letters/digits/hyphens)
+- Protocol-based design for testability (mock client injection)
+- Comprehensive error handling:
+  - `GCPNotInstalledError` - helpful install instructions
+  - `GCPAuthenticationError` - gcloud login instructions
+  - `GCPPermissionError` - role requirement info
+  - `GCPProjectNotFoundError` - project ID verification
+  - `GCPQuotaExceededError` - rate limiting info
+  - `GCPInvalidProjectError` - format requirements
+- Added 40 unit tests for GCP adapter
+- Added 16 integration tests (skipped in CI)
+- Wired GCP adapter to main app
+
+**Files Added:**
+- `src/logview/adapters/gcp.py` - GCP Cloud Logging adapter
+- `tests/unit/test_gcp_adapter.py` - 40 unit tests
+- `tests/integration/test_gcp.py` - 16 integration tests
+
+**Files Modified:**
+- `src/logview/app.py` - GCP adapter integration
+- `tests/conftest.py` - Added `gcp_integration` marker
+- `PLAN.md` - Updated Phase 4 plan with improvements
+- `README.md` - GCP setup instructions, project status
+- `CHANGELOG.md` - Phase 4 features
+- `CLAUDE.md` - Expanded allowed tools list
+
+**Tests:** 271 passed, 16 skipped (GCP integration tests)
+
+---
+
 ## 2025-12-14: Documentation Update & Version Bump to 0.3.0
 
 **Changes:**

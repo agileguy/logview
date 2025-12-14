@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
+
+logger = logging.getLogger("logview.adapters.discovery")
 
 
 @dataclass(frozen=True)
@@ -138,6 +141,8 @@ def discover_logs(
     Returns:
         List of discovered log files.
     """
+    logger.info("Starting log discovery in %d paths (max_depth=%d)", len(search_paths), max_depth)
+
     # Use default only when None, not for empty list (empty = no access)
     allowed_dirs = (
         ["/var/log", "/opt", "/home"] if allowed_directories is None else allowed_directories
@@ -233,6 +238,7 @@ def discover_logs(
     # Sort by path for consistent ordering
     discovered.sort(key=lambda d: str(d.path))
 
+    logger.info("Discovery complete: found %d log files", len(discovered))
     return discovered
 
 

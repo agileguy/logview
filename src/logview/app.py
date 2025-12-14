@@ -11,10 +11,12 @@ from textual.widgets import Footer, Header
 
 from logview.adapters.base import LogSource
 from logview.adapters.discovery import DiscoveredLog, discover_logs
+from logview.adapters.gcp import GCP_AVAILABLE, GCPLogSource
 from logview.adapters.logfile import LogFileSource
 from logview.adapters.mock import MockLogSource
 from logview.adapters.syslog import SyslogLogSource
 from logview.config.loader import load_config, save_config
+from logview.config.logging import get_logger, setup_logging
 from logview.config.schema import (
     Config,
     GCPContext,
@@ -28,6 +30,8 @@ from logview.ui.screens.context import ContextModal
 from logview.ui.screens.detail import DetailModal
 from logview.ui.screens.filter import FilterModal
 from logview.ui.widgets.log_list import LogList
+
+logger = get_logger("app")
 
 if TYPE_CHECKING:
     pass
@@ -58,6 +62,8 @@ class LogViewApp(App[None]):
         self._config_path = config_path
         self._config: Config | None = None
         self._sources: list[LogSource] = []
+        self._configured_sources: list[LogSource] = []  # Sources from config file
+        self._discovered_sources: list[LogSource] = []  # Sources from discovery
         self._active_source: LogSource | None = None
         self._current_filter: Filter = Filter(limit=100)
         self._registered_paths: set[Path] = set()  # Track registered file paths to avoid duplicates
@@ -73,6 +79,9 @@ class LogViewApp(App[None]):
         # Load configuration
         try:
             self._config = load_config(self._config_path)
+            # Set up logging from config
+            setup_logging(self._config.logging)
+            logger.info("LogView starting up")
             self._register_sources_from_config()
         except Exception as e:
             self.notify(f"Error loading config: {e}", severity="error")
@@ -120,10 +129,14 @@ class LogViewApp(App[None]):
     def _register_sources_from_config(self) -> None:
         """Register log sources from configuration."""
         if not self._config:
+            logger.debug("No config loaded, skipping source registration")
             return
+
+        logger.info("Registering %d sources from config", len(self._config.contexts))
 
         for context in self._config.contexts:
             try:
+                logger.debug("Creating source from context: %s (type=%s)", context.name, context.type)
                 source = self._create_source_from_context(context)
                 if source:
                     # Track path for file-based sources to prevent duplicates
@@ -138,6 +151,7 @@ class LogViewApp(App[None]):
                             severity="warning",
                         )
             except Exception as e:
+                logger.error("Error creating source '%s': %s", context.name, e)
                 self.notify(f"Error creating source '{context.name}': {e}", severity="warning")
 
         # Auto-discover log files in background to avoid blocking UI
@@ -181,7 +195,8 @@ class LogViewApp(App[None]):
                         allowed_directories=discovery.allowed_directories,
                     )
                     # Pass path to avoid duplicates with configured sources
-                    if self.register_source(source, path=log.path):  # type: ignore[arg-type]
+                    # Mark as discovered=True for tree grouping in UI
+                    if self.register_source(source, path=log.path, discovered=True):  # type: ignore[arg-type]
                         registered_count += 1
                 except Exception:
                     # Skip individual files that fail to load (silently)
@@ -246,17 +261,36 @@ class LogViewApp(App[None]):
                 format=context.format,
                 allowed_directories=allowed_dirs,
             )
+        elif isinstance(context, GCPContext):
+            if not GCP_AVAILABLE:
+                self.notify(
+                    "GCP support requires: pip install logview[gcp]",
+                    severity="warning",
+                )
+                return None
+            return GCPLogSource(  # type: ignore[return-value]
+                project_id=context.project,
+                log_name=context.log_name,
+                resource_type=context.resource_type,
+                name=context.name,
+            )
         else:
-            # GCP and GKE not implemented yet
+            # GKE not implemented yet
             self.notify(f"Source type '{context.type}' not yet implemented", severity="warning")
             return None
 
-    def register_source(self, source: LogSource, path: Path | None = None) -> bool:
+    def register_source(
+        self,
+        source: LogSource,
+        path: Path | None = None,
+        discovered: bool = False,
+    ) -> bool:
         """Register a log source.
 
         Args:
             source: The log source to register.
             path: Optional file path to track (prevents duplicate registrations).
+            discovered: True if this source was auto-discovered (not from config).
 
         Returns:
             True if registered, False if path was already registered.
@@ -269,6 +303,10 @@ class LogViewApp(App[None]):
             self._registered_paths.add(resolved)
 
         self._sources.append(source)
+        if discovered:
+            self._discovered_sources.append(source)
+        else:
+            self._configured_sources.append(source)
         return True
 
     def set_active_source(self, source: LogSource) -> None:
@@ -301,22 +339,37 @@ class LogViewApp(App[None]):
             self.notify("No log sources available")
             return
 
-        # Find active source index
-        active_index: int | None = None
+        # Find active source in configured or discovered lists
+        active_configured_index: int | None = None
+        active_discovered_index: int | None = None
         if self._active_source:
             try:
-                active_index = self._sources.index(self._active_source)
+                active_configured_index = self._configured_sources.index(self._active_source)
             except ValueError:
-                pass
+                try:
+                    active_discovered_index = self._discovered_sources.index(self._active_source)
+                except ValueError:
+                    pass
 
-        def handle_selection(selected_index: int | None) -> None:
-            if selected_index is not None and 0 <= selected_index < len(self._sources):
-                source = self._sources[selected_index]
-                self.set_active_source(source)
-                self.notify(f"Switched to {source.name}")
+        def handle_selection(result: tuple[str, int] | None) -> None:
+            if result is not None:
+                category, index = result
+                if category == "configured" and 0 <= index < len(self._configured_sources):
+                    source = self._configured_sources[index]
+                    self.set_active_source(source)
+                    self.notify(f"Switched to {source.name}")
+                elif category == "discovered" and 0 <= index < len(self._discovered_sources):
+                    source = self._discovered_sources[index]
+                    self.set_active_source(source)
+                    self.notify(f"Switched to {source.name}")
 
         self.push_screen(
-            ContextModal(self._sources, active_source_index=active_index),
+            ContextModal(
+                configured_sources=self._configured_sources,
+                discovered_sources=self._discovered_sources,
+                active_configured_index=active_configured_index,
+                active_discovered_index=active_discovered_index,
+            ),
             handle_selection,
         )
 

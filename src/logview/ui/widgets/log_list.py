@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from textual.message import Message
 from textual.widgets import DataTable
 
 from logview.domain.models import Filter, LogEntry, Severity
+
+logger = logging.getLogger("logview.ui.log_list")
 
 if TYPE_CHECKING:
     from logview.adapters.base import LogSource
@@ -63,7 +66,10 @@ class LogList(DataTable[Any]):
     async def refresh_logs(self) -> None:
         """Refresh the log list from the current source."""
         if self._source is None:
+            logger.debug("No source set, skipping refresh")
             return
+
+        logger.info("Refreshing logs from source: %s", self._source.name)
 
         # Clear existing rows
         self.clear()
@@ -73,8 +79,10 @@ class LogList(DataTable[Any]):
             async for entry in self._source.fetch(self._filter):  # type: ignore[attr-defined]
                 self._entries.append(entry)
                 self._add_entry_row(entry)
+            logger.info("Loaded %d log entries", len(self._entries))
         except Exception as e:
             # Let the app handle the error notification
+            logger.error("Error loading logs from %s: %s", self._source.name, e)
             self.app.notify(f"Error loading logs: {e}", severity="error")
 
     def _add_entry_row(self, entry: LogEntry) -> None:

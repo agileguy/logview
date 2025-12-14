@@ -22,6 +22,9 @@ def pytest_configure(config: pytest.Config) -> None:
     # Register CI marker
     config.addinivalue_line("markers", "ci_only: marks tests to run only in CI")
     config.addinivalue_line("markers", "local_only: marks tests to run only locally")
+    config.addinivalue_line(
+        "markers", "gcp_integration: marks tests requiring GCP credentials"
+    )
 
 
 @pytest.fixture(scope="session")

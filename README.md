@@ -9,7 +9,10 @@ A testable, responsive log viewer TUI with pluggable log source contexts.
 - **Multiple log sources**: Local log files, syslog, GCP Cloud Logging, GKE, and more
 - **Format auto-detection**: Automatically detects plain text, JSON Lines, and syslog formats
 - **Log discovery**: Scan directories to find log files
+- **Tree-based context switcher**: Organized view with configured sources at root, discovered logs in collapsible folder
 - **Flexible filtering**: Time range, severity, text search, and source-specific fields
+- **Memory efficient**: Batch processing and heap-based selection for large log files
+- **Application logging**: Configurable rotating file handler for debugging
 - **Keyboard-first**: Full functionality without mouse
 - **Testable**: Interface-driven design with comprehensive test coverage
 
@@ -70,6 +73,12 @@ Create `~/.config/logview/config.json`:
       "path": "/var/log/syslog"
     },
     {
+      "name": "gcp-logs",
+      "type": "gcp",
+      "project": "my-project",
+      "log_name": "cloudaudit.googleapis.com%2Factivity"
+    },
+    {
       "name": "prod-gke",
       "type": "gke",
       "project": "my-project",
@@ -83,6 +92,66 @@ Create `~/.config/logview/config.json`:
 ```
 
 See `configs/example.json` for a complete example.
+
+### Application Logging
+
+LogView logs its own activity to help with debugging. Configure logging in your config file:
+
+```json
+{
+  "logging": {
+    "level": "DEBUG",
+    "file": "~/.config/logview/logview.log",
+    "max_size_mb": 10,
+    "backup_count": 3
+  }
+}
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `level` | `DEBUG` | Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL |
+| `file` | `~/.config/logview/logview.log` | Log file path (null for default) |
+| `max_size_mb` | `10` | Max log file size before rotation |
+| `backup_count` | `3` | Number of rotated log files to keep |
+
+To view logs while running:
+```bash
+tail -f ~/.config/logview/logview.log
+```
+
+### GCP Cloud Logging Setup
+
+To use GCP Cloud Logging as a log source:
+
+1. **Install with GCP support**:
+   ```bash
+   pip install -e ".[gcp]"
+   ```
+
+2. **Authenticate with GCP**:
+   ```bash
+   gcloud auth application-default login
+   ```
+
+3. **Add a GCP context to your config**:
+   ```json
+   {
+     "name": "my-gcp-project",
+     "type": "gcp",
+     "project": "your-project-id",
+     "log_name": "cloudaudit.googleapis.com%2Factivity"
+   }
+   ```
+
+**Requirements**:
+- The `google-cloud-logging` package (installed with `.[gcp]`)
+- Valid Application Default Credentials (ADC)
+- `Logs Viewer` role on the GCP project
+
+**Optional fields**:
+- `log_name`: Filter to specific log (e.g., `cloudaudit.googleapis.com%2Factivity`)
+- `resource_type`: Filter by resource type (e.g., `gce_instance`, `k8s_container`)
 
 ## Security
 
@@ -172,7 +241,7 @@ This project is under active development. See [PLAN.md](PLAN.md) for the roadmap
 - [x] Phase 1: Foundation (MVP)
 - [x] Phase 2: Syslog & Modals
 - [x] Phase 3: Application Logs (logfile adapter with format auto-detection)
-- [ ] Phase 4: GCP Cloud Logging
+- [x] Phase 4: GCP Cloud Logging
 - [ ] Phase 5: GKE integration
 - [ ] Phase 6: File watching & Enhanced UX
 - [ ] Phase 7: Extended format support

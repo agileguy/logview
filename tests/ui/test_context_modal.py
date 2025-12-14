@@ -20,12 +20,21 @@ class MockSourceForTest:
 
 
 @pytest.fixture
-def mock_sources() -> list[MockSourceForTest]:
-    """Create mock sources for testing."""
+def configured_sources() -> list[MockSourceForTest]:
+    """Create mock configured sources for testing."""
     return [
-        MockSourceForTest("Mock (testing)"),
-        MockSourceForTest("Syslog (/var/log/syslog)"),
-        MockSourceForTest("GCP Logging"),
+        MockSourceForTest("System Log"),
+        MockSourceForTest("GCP Logs"),
+    ]
+
+
+@pytest.fixture
+def discovered_sources() -> list[MockSourceForTest]:
+    """Create mock discovered sources for testing."""
+    return [
+        MockSourceForTest("auth.log"),
+        MockSourceForTest("kern.log"),
+        MockSourceForTest("dpkg.log"),
     ]
 
 
@@ -33,47 +42,104 @@ class TestContextModal:
     """Tests for ContextModal."""
 
     @pytest.mark.asyncio
-    async def test_modal_opens(self, mock_sources: list[MockSourceForTest]) -> None:
+    async def test_modal_opens(
+        self, configured_sources: list[MockSourceForTest]
+    ) -> None:
         """Test that the context modal opens correctly."""
         app = LogViewApp()
         async with app.run_test() as pilot:
-            app.push_screen(ContextModal(mock_sources))  # type: ignore[arg-type]
+            app.push_screen(
+                ContextModal(
+                    configured_sources=configured_sources,  # type: ignore[arg-type]
+                    discovered_sources=[],
+                )
+            )
             await pilot.pause()
 
             assert app.screen.__class__.__name__ == "ContextModal"
 
     @pytest.mark.asyncio
-    async def test_modal_has_option_list(self, mock_sources: list[MockSourceForTest]) -> None:
-        """Test that the modal has an option list."""
+    async def test_modal_has_tree(
+        self, configured_sources: list[MockSourceForTest]
+    ) -> None:
+        """Test that the modal has a tree widget."""
         app = LogViewApp()
         async with app.run_test() as pilot:
-            app.push_screen(ContextModal(mock_sources))  # type: ignore[arg-type]
+            app.push_screen(
+                ContextModal(
+                    configured_sources=configured_sources,  # type: ignore[arg-type]
+                    discovered_sources=[],
+                )
+            )
             await pilot.pause()
 
-            option_lists = app.screen.query("OptionList")
-            assert len(list(option_lists)) == 1
+            trees = app.screen.query("Tree")
+            assert len(list(trees)) == 1
 
     @pytest.mark.asyncio
-    async def test_modal_shows_all_sources(self, mock_sources: list[MockSourceForTest]) -> None:
-        """Test that the modal shows all available sources."""
+    async def test_modal_shows_configured_sources(
+        self,
+        configured_sources: list[MockSourceForTest],
+    ) -> None:
+        """Test that the modal shows configured sources at root level."""
         app = LogViewApp()
         async with app.run_test() as pilot:
-            app.push_screen(ContextModal(mock_sources))  # type: ignore[arg-type]
+            app.push_screen(
+                ContextModal(
+                    configured_sources=configured_sources,  # type: ignore[arg-type]
+                    discovered_sources=[],
+                )
+            )
             await pilot.pause()
 
-            from textual.widgets import OptionList
+            from textual.widgets import Tree
 
-            option_list = app.screen.query_one(OptionList)
-            assert option_list.option_count == 3
+            tree = app.screen.query_one(Tree)
+            # Root should have 2 children (configured sources)
+            assert len(tree.root.children) == 2
+
+    @pytest.mark.asyncio
+    async def test_modal_shows_discovered_sources_in_folder(
+        self,
+        configured_sources: list[MockSourceForTest],
+        discovered_sources: list[MockSourceForTest],
+    ) -> None:
+        """Test that discovered sources are in a collapsible folder."""
+        app = LogViewApp()
+        async with app.run_test() as pilot:
+            app.push_screen(
+                ContextModal(
+                    configured_sources=configured_sources,  # type: ignore[arg-type]
+                    discovered_sources=discovered_sources,  # type: ignore[arg-type]
+                )
+            )
+            await pilot.pause()
+
+            from textual.widgets import Tree
+
+            tree = app.screen.query_one(Tree)
+            # Root should have 3 children: 2 configured + 1 "Discovered Logs" folder
+            assert len(tree.root.children) == 3
+
+            # The last one should be the discovered folder
+            discovered_node = tree.root.children[-1]
+            assert "Discovered Logs" in str(discovered_node.label)
+            # It should have 3 children (discovered sources)
+            assert len(discovered_node.children) == 3
 
     @pytest.mark.asyncio
     async def test_modal_closes_on_escape(
-        self, mock_sources: list[MockSourceForTest]
+        self, configured_sources: list[MockSourceForTest]
     ) -> None:
         """Test that pressing Escape closes the modal."""
         app = LogViewApp()
         async with app.run_test() as pilot:
-            app.push_screen(ContextModal(mock_sources))  # type: ignore[arg-type]
+            app.push_screen(
+                ContextModal(
+                    configured_sources=configured_sources,  # type: ignore[arg-type]
+                    discovered_sources=[],
+                )
+            )
             await pilot.pause()
 
             assert app.screen.__class__.__name__ == "ContextModal"
@@ -85,12 +151,17 @@ class TestContextModal:
 
     @pytest.mark.asyncio
     async def test_modal_has_select_button(
-        self, mock_sources: list[MockSourceForTest]
+        self, configured_sources: list[MockSourceForTest]
     ) -> None:
         """Test that the modal has a select button."""
         app = LogViewApp()
         async with app.run_test() as pilot:
-            app.push_screen(ContextModal(mock_sources))  # type: ignore[arg-type]
+            app.push_screen(
+                ContextModal(
+                    configured_sources=configured_sources,  # type: ignore[arg-type]
+                    discovered_sources=[],
+                )
+            )
             await pilot.pause()
 
             buttons = app.screen.query("Button")
@@ -99,12 +170,17 @@ class TestContextModal:
 
     @pytest.mark.asyncio
     async def test_modal_has_cancel_button(
-        self, mock_sources: list[MockSourceForTest]
+        self, configured_sources: list[MockSourceForTest]
     ) -> None:
         """Test that the modal has a cancel button."""
         app = LogViewApp()
         async with app.run_test() as pilot:
-            app.push_screen(ContextModal(mock_sources))  # type: ignore[arg-type]
+            app.push_screen(
+                ContextModal(
+                    configured_sources=configured_sources,  # type: ignore[arg-type]
+                    discovered_sources=[],
+                )
+            )
             await pilot.pause()
 
             buttons = app.screen.query("Button")
@@ -113,37 +189,47 @@ class TestContextModal:
 
     @pytest.mark.asyncio
     async def test_modal_stores_sources(
-        self, mock_sources: list[MockSourceForTest]
+        self,
+        configured_sources: list[MockSourceForTest],
+        discovered_sources: list[MockSourceForTest],
     ) -> None:
         """Test that the modal stores the sources correctly."""
         app = LogViewApp()
         async with app.run_test() as pilot:
-            modal = ContextModal(mock_sources)  # type: ignore[arg-type]
-            app.push_screen(modal)
-            await pilot.pause()
-
-            assert modal._sources == mock_sources
-            assert len(modal._sources) == 3
-
-    @pytest.mark.asyncio
-    async def test_modal_highlights_active_source(
-        self, mock_sources: list[MockSourceForTest]
-    ) -> None:
-        """Test that the active source is highlighted."""
-        app = LogViewApp()
-        async with app.run_test() as pilot:
             modal = ContextModal(
-                mock_sources,  # type: ignore[arg-type]
-                active_source_index=1,  # "Syslog (/var/log/syslog)" is at index 1
+                configured_sources=configured_sources,  # type: ignore[arg-type]
+                discovered_sources=discovered_sources,  # type: ignore[arg-type]
             )
             app.push_screen(modal)
             await pilot.pause()
 
-            from textual.widgets import OptionList
+            assert modal._configured_sources == configured_sources
+            assert modal._discovered_sources == discovered_sources
+            assert len(modal._configured_sources) == 2
+            assert len(modal._discovered_sources) == 3
 
-            option_list = app.screen.query_one(OptionList)
-            # The active source should be highlighted (index 1)
-            assert option_list.highlighted == 1
+    @pytest.mark.asyncio
+    async def test_modal_highlights_active_configured_source(
+        self, configured_sources: list[MockSourceForTest]
+    ) -> None:
+        """Test that the active configured source is marked."""
+        app = LogViewApp()
+        async with app.run_test() as pilot:
+            modal = ContextModal(
+                configured_sources=configured_sources,  # type: ignore[arg-type]
+                discovered_sources=[],
+                active_configured_index=1,  # "GCP Logs" is at index 1
+            )
+            app.push_screen(modal)
+            await pilot.pause()
+            await pilot.pause()
+
+            from textual.widgets import Tree
+
+            tree = app.screen.query_one(Tree)
+            # Check that GCP Logs has the active marker
+            gcp_node = tree.root.children[1]
+            assert "●" in str(gcp_node.label)
 
 
 class TestContextModalSelection:
@@ -151,18 +237,24 @@ class TestContextModalSelection:
 
     @pytest.mark.asyncio
     async def test_modal_returns_none_on_cancel(
-        self, mock_sources: list[MockSourceForTest]
+        self, configured_sources: list[MockSourceForTest]
     ) -> None:
         """Test that cancelling returns None."""
         app = LogViewApp()
-        result = None
+        result = "not_set"
 
-        def capture_result(value: str | None) -> None:
+        def capture_result(value: tuple[str, int] | None) -> None:
             nonlocal result
-            result = value
+            result = value  # type: ignore[assignment]
 
         async with app.run_test() as pilot:
-            app.push_screen(ContextModal(mock_sources), capture_result)  # type: ignore[arg-type]
+            app.push_screen(
+                ContextModal(
+                    configured_sources=configured_sources,  # type: ignore[arg-type]
+                    discovered_sources=[],
+                ),
+                capture_result,
+            )
             await pilot.pause()
 
             await pilot.press("escape")
@@ -176,30 +268,90 @@ class TestContextModalEmpty:
 
     @pytest.mark.asyncio
     async def test_modal_handles_empty_sources(self) -> None:
-        """Test that the modal handles empty source list."""
+        """Test that the modal handles empty source lists."""
         app = LogViewApp()
         async with app.run_test() as pilot:
-            app.push_screen(ContextModal([]))
+            app.push_screen(
+                ContextModal(
+                    configured_sources=[],
+                    discovered_sources=[],
+                )
+            )
             await pilot.pause()
 
             # Should not crash
             assert app.screen.__class__.__name__ == "ContextModal"
 
-            from textual.widgets import OptionList
+            from textual.widgets import Tree
 
-            option_list = app.screen.query_one(OptionList)
-            assert option_list.option_count == 0
+            tree = app.screen.query_one(Tree)
+            # Root should have no children
+            assert len(tree.root.children) == 0
 
     @pytest.mark.asyncio
     async def test_modal_handles_no_active_source(
-        self, mock_sources: list[MockSourceForTest]
+        self, configured_sources: list[MockSourceForTest]
     ) -> None:
         """Test that the modal handles no active source."""
         app = LogViewApp()
         async with app.run_test() as pilot:
-            modal = ContextModal(mock_sources, active_source_index=None)  # type: ignore[arg-type]
+            modal = ContextModal(
+                configured_sources=configured_sources,  # type: ignore[arg-type]
+                discovered_sources=[],
+                active_configured_index=None,
+                active_discovered_index=None,
+            )
             app.push_screen(modal)
             await pilot.pause()
 
             # Should not crash
             assert app.screen.__class__.__name__ == "ContextModal"
+
+    @pytest.mark.asyncio
+    async def test_discovered_folder_collapsed_by_default(
+        self,
+        configured_sources: list[MockSourceForTest],
+        discovered_sources: list[MockSourceForTest],
+    ) -> None:
+        """Test that the discovered logs folder is collapsed by default."""
+        app = LogViewApp()
+        async with app.run_test() as pilot:
+            app.push_screen(
+                ContextModal(
+                    configured_sources=configured_sources,  # type: ignore[arg-type]
+                    discovered_sources=discovered_sources,  # type: ignore[arg-type]
+                )
+            )
+            await pilot.pause()
+
+            from textual.widgets import Tree
+
+            tree = app.screen.query_one(Tree)
+            discovered_node = tree.root.children[-1]
+            # Should be collapsed (not expanded)
+            assert not discovered_node.is_expanded
+
+    @pytest.mark.asyncio
+    async def test_discovered_folder_expands_if_active(
+        self,
+        configured_sources: list[MockSourceForTest],
+        discovered_sources: list[MockSourceForTest],
+    ) -> None:
+        """Test that the discovered folder expands if active source is in it."""
+        app = LogViewApp()
+        async with app.run_test() as pilot:
+            app.push_screen(
+                ContextModal(
+                    configured_sources=configured_sources,  # type: ignore[arg-type]
+                    discovered_sources=discovered_sources,  # type: ignore[arg-type]
+                    active_discovered_index=1,  # "kern.log" is active
+                )
+            )
+            await pilot.pause()
+
+            from textual.widgets import Tree
+
+            tree = app.screen.query_one(Tree)
+            discovered_node = tree.root.children[-1]
+            # Should be expanded because active source is inside
+            assert discovered_node.is_expanded

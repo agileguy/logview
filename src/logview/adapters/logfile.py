@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import heapq
+import logging
 import os
 from collections.abc import Callable
 from datetime import datetime
@@ -12,6 +14,8 @@ from typing import TYPE_CHECKING, Any, Literal
 from logview.adapters.jsonl_parser import JsonlParseError, is_jsonl_format, parse_jsonl_line
 from logview.adapters.plaintext_parser import parse_plain_line
 from logview.domain.models import Filter, FilterField, LogEntry, Severity
+
+logger = logging.getLogger("logview.adapters.logfile")
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -153,6 +157,9 @@ class LogFileSource:
         # Auto-detect format if needed
         if self._format == "auto":
             self._format = detect_format(self._resolved_path)
+            logger.debug("Auto-detected format '%s' for %s", self._format, name)
+
+        logger.debug("LogFileSource initialized: name=%s, path=%s, format=%s", name, path, self._format)
 
     def _validate_path(self, path: str) -> Path:
         """Validate and resolve the file path.
@@ -176,9 +183,11 @@ class LogFileSource:
 
         # Check if file exists
         if not resolved.exists():
+            logger.error("Log file not found: %s", resolved)
             raise LogFileNotFoundError(f"Log file not found: {safe_name}")
 
         if not resolved.is_file():
+            logger.error("Path is not a file: %s", resolved)
             raise LogFileNotFoundError(f"Path is not a file: {safe_name}")
 
         # Security check: ensure path is within allowed directories
@@ -194,10 +203,12 @@ class LogFileSource:
                 continue
 
         if not allowed:
+            logger.warning("Security: path outside allowed directories: %s", resolved)
             raise LogFileSecurityError(
                 f"Access denied: {safe_name} is outside allowed directories"
             )
 
+        logger.debug("Path validated: %s", resolved)
         return resolved
 
     @property
@@ -224,17 +235,31 @@ class LogFileSource:
         Yields:
             LogEntry objects matching the filter.
         """
+        logger.info("Fetching log entries from %s (limit: %d)", self._name, filter.limit)
+
         # Re-resolve and re-validate path to prevent TOCTOU attacks
         # (symlink could be swapped after initial validation)
         current_resolved = self._validate_path(self._original_path)
 
-        entries: list[LogEntry] = []
+        parse_errors = 0
+        total_matching = 0
 
         # Get file modification time for plain text timestamps
         try:
             file_mtime = datetime.fromtimestamp(current_resolved.stat().st_mtime)
         except OSError:
             file_mtime = datetime.now()
+
+        # Use a heap to keep only the top N entries in memory
+        # This is more memory-efficient than collecting all entries and sorting
+        # Heap stores (sort_key, entry) tuples - min heap so we use negative values
+        # to get max behavior (newest = highest timestamp + line number)
+        def entry_sort_key(entry: LogEntry) -> tuple[datetime, int]:
+            """Return sort key for heap comparison (timestamp, line_number)."""
+            return (entry.timestamp, int(entry.metadata.get("line", "0")))
+
+        # Use a list as a heap - keeps only filter.limit entries
+        heap: list[tuple[tuple[datetime, int], LogEntry]] = []
 
         try:
             with open(current_resolved, encoding="utf-8", errors="replace") as f:
@@ -245,9 +270,20 @@ class LogFileSource:
                     try:
                         entry = self._parse_line(line, file_mtime, line_num)
                         if entry and entry.matches_filter(filter):
-                            entries.append(entry)
+                            total_matching += 1
+                            key = entry_sort_key(entry)
+
+                            if len(heap) < filter.limit:
+                                # Heap not full yet, just add
+                                heapq.heappush(heap, (key, entry))
+                            elif key > heap[0][0]:
+                                # Entry is newer than the oldest in heap, replace it
+                                heapq.heapreplace(heap, (key, entry))
+                            # Otherwise entry is older than all in heap, discard it
+
                     except (SyslogParseError, JsonlParseError):
                         # Skip unparseable lines
+                        parse_errors += 1
                         continue
 
                     # Periodically yield to event loop to prevent UI blocking
@@ -257,21 +293,21 @@ class LogFileSource:
         except OSError as e:
             # Don't include exception message as it may contain full file path
             safe_name = current_resolved.name
+            logger.error("Error reading log file '%s': %s", safe_name, type(e).__name__)
             raise LogFileError(
                 f"Error reading log file '{safe_name}': {type(e).__name__}"
             ) from e
 
-        # Sort by timestamp descending (newest first), then apply limit
-        # Note: We collect all matching entries before sorting to ensure we get
-        # the truly newest entries, not just the first N in file order
-        # Secondary sort by line number handles plain text logs where all entries
-        # share the same timestamp (file_mtime). Higher line number = newer entry.
-        entries.sort(
-            key=lambda e: (e.timestamp, int(e.metadata.get("line", "0"))),
-            reverse=True,
+        # Extract entries from heap, sorted by timestamp descending (newest first)
+        # heapq.nlargest returns items in descending order by key
+        sorted_entries = [entry for _, entry in heapq.nlargest(filter.limit, heap)]
+
+        logger.info(
+            "LogFile fetch complete: %d entries returned (of %d matching), %d parse errors",
+            len(sorted_entries), total_matching, parse_errors
         )
 
-        for entry in entries[: filter.limit]:
+        for entry in sorted_entries:
             yield entry
 
     def _parse_line(

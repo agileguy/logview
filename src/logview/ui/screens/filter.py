@@ -52,7 +52,7 @@ class FilterModal(ModalScreen[Filter | None]):
     FilterModal > Vertical {
         width: 70;
         height: auto;
-        max-height: 25;
+        max-height: 30;
         background: $surface;
         border: thick $primary;
         padding: 1;

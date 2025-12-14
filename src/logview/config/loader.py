@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from logview.config.schema import Config
+
+logger = logging.getLogger("logview.config.loader")
 
 
 def get_default_config_path() -> Path:
@@ -30,12 +33,16 @@ def load_config(path: Path | None = None) -> Config:
         path = get_default_config_path()
 
     if not path.exists():
+        logger.info("Config file not found, using defaults: %s", path)
         return Config()
 
+    logger.info("Loading config from %s", path)
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
 
-    return Config.model_validate(data)
+    config = Config.model_validate(data)
+    logger.info("Loaded config: %d contexts, logging level=%s", len(config.contexts), config.logging.level)
+    return config
 
 
 def save_config(config: Config, path: Path | None = None) -> None:
@@ -48,8 +55,12 @@ def save_config(config: Config, path: Path | None = None) -> None:
     if path is None:
         path = get_default_config_path()
 
+    logger.debug("Saving config to %s", path)
+
     # Ensure directory exists
     path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(path, "w", encoding="utf-8") as f:
         json.dump(config.model_dump(), f, indent=2)
+
+    logger.info("Config saved to %s", path)
