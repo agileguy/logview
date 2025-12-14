@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Theme persistence** for custom Textual themes
   - Schema now accepts any theme string instead of just "dark"/"light"
   - Properly strips/adds "textual-" prefix when saving/loading
+  - Fixed InvalidThemeError by only adding "textual-" prefix to base themes (dark/light/ansi)
+  - Removed non-existent themes from settings dropdown (only valid Textual 6.8.0 themes shown)
 
 ### Added (Tests)
 - Settings persistence tests for theme and timestamp format changes
