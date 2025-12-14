@@ -1,5 +1,28 @@
 # LogView Action Log
 
+## 2025-12-14: Phase 6 - Export Logs to JSON/JSONL
+
+**Changes:**
+- Implemented export modal for saving logs to file
+  - `e` key opens export dialog
+  - Choice of JSON (pretty-printed) or JSONL format
+  - Default filename with timestamp (e.g., `logs_syslog_20251214_103000.json`)
+  - Exports visible (filtered) logs if search is active
+  - Success notification with output path
+- Added get_visible_entries() method to LogList
+
+**Files Added:**
+- `src/logview/ui/screens/export.py` - Export modal with format selection
+- `tests/ui/test_export.py` - 7 unit tests for export functionality
+
+**Files Modified:**
+- `src/logview/app.py` - Added export binding and action
+- `src/logview/ui/widgets/log_list.py` - Added get_visible_entries()
+
+**Tests:** 359 passed, 38 skipped
+
+---
+
 ## 2025-12-14: Phase 6 - Search Within Results
 
 **Changes:**

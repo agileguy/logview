@@ -144,6 +144,16 @@ class LogList(DataTable[Any]):
             return len(self._filtered_entries)
         return len(self._entries)
 
+    def get_visible_entries(self) -> list[LogEntry]:
+        """Get all currently visible entries.
+
+        Returns:
+            List of visible LogEntry objects.
+        """
+        if self._search_text:
+            return list(self._filtered_entries)
+        return list(self._entries)
+
     def search(self, text: str) -> None:
         """Search within loaded entries and update display.
 

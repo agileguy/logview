@@ -30,6 +30,7 @@ from logview.config.schema import (
 from logview.domain.models import Filter
 from logview.ui.screens.context import ContextModal
 from logview.ui.screens.detail import DetailModal
+from logview.ui.screens.export import ExportModal
 from logview.ui.screens.filter import FilterModal
 from logview.ui.screens.help import HelpModal
 from logview.ui.widgets.log_list import LogList
@@ -55,6 +56,7 @@ class LogViewApp(App[None]):
         ("slash", "search", "Search"),
         ("n", "next_match", "Next"),
         ("N", "prev_match", "Prev"),
+        ("e", "export", "Export"),
     ]
 
     DEFAULT_CSS = """
@@ -458,6 +460,23 @@ class LogViewApp(App[None]):
     def action_show_help(self) -> None:
         """Show the help modal."""
         self.push_screen(HelpModal())
+
+    def action_export(self) -> None:
+        """Export visible logs to file."""
+        log_list = self.query_one("#log-list", LogList)
+        entries = log_list.get_visible_entries()
+
+        if not entries:
+            self.notify("No entries to export")
+            return
+
+        source_name = self._active_source.name if self._active_source else "logs"
+
+        def handle_export(result: Any) -> None:
+            if result:
+                self.notify(f"Exported to {result}")
+
+        self.push_screen(ExportModal(entries, source_name), handle_export)
 
     def action_search(self) -> None:
         """Show the search input."""
