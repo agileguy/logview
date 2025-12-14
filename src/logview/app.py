@@ -69,6 +69,7 @@ class LogViewApp(App[None]):
         background: $surface;
         border-top: solid $primary;
         padding: 0 1;
+        layer: search-layer;
     }
 
     #search-bar.visible {
@@ -378,7 +379,7 @@ class LogViewApp(App[None]):
         log_list.set_source(source)
         log_list.set_filter(self._current_filter)
         self.call_later(log_list.refresh_logs)
-        self.sub_title = source.name
+        self._update_status_bar()
 
     def set_filter(self, log_filter: Filter) -> None:
         """Set the current filter and refresh.
@@ -390,6 +391,109 @@ class LogViewApp(App[None]):
         log_list = self.query_one("#log-list", LogList)
         log_list.set_filter(log_filter)
         self.call_later(log_list.refresh_logs)
+        self._update_status_bar()
+
+    def _update_status_bar(self) -> None:
+        """Update the status bar with adapter info and filter details."""
+        if not self._active_source:
+            self.sub_title = ""
+            return
+
+        # Build adapter info
+        adapter_info = self._get_adapter_info(self._active_source)
+
+        # Build filter info
+        filter_info = self._get_filter_info(self._current_filter)
+
+        # Combine into status bar text
+        if filter_info:
+            self.sub_title = f"{adapter_info} | {filter_info}"
+        else:
+            self.sub_title = adapter_info
+
+    def _get_adapter_info(self, source: LogSource) -> str:
+        """Get adapter type and metadata for status bar.
+
+        Args:
+            source: The log source to get info from.
+
+        Returns:
+            Formatted string with adapter type and relevant metadata.
+        """
+        # Check for source_type property (GCP, GKE)
+        if hasattr(source, "source_type"):
+            source_type = source.source_type.upper()
+
+            if source_type == "GCP":
+                # GCP: show project
+                if hasattr(source, "project_id"):
+                    return f"GCP: {source.project_id}"
+                return "GCP"
+
+            elif source_type == "GKE":
+                # GKE: show cluster and project
+                if hasattr(source, "cluster") and hasattr(source, "project_id"):
+                    cluster = source.cluster
+                    project = source.project_id
+                    return f"GKE: {cluster} ({project})"
+                elif hasattr(source, "cluster"):
+                    return f"GKE: {source.cluster}"
+                return "GKE"
+
+        # Check for other adapter types using isinstance
+        if isinstance(source, SyslogLogSource):
+            return f"Syslog: {source._path.name}"
+        elif isinstance(source, LogFileSource):
+            return f"LogFile: {source._name}"
+        elif isinstance(source, MockLogSource):
+            return "Mock (testing)"
+
+        # Fallback to name
+        return source.name
+
+    def _get_filter_info(self, log_filter: Filter) -> str:
+        """Get filter information for status bar.
+
+        Args:
+            log_filter: The filter to format.
+
+        Returns:
+            Formatted string with filter details, or empty if no filters.
+        """
+        parts = []
+
+        # Severity filter
+        if log_filter.severity:
+            parts.append(f"severity>={log_filter.severity.value}")
+
+        # Text search
+        if log_filter.text_search:
+            # Truncate long search terms
+            search = log_filter.text_search
+            if len(search) > 20:
+                search = search[:17] + "..."
+            parts.append(f'text="{search}"')
+
+        # Field filters
+        for key, value in log_filter.fields.items():
+            # Truncate long values
+            display_value = value
+            if len(display_value) > 15:
+                display_value = display_value[:12] + "..."
+            parts.append(f"{key}={display_value}")
+
+        # Time range
+        if log_filter.time_range:
+            parts.append("time_range")
+
+        # Limit (only show if not default)
+        if log_filter.limit != 100:
+            parts.append(f"limit={log_filter.limit}")
+
+        if not parts:
+            return ""
+
+        return "Filters: " + ", ".join(parts)
 
     def action_show_context(self) -> None:
         """Show the context selector modal."""

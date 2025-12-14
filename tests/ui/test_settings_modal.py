@@ -147,3 +147,77 @@ class TestUISettings:
         """Test that show_metadata defaults to False."""
         settings = UISettings()
         assert settings.show_metadata is False
+
+
+class TestSettingsPersistence:
+    """Tests for settings persistence."""
+
+    @pytest.mark.asyncio
+    async def test_theme_change_persists_to_config(self, tmp_path: any) -> None:
+        """Test that changing theme in settings modal persists to config file."""
+
+        from textual.widgets import Button, Select
+
+        from logview.config.loader import load_config
+
+        # Create temp config file
+        config_path = tmp_path / "config.json"
+
+        app = LogViewApp(config_path=config_path)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # Open settings modal via keybinding
+            await pilot.press("s")
+            await pilot.pause()
+
+            # Get the theme select widget
+            theme_select = app.screen.query_one("#theme-select", Select)
+
+            # Change theme to light
+            theme_select.value = "light"
+            await pilot.pause()
+
+            # Get and press save button
+            save_button = app.screen.query_one("#btn-save", Button)
+            save_button.press()
+            await pilot.pause()
+
+            # Load config from file and verify theme was saved
+            config = load_config(config_path)
+            assert config.ui.theme == "light"
+
+    @pytest.mark.asyncio
+    async def test_timestamp_format_persists_to_config(self, tmp_path: any) -> None:
+        """Test that changing timestamp format persists to config file."""
+
+        from textual.widgets import Button, Select
+
+        from logview.config.loader import load_config
+
+        # Create temp config file
+        config_path = tmp_path / "config.json"
+
+        app = LogViewApp(config_path=config_path)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # Open settings modal
+            await pilot.press("s")
+            await pilot.pause()
+
+            # Get the format select widget
+            format_select = app.screen.query_one("#format-select", Select)
+
+            # Change format to ISO 8601
+            format_select.value = "%Y-%m-%dT%H:%M:%S"
+            await pilot.pause()
+
+            # Get and press save button
+            save_button = app.screen.query_one("#btn-save", Button)
+            save_button.press()
+            await pilot.pause()
+
+            # Load config from file and verify format was saved
+            config = load_config(config_path)
+            assert config.ui.timestamp_format == "%Y-%m-%dT%H:%M:%S"
