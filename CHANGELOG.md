@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-12-14
+
+### Added
+- **Help Modal**: Styled keyboard shortcuts reference (`?` key)
+  - Three sections: Navigation, Actions, General
+  - Scrollable content, close with Escape or Close button
+- **Search Within Results**: Filter already-loaded entries (`/` key)
+  - Case-insensitive text search
+  - Real-time filtering as you type
+  - Match count display (e.g., "3/10 matches")
+  - Navigate matches with `n` (next) and `N` (previous)
+- **Export Logs**: Save visible entries to file (`e` key)
+  - JSON (pretty-printed) or JSONL format
+  - Default filename with timestamp
+  - Exports filtered entries if search is active
+- **Filter Presets**: Save and load filter configurations
+  - Save current filter settings as named preset
+  - Load preset from dropdown in filter modal
+  - Delete unused presets
+  - Presets persist in config.json
+
 ## [0.4.0] - 2025-12-14
 
 ### Added
@@ -118,7 +139,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI pipeline
 - Comprehensive test suite (pytest, mypy, ruff)
 
-[Unreleased]: https://github.com/agileguy/logview/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/agileguy/logview/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/agileguy/logview/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/agileguy/logview/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/agileguy/logview/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/agileguy/logview/compare/v0.1.0...v0.2.0

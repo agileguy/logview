@@ -49,9 +49,12 @@ python -m logview
 | `↑/↓` | Navigate log entries |
 | `Enter` | View log details |
 | `c` | Change context |
-| `f` | Open filter |
-| `/` | Search |
+| `f` | Open filter (with preset support) |
+| `/` | Search within results |
+| `n/N` | Next/previous search match |
+| `e` | Export visible logs to JSON/JSONL |
 | `?` | Help |
+| `r` | Refresh logs |
 | `q` | Quit |
 
 ## Configuration
@@ -284,7 +287,7 @@ This project is under active development. See [PLAN.md](PLAN.md) for the roadmap
 - [x] Phase 3: Application Logs (logfile adapter with format auto-detection)
 - [x] Phase 4: GCP Cloud Logging
 - [x] Phase 5: GKE Integration
-- [ ] Phase 6: File watching & Enhanced UX
+- [x] Phase 6: Enhanced UX (help, search, export, filter presets)
 - [ ] Phase 7: Extended format support
 
 ## License

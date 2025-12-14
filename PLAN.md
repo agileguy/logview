@@ -565,7 +565,7 @@ labels."k8s-pod/app"="my-app"  -- pod labels
 
 ---
 
-### Phase 6: Enhanced UX ⏳ IN PROGRESS
+### Phase 6: Enhanced UX ✅ COMPLETE
 **Goal:** Polish and power-user features for daily use.
 
 **Already Complete (from previous phases):**
@@ -575,11 +575,11 @@ labels."k8s-pod/app"="my-app"  -- pod labels
 - [x] Mouse support (Textual built-in)
 
 **Deliverables:**
-- [ ] Keyboard shortcut help modal (styled, comprehensive)
-- [ ] Search/filter within current results (/ key, highlight matches)
-- [ ] Export visible logs to JSON/JSONL file
-- [ ] Filter presets UI (save current filter, load from list)
-- [ ] Status bar improvements (show active filter summary, entry count)
+- [x] Keyboard shortcut help modal (styled, comprehensive)
+- [x] Search/filter within current results (/ key, filter matches)
+- [x] Export visible logs to JSON/JSONL file
+- [x] Filter presets UI (save current filter, load from list)
+- [ ] Status bar improvements (deferred - current footer is sufficient)
 
 **Implementation Order:**
 1. **Help Modal** - Quick win, users need to discover keybindings
