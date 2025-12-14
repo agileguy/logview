@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-LogView is a Python TUI application for viewing logs from multiple sources (GCP, GKE, syslog). Built with Textual framework.
+LogView is a Python TUI application for viewing logs from multiple sources (local log files, syslog, GCP, GKE). Built with Textual framework. Supports format auto-detection for plain text, JSON Lines, and syslog formats.
 
 ## Key Commands
 
@@ -158,14 +158,22 @@ This prevents CI environment differences from causing false failures.
 
 ## Current Phase
 
-**Phase 1 (Foundation) - COMPLETE** ✅
+**Phase 2 (Syslog & Modals) - IN PROGRESS**
 
-Ready for Phase 2 (Syslog adapter, modals, config file support).
+See ACTIONS.md for detailed progress log.
 
 ## File Locations
 
 - Main app: `src/logview/app.py`
 - Domain models: `src/logview/domain/models.py`
 - Config schema: `src/logview/config/schema.py`
+- Log adapters: `src/logview/adapters/`
+  - `logfile.py` - Generic log file adapter with format auto-detection
+  - `jsonl_parser.py` - JSON Lines format parser
+  - `plaintext_parser.py` - Plain text log parser
+  - `discovery.py` - Log file discovery service
 - Tests: `tests/`
 - CI workflow: `.github/workflows/ci.yml`
+- Version: `VERSION`
+- Changelog: `CHANGELOG.md`
+- Action log: `ACTIONS.md`

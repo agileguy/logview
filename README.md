@@ -6,7 +6,9 @@ A testable, responsive log viewer TUI with pluggable log source contexts.
 
 ## Features
 
-- **Multiple log sources**: GCP Cloud Logging, GKE, syslog, and more
+- **Multiple log sources**: Local log files, syslog, GCP Cloud Logging, GKE, and more
+- **Format auto-detection**: Automatically detects plain text, JSON Lines, and syslog formats
+- **Log discovery**: Scan directories to find log files
 - **Flexible filtering**: Time range, severity, text search, and source-specific fields
 - **Keyboard-first**: Full functionality without mouse
 - **Testable**: Interface-driven design with comprehensive test coverage
@@ -57,15 +59,21 @@ Create `~/.config/logview/config.json`:
 {
   "contexts": [
     {
+      "name": "app-logs",
+      "type": "logfile",
+      "path": "/var/log/myapp/app.log",
+      "format": "auto"
+    },
+    {
+      "name": "local-syslog",
+      "type": "syslog",
+      "path": "/var/log/syslog"
+    },
+    {
       "name": "prod-gke",
       "type": "gke",
       "project": "my-project",
       "cluster": "prod-cluster"
-    },
-    {
-      "name": "local",
-      "type": "syslog",
-      "path": "/var/log/syslog"
     }
   ],
   "ui": {
@@ -100,11 +108,12 @@ ruff check src/ tests/
 This project is under active development. See [PLAN.md](PLAN.md) for the roadmap.
 
 - [x] Phase 1: Foundation (MVP)
-- [ ] Phase 2: Syslog adapter
-- [ ] Phase 3: GCP Cloud Logging
-- [ ] Phase 4: GKE integration
-- [ ] Phase 5: Enhanced UX
-- [ ] Phase 6: Additional sources
+- [ ] Phase 2: Syslog & Modals
+- [ ] Phase 3: Application Logs (logfile adapter with format auto-detection)
+- [ ] Phase 4: GCP Cloud Logging
+- [ ] Phase 5: GKE integration
+- [ ] Phase 6: File watching & Enhanced UX
+- [ ] Phase 7: Extended format support
 
 ## License
 

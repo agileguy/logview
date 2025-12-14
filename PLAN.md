@@ -79,9 +79,9 @@ hypothesis>=6.0.0
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                   Adapter Layer                             │
-│  ┌───────┐ ┌───────┐ ┌─────────┐ ┌────────┐ ┌───────┐     │
-│  │  GCP  │ │  GKE  │ │ Syslog  │ │ AppLog │ │ Mock  │     │
-│  └───────┘ └───────┘ └─────────┘ └────────┘ └───────┘     │
+│  ┌───────┐ ┌───────┐ ┌─────────┐ ┌─────────┐ ┌───────┐    │
+│  │  GCP  │ │  GKE  │ │ Syslog  │ │ LogFile │ │ Mock  │    │
+│  └───────┘ └───────┘ └─────────┘ └─────────┘ └───────┘    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -184,7 +184,8 @@ logview/
 │       │   ├── gcp.py
 │       │   ├── gke.py
 │       │   ├── syslog.py
-│       │   ├── applog.py         # Generic application logs
+│       │   ├── logfile.py        # Generic log file adapter
+│       │   ├── discovery.py      # Log file discovery service
 │       │   └── mock.py           # For testing
 │       ├── domain/               # Core business logic
 │       │   ├── __init__.py
@@ -298,90 +299,91 @@ logview/
 ---
 
 ### Phase 3: Application Logs
-**Goal:** Generic log file viewer with auto-discovery and custom paths.
+**Goal:** View any text-based log file with format auto-detection.
 
 **Deliverables:**
-- [ ] Application log adapter (generic plain-text log files)
-- [ ] Auto-discovery of logs in /var/log and subdirectories
-- [ ] Custom log path support via configuration
-- [ ] Log format auto-detection:
-  - Plain text (line-based)
-  - Common log formats (Apache, Nginx access/error logs)
-  - JSON lines format
-  - Timestamped formats with various patterns
-- [ ] Context auto-generation for discovered logs
-- [ ] UI for adding custom log paths
-- [ ] File watching for live updates (tail -f equivalent)
-- [ ] Graceful handling of log rotation
+- [ ] Log discovery service (find readable logs in configured directories)
+- [ ] Generic file log adapter supporting multiple formats
+- [ ] Format parsers:
+  - Plain text (line-based, no timestamp parsing)
+  - JSON Lines (one JSON object per line)
+  - Syslog (reuse existing parser for RFC 3164/5424)
+- [ ] Auto-detection of log format based on content sampling
+- [ ] Configuration for discovery paths and allowed directories
+- [ ] Discovery action in UI (user-triggered, not automatic)
 
-**Auto-discovery behavior:**
-- On startup, scan /var/log recursively for readable log files
-- Create a context for each discovered .log file and common log names
-- Skip binary files, compressed archives (.gz, .bz2, .xz)
-- Respect file permissions (only show readable files)
-- Group related logs (e.g., syslog, syslog.1, syslog.2.gz)
+**What this phase is NOT:**
+- NOT automatic context creation on startup (too slow, clutters UI)
+- NOT live file watching/tail -f (deferred to Phase 6)
+- NOT Nginx/Apache specific parsers (deferred to Phase 7)
+- NOT a replacement for syslog adapter (complements it)
 
-**Custom log configuration:**
+**Log discovery behavior:**
+- User triggers discovery via keybinding or menu
+- Scans configured directories (default: /var/log) up to max depth
+- Shows list of discovered files for user to select
+- Selected files added as contexts to configuration
+- Skips: binary files, compressed archives (.gz, .bz2, .xz), unreadable files
+
+**Configuration:**
 ```json
 {
   "contexts": [
     {
       "name": "my-app",
-      "type": "applog",
+      "type": "logfile",
       "path": "/opt/myapp/logs/app.log",
       "format": "auto"
     },
     {
-      "name": "nginx-access",
-      "type": "applog",
-      "path": "/var/log/nginx/access.log",
-      "format": "nginx_access"
+      "name": "api-logs",
+      "type": "logfile",
+      "path": "/var/log/myapi/server.log",
+      "format": "jsonl"
     }
   ],
-  "applog_settings": {
-    "auto_discover": true,
-    "discover_paths": ["/var/log"],
-    "max_discover_depth": 3,
-    "custom_paths": [
-      "/opt/myapp/logs",
-      "~/logs"
-    ]
+  "discovery": {
+    "paths": ["/var/log", "/opt/logs"],
+    "max_depth": 3,
+    "allowed_directories": ["/var/log", "/opt", "/home"]
   }
 }
 ```
 
 **Supported log formats:**
-- `auto` - Attempt to detect format automatically
-- `plain` - Simple line-based, no parsing
-- `syslog` - RFC 3164/5424 syslog format
-- `nginx_access` - Nginx access log format
-- `nginx_error` - Nginx error log format
-- `apache_combined` - Apache combined log format
-- `jsonl` - JSON Lines (one JSON object per line)
+- `auto` - Sample first 10 lines and detect format
+- `plain` - Each line is a log entry, timestamp from file mtime
+- `jsonl` - JSON Lines format, extracts timestamp/severity/message from JSON
+- `syslog` - Delegates to existing syslog parser
 
-**Filter fields for application logs:**
-- Time range (if timestamps detected)
-- Text search (grep-like)
-- Severity (if detected in log format)
-- File path pattern
+**Format auto-detection logic:**
+1. Try to parse first line as JSON → jsonl format
+2. Try to match syslog pattern (RFC 3164/5424) → syslog format
+3. Default to plain text
+
+**JSON Lines field mapping:**
+- timestamp: looks for `timestamp`, `time`, `ts`, `@timestamp`, `date`
+- severity: looks for `level`, `severity`, `log_level`, `loglevel`
+- message: looks for `message`, `msg`, `text`, `log`
+- Remaining fields → metadata
 
 **Security considerations:**
-- Validate all paths are within allowed directories
+- Path validation against allowed_directories (reuse syslog security)
 - No symlink following outside allowed paths
-- Sanitize log content before display
-- Don't expose full paths in error messages
+- Sanitize log content before display (reuse existing sanitization)
 
 **Testing strategy:**
 - Unit tests for format detection
-- Integration tests with sample log files
-- Tests for auto-discovery with mock filesystem
-- Permission handling tests
+- Unit tests for JSON Lines parser
+- Integration tests with sample log files of each format
+- Discovery service tests with mock filesystem
 
 **Exit criteria:**
-- Auto-discovers logs in /var/log on startup
-- Can add custom log paths via config
-- Multiple log formats parsed correctly
-- Live file watching works
+- Can discover log files in /var/log via UI action
+- Can view plain text logs (each line = one entry)
+- Can view JSON Lines formatted logs
+- Format auto-detection works correctly
+- All security validations in place
 
 ---
 
@@ -653,14 +655,20 @@ class SyslogContext(BaseModel):
     path: str = "/var/log/syslog"
 
 
-class AppLogContext(BaseModel):
+class LogFileContext(BaseModel):
     name: str
-    type: Literal["applog"]
+    type: Literal["logfile"]
     path: str
-    format: Literal["auto", "plain", "syslog", "nginx_access", "nginx_error", "apache_combined", "jsonl"] = "auto"
+    format: Literal["auto", "plain", "syslog", "jsonl"] = "auto"
 
 
-Context = GKEContext | GCPContext | SyslogContext | AppLogContext
+class DiscoverySettings(BaseModel):
+    paths: list[str] = Field(default_factory=lambda: ["/var/log"])
+    max_depth: int = 3
+    allowed_directories: list[str] = Field(default_factory=lambda: ["/var/log", "/opt", "/home"])
+
+
+Context = GKEContext | GCPContext | SyslogContext | LogFileContext
 
 
 class FilterPreset(BaseModel):
@@ -688,6 +696,7 @@ class Config(BaseModel):
     presets: list[FilterPreset] = Field(default_factory=list)
     ui: UISettings = Field(default_factory=UISettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
+    discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
 ```
 
 ---
@@ -804,9 +813,9 @@ async def test_context_modal_opens():
 - Memory usage < 100MB for 50k log lines
 
 ### Phase 3
-- Auto-discovery completes in < 5s for typical /var/log
-- Format detection accuracy > 90% for common formats
-- File watching updates appear within 1s
+- Log discovery completes in < 3s for /var/log
+- Format detection accuracy > 95% for plain/jsonl/syslog
+- JSON Lines parsing handles 10k entries in < 1s
 
 ### Phase 4
 - GCP authentication succeeds on first try (with ADC)
