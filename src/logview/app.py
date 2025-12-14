@@ -149,9 +149,10 @@ class LogViewApp(App[None]):
         """Apply UI settings from configuration."""
         if self._config:
             # Apply theme from config
-            # Add "textual-" prefix if not already present (for compatibility)
+            # Only add "textual-" prefix for base themes (dark, light, ansi)
+            # Custom themes (catppuccin-mocha, dracula, etc.) use their names as-is
             theme_name = self._config.ui.theme
-            if not theme_name.startswith("textual-"):
+            if theme_name in ("dark", "light", "ansi") and not theme_name.startswith("textual-"):
                 theme_name = f"textual-{theme_name}"
 
             # Set flag to prevent watch_theme from saving during startup

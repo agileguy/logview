@@ -191,7 +191,8 @@ class TestThemePersistence:
             await pilot.pause()
 
             # Directly set theme (simulates Textual's command palette theme picker)
-            app.theme = "textual-catppuccin-mocha"
+            # Custom themes like catppuccin-mocha don't use "textual-" prefix
+            app.theme = "catppuccin-mocha"
             await pilot.pause()
 
             # Verify config file was updated

@@ -84,16 +84,15 @@ class SettingsModal(ModalScreen[bool]):
         ("escape", "cancel", "Cancel"),
     ]
 
-    # Theme options (Textual built-in themes)
-    # Note: "textual-" prefix is added automatically by the app
+    # Theme options (Textual built-in themes available in Textual 6.8.0)
+    # Note: Base themes (dark/light/ansi) use "textual-" prefix,
+    #       custom themes (catppuccin-mocha, etc.) use names as-is
     THEME_OPTIONS = [
         ("Dark (default)", "dark"),
         ("Light", "light"),
         ("ANSI", "ansi"),
-        ("Catppuccin Mocha", "catppuccin-mocha"),
         ("Catppuccin Latte", "catppuccin-latte"),
-        ("Catppuccin Frappé", "catppuccin-frappe"),
-        ("Catppuccin Macchiato", "catppuccin-macchiato"),
+        ("Catppuccin Mocha", "catppuccin-mocha"),
         ("Dracula", "dracula"),
         ("Flexoki", "flexoki"),
         ("Gruvbox", "gruvbox"),
@@ -101,8 +100,6 @@ class SettingsModal(ModalScreen[bool]):
         ("Nord", "nord"),
         ("Solarized Light", "solarized-light"),
         ("Tokyo Night", "tokyo-night"),
-        ("Tokyo Night Storm", "tokyo-night-storm"),
-        ("Tokyo Night Light", "tokyo-night-light"),
     ]
 
     # Common timestamp formats
