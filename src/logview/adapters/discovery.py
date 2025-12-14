@@ -233,7 +233,8 @@ def discover_logs(
 def _is_path_allowed(path: Path, allowed_dirs: list[str]) -> bool:
     """Check if a path is within allowed directories."""
     for allowed in allowed_dirs:
-        allowed_path = Path(allowed).resolve()
+        # Expand ~ in allowed directories before resolving
+        allowed_path = Path(os.path.expanduser(allowed)).resolve()
         try:
             path.relative_to(allowed_path)
             return True

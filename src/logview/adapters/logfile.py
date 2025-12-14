@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import Callable
 from datetime import datetime
@@ -17,11 +18,24 @@ if TYPE_CHECKING:
 
 # Try to import syslog parser (available after Phase 2)
 SYSLOG_AVAILABLE = False
-SyslogParseError: type[Exception] = Exception
 _parse_syslog_line: Callable[[str], Any] | None = None
+
+
+class _UnusedSyslogError(Exception):
+    """Placeholder exception that is never raised.
+
+    Used when syslog_parser is not available, so that the except clause
+    in fetch() doesn't accidentally catch unrelated exceptions.
+    """
+
+    pass
+
+
+SyslogParseError: type[Exception] = _UnusedSyslogError
 
 try:
     from logview.adapters import syslog_parser
+
     SYSLOG_AVAILABLE = True
     SyslogParseError = syslog_parser.SyslogParseError
     _parse_syslog_line = syslog_parser.parse_syslog_line
@@ -167,7 +181,8 @@ class LogFileSource:
         # Security check: ensure path is within allowed directories
         allowed = False
         for allowed_dir in self._allowed_directories:
-            allowed_path = Path(allowed_dir).resolve()
+            # Expand ~ in allowed directories before resolving
+            allowed_path = Path(os.path.expanduser(allowed_dir)).resolve()
             try:
                 resolved.relative_to(allowed_path)
                 allowed = True
@@ -228,8 +243,16 @@ class LogFileSource:
                         # Skip unparseable lines
                         continue
 
+                    # Periodically yield to event loop to prevent UI blocking
+                    if line_num % 1000 == 0:
+                        await asyncio.sleep(0)
+
         except OSError as e:
-            raise LogFileError(f"Error reading log file: {e}") from e
+            # Don't include exception message as it may contain full file path
+            safe_name = self._resolved_path.name
+            raise LogFileError(
+                f"Error reading log file '{safe_name}': {type(e).__name__}"
+            ) from e
 
         # Sort by timestamp descending (newest first), then apply limit
         # Note: We collect all matching entries before sorting to ensure we get
@@ -308,8 +331,8 @@ class LogFileSource:
         if filter.limit < 1:
             errors.append("Limit must be at least 1")
 
-        if filter.limit > 100000:
-            errors.append("Limit cannot exceed 100000")
+        if filter.limit > 10000:
+            errors.append("Limit cannot exceed 10000")
 
         # LogFile adapter only supports time_range, severity, text_search
         if filter.fields:
