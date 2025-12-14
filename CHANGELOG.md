@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Load preset from dropdown in filter modal
   - Delete unused presets
   - Presets persist in config.json
+- **Settings Modal**: Configure UI preferences (`s` key)
+  - Theme selection (dark/light) with immediate application
+  - Timestamp format presets
+  - Max message width configuration
+  - Show metadata toggle
+  - Settings persist to config.json
 
 ## [0.4.0] - 2025-12-14
 

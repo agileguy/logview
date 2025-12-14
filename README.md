@@ -53,6 +53,7 @@ python -m logview
 | `/` | Search within results |
 | `n/N` | Next/previous search match |
 | `e` | Export visible logs to JSON/JSONL |
+| `s` | Settings (theme, timestamp format) |
 | `?` | Help |
 | `r` | Refresh logs |
 | `q` | Quit |

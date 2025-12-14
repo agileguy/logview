@@ -111,6 +111,7 @@ class HelpModal(ModalScreen[None]):
                 # General section
                 yield Static("General", classes="help-section-title")
                 yield Static("[b]?[/b]           Show this help", classes="help-row")
+                yield Static("[b]s[/b]           Open settings", classes="help-row")
                 yield Static("[b]Ctrl+Q[/b]      Toggle dark/light theme", classes="help-row")
                 yield Static("[b]q[/b]           Quit application", classes="help-row")
                 yield Static("[b]Esc[/b]         Close modal / cancel", classes="help-row")

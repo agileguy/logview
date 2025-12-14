@@ -1,5 +1,28 @@
 # LogView Action Log
 
+## 2025-12-14: Phase 6 - Settings Modal
+
+**Changes:**
+- Implemented settings modal for configuring UI preferences
+  - `s` key opens settings dialog
+  - Theme selection (dark/light) with immediate application
+  - Timestamp format configuration (multiple presets)
+  - Max message width setting
+  - Show metadata toggle
+  - Settings persist to config.json
+
+**Files Added:**
+- `src/logview/ui/screens/settings.py` - Settings modal implementation
+- `tests/ui/test_settings_modal.py` - 11 tests for settings functionality
+
+**Files Modified:**
+- `src/logview/app.py` - Added settings binding and action
+- `src/logview/ui/screens/help.py` - Added s keybinding to help
+
+**Tests:** 376 passed, 38 skipped
+
+---
+
 ## 2025-12-14: Phase 6 - Filter Presets
 
 **Changes:**

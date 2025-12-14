@@ -33,6 +33,7 @@ from logview.ui.screens.detail import DetailModal
 from logview.ui.screens.export import ExportModal
 from logview.ui.screens.filter import FilterModal
 from logview.ui.screens.help import HelpModal
+from logview.ui.screens.settings import SettingsModal
 from logview.ui.widgets.log_list import LogList
 
 logger = get_logger("app")
@@ -57,6 +58,7 @@ class LogViewApp(App[None]):
         ("n", "next_match", "Next"),
         ("N", "prev_match", "Prev"),
         ("e", "export", "Export"),
+        ("s", "show_settings", "Settings"),
     ]
 
     DEFAULT_CSS = """
@@ -510,6 +512,31 @@ class LogViewApp(App[None]):
     def action_show_help(self) -> None:
         """Show the help modal."""
         self.push_screen(HelpModal())
+
+    def action_show_settings(self) -> None:
+        """Show the settings modal."""
+        if self._config is None:
+            self._config = Config()
+
+        def handle_save(new_settings: Any) -> None:
+            if self._config:
+                self._config.ui = new_settings
+                try:
+                    save_config(self._config, self._config_path)
+                    # Apply theme change immediately
+                    self.theme = (
+                        "textual-dark"
+                        if new_settings.theme == "dark"
+                        else "textual-light"
+                    )
+                    self.notify("Settings saved")
+                except Exception as e:
+                    self.notify(f"Failed to save settings: {e}", severity="error")
+
+        self.push_screen(
+            SettingsModal(self._config.ui, handle_save),
+            lambda result: None,  # Ignore dismiss result
+        )
 
     def action_export(self) -> None:
         """Export visible logs to file."""
