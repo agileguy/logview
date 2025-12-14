@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import heapq
 import logging
 import os
 from collections.abc import Callable
@@ -240,14 +241,25 @@ class LogFileSource:
         # (symlink could be swapped after initial validation)
         current_resolved = self._validate_path(self._original_path)
 
-        entries: list[LogEntry] = []
         parse_errors = 0
+        total_matching = 0
 
         # Get file modification time for plain text timestamps
         try:
             file_mtime = datetime.fromtimestamp(current_resolved.stat().st_mtime)
         except OSError:
             file_mtime = datetime.now()
+
+        # Use a heap to keep only the top N entries in memory
+        # This is more memory-efficient than collecting all entries and sorting
+        # Heap stores (sort_key, entry) tuples - min heap so we use negative values
+        # to get max behavior (newest = highest timestamp + line number)
+        def entry_sort_key(entry: LogEntry) -> tuple[datetime, int]:
+            """Return sort key for heap comparison (timestamp, line_number)."""
+            return (entry.timestamp, int(entry.metadata.get("line", "0")))
+
+        # Use a list as a heap - keeps only filter.limit entries
+        heap: list[tuple[tuple[datetime, int], LogEntry]] = []
 
         try:
             with open(current_resolved, encoding="utf-8", errors="replace") as f:
@@ -258,7 +270,17 @@ class LogFileSource:
                     try:
                         entry = self._parse_line(line, file_mtime, line_num)
                         if entry and entry.matches_filter(filter):
-                            entries.append(entry)
+                            total_matching += 1
+                            key = entry_sort_key(entry)
+
+                            if len(heap) < filter.limit:
+                                # Heap not full yet, just add
+                                heapq.heappush(heap, (key, entry))
+                            elif key > heap[0][0]:
+                                # Entry is newer than the oldest in heap, replace it
+                                heapq.heapreplace(heap, (key, entry))
+                            # Otherwise entry is older than all in heap, discard it
+
                     except (SyslogParseError, JsonlParseError):
                         # Skip unparseable lines
                         parse_errors += 1
@@ -276,20 +298,16 @@ class LogFileSource:
                 f"Error reading log file '{safe_name}': {type(e).__name__}"
             ) from e
 
-        # Sort by timestamp descending (newest first), then apply limit
-        # Note: We collect all matching entries before sorting to ensure we get
-        # the truly newest entries, not just the first N in file order
-        # Secondary sort by line number handles plain text logs where all entries
-        # share the same timestamp (file_mtime). Higher line number = newer entry.
-        entries.sort(
-            key=lambda e: (e.timestamp, int(e.metadata.get("line", "0"))),
-            reverse=True,
+        # Extract entries from heap, sorted by timestamp descending (newest first)
+        # heapq.nlargest returns items in descending order by key
+        sorted_entries = [entry for _, entry in heapq.nlargest(filter.limit, heap)]
+
+        logger.info(
+            "LogFile fetch complete: %d entries returned (of %d matching), %d parse errors",
+            len(sorted_entries), total_matching, parse_errors
         )
 
-        result_count = min(len(entries), filter.limit)
-        logger.info("LogFile fetch complete: %d entries returned, %d parse errors", result_count, parse_errors)
-
-        for entry in entries[: filter.limit]:
+        for entry in sorted_entries:
             yield entry
 
     def _parse_line(

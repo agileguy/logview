@@ -7,6 +7,7 @@ Requires the google-cloud-logging package:
 from __future__ import annotations
 
 import asyncio
+import functools
 import itertools
 import logging
 import re
@@ -451,45 +452,61 @@ class GCPLogSource:
         )
         logger.debug("GCP filter string: %s", filter_str or "(empty)")
 
-        # Fetch entries
+        # Fetch entries in batches to reduce memory usage
         count = 0
         parse_errors = 0
+        batch_size = 100  # Process in small batches to limit memory
+
         try:
-            # Run in executor to not block the event loop
-            # Use islice to limit entries fetched - prevents loading millions of
-            # entries into memory when only a small limit is requested
             logger.debug("Executing GCP list_entries request...")
             loop = asyncio.get_running_loop()
-            entries = await loop.run_in_executor(
-                None,
-                lambda: list(
-                    itertools.islice(
-                        client.list_entries(
-                            filter_=filter_str or None,
-                            order_by="timestamp desc",
-                            page_size=min(log_filter.limit, 1000),
-                            resource_names=[f"projects/{self._project_id}"],
-                        ),
-                        log_filter.limit,
-                    )
-                ),
-            )
-            logger.debug("GCP returned %d entries", len(entries))
 
-            for entry in entries:
-                try:
-                    log_entry = _parse_log_entry(entry, self._project_id)
-                    yield log_entry
-                    count += 1
-                except Exception as e:
-                    # Skip entries that fail to parse
-                    parse_errors += 1
-                    logger.debug("Failed to parse entry: %s", e)
-                    continue
+            # Create the iterator once - it fetches lazily from the API
+            # Use iter() to ensure we get an iterator (handles both list and iterator returns)
+            entries_iter = iter(client.list_entries(
+                filter_=filter_str or None,
+                order_by="timestamp desc",
+                page_size=min(log_filter.limit, 1000),
+                resource_names=[f"projects/{self._project_id}"],
+            ))
 
-                # Yield to event loop periodically
-                if count % 100 == 0:
-                    await asyncio.sleep(0)
+            # Process entries in batches to avoid loading all into memory
+            remaining = log_filter.limit
+            while remaining > 0:
+                # Fetch a batch in the executor (blocking API call)
+                current_batch_size = min(batch_size, remaining)
+                # Use functools.partial to capture values and avoid type inference issues
+                batch = await loop.run_in_executor(
+                    None,
+                    functools.partial(
+                        lambda it, n: list(itertools.islice(it, n)),
+                        entries_iter,
+                        current_batch_size,
+                    ),
+                )
+
+                if not batch:
+                    # No more entries
+                    break
+
+                logger.debug("GCP batch: %d entries fetched", len(batch))
+
+                # Process and yield entries from this batch
+                for entry in batch:
+                    try:
+                        log_entry = _parse_log_entry(entry, self._project_id)
+                        yield log_entry
+                        count += 1
+                    except Exception as e:
+                        # Skip entries that fail to parse
+                        parse_errors += 1
+                        logger.debug("Failed to parse entry: %s", e)
+                        continue
+
+                remaining -= len(batch)
+
+                # Yield to event loop between batches
+                await asyncio.sleep(0)
 
             logger.info("GCP fetch complete: %d entries returned, %d parse errors", count, parse_errors)
 
