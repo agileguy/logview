@@ -329,6 +329,8 @@ logview/
 - [ ] Streaming mode (tail -f equivalent)
 - [ ] Rate limiting / pagination handling
 - [ ] Secure credential handling documentation
+- [ ] Context switching window (enhanced UI for source selection)
+- [ ] Status bar information display (current context, log count, filter state)
 
 **Security considerations:**
 - Use `gcloud auth application-default login` (no credential storage)

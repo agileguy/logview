@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -144,9 +144,9 @@ def _parse_iso8601_timestamp(timestamp_str: str) -> datetime:
     # Try parsing with fromisoformat (Python 3.11+)
     dt = datetime.fromisoformat(timestamp_str)
 
-    # Convert to naive datetime (drop timezone for consistency with RFC 3164)
+    # Convert to UTC then make naive (for consistency with RFC 3164)
     if dt.tzinfo is not None:
-        dt = dt.replace(tzinfo=None)
+        dt = dt.astimezone(UTC).replace(tzinfo=None)
 
     return dt
 

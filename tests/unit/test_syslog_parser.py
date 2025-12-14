@@ -160,11 +160,12 @@ class TestRFC5424Format:
     """Tests for RFC 5424 / ISO 8601 timestamp format parsing."""
 
     def test_parses_rfc5424_with_pid(self) -> None:
-        """Test parsing RFC 5424 format with PID."""
+        """Test parsing RFC 5424 format with PID (converts to UTC)."""
         line = "2025-12-07T00:00:05.319366-07:00 boss rsyslogd[1045]: rsyslogd was HUPed"
         result = parse_syslog_line(line)
 
-        assert result.timestamp == datetime(2025, 12, 7, 0, 0, 5, 319366)
+        # -07:00 means 7 hours behind UTC, so 00:00:05-07:00 = 07:00:05 UTC
+        assert result.timestamp == datetime(2025, 12, 7, 7, 0, 5, 319366)
         assert result.hostname == "boss"
         assert result.program == "rsyslogd"
         assert result.pid == 1045
@@ -191,11 +192,12 @@ class TestRFC5424Format:
         assert result.pid == 999
 
     def test_parses_rfc5424_without_microseconds(self) -> None:
-        """Test parsing RFC 5424 format without microseconds."""
+        """Test parsing RFC 5424 format without microseconds (converts to UTC)."""
         line = "2025-06-15T08:00:00+05:30 host app[1]: message"
         result = parse_syslog_line(line)
 
-        assert result.timestamp == datetime(2025, 6, 15, 8, 0, 0)
+        # +05:30 means 5.5 hours ahead of UTC, so 08:00:00+05:30 = 02:30:00 UTC
+        assert result.timestamp == datetime(2025, 6, 15, 2, 30, 0)
         assert result.hostname == "host"
 
     def test_rfc5424_severity_detection(self) -> None:
