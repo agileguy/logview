@@ -84,6 +84,68 @@ Create `~/.config/logview/config.json`:
 
 See `configs/example.json` for a complete example.
 
+## Security
+
+### Directory Allowlist
+
+LogView restricts file access to a configurable allowlist of directories. This prevents:
+
+- **Path traversal attacks**: Malicious paths like `../../../etc/passwd` are blocked
+- **Symlink escapes**: Symlinks pointing outside allowed directories are rejected
+- **Unauthorized access**: Only explicitly permitted directories can be read
+
+**Default allowed directories**: `/var/log`, `/opt`, `/home`
+
+> **Security Note**: The default `/home` permission is permissive—it allows reading any user's files that the process has permission to access. For production or multi-user systems, consider restricting this:
+
+```json
+{
+  "discovery": {
+    "allowed_directories": ["/var/log", "/opt/myapp/logs"]
+  }
+}
+```
+
+To disable all file access (cloud-only mode), set an empty list:
+
+```json
+{
+  "discovery": {
+    "allowed_directories": []
+  }
+}
+```
+
+### Timestamps and Timezones
+
+- **Syslog (RFC 3164)**: Timestamps without timezone are interpreted as local time
+- **Syslog (RFC 5424/ISO 8601)**: Full timezone support (e.g., `2025-12-07T00:00:05-07:00`)
+- **JSON Lines**: ISO 8601 timestamps are parsed and displayed in local time
+
+## Troubleshooting
+
+### Common Issues
+
+**"Access denied" or "outside allowed directories"**
+- The file path is not within the configured `allowed_directories`
+- Solution: Add the parent directory to `allowed_directories` in config, or move logs to an allowed location
+
+**"Log file not found"**
+- The file doesn't exist or the path is incorrect
+- Solution: Verify the path with `ls -la /path/to/file`
+
+**"Permission denied" when reading logs**
+- The user running LogView doesn't have read permission
+- Solution: Add your user to the appropriate group (e.g., `sudo usermod -aG adm $USER` for syslog on Ubuntu)
+
+**No logs appearing / empty list**
+- Filter may be too restrictive (wrong time range or severity)
+- Solution: Press `f` to open filter, try "All Time" and "DEBUG" severity
+
+**Syslog timestamps showing wrong year**
+- RFC 3164 syslog format doesn't include year; the current year is assumed
+- For accurate timestamps, configure rsyslog to use RFC 5424 format
+
 ## Development
 
 ```bash

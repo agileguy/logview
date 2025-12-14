@@ -260,7 +260,12 @@ class LogFileSource:
         # Sort by timestamp descending (newest first), then apply limit
         # Note: We collect all matching entries before sorting to ensure we get
         # the truly newest entries, not just the first N in file order
-        entries.sort(key=lambda e: e.timestamp, reverse=True)
+        # Secondary sort by line number handles plain text logs where all entries
+        # share the same timestamp (file_mtime). Higher line number = newer entry.
+        entries.sort(
+            key=lambda e: (e.timestamp, int(e.metadata.get("line", "0"))),
+            reverse=True,
+        )
 
         for entry in entries[: filter.limit]:
             yield entry

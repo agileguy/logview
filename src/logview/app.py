@@ -142,7 +142,7 @@ class LogViewApp(App[None]):
         if isinstance(context, MockContext):
             return MockLogSource(seed=context.seed)  # type: ignore[return-value]
         elif isinstance(context, SyslogContext):
-            return SyslogLogSource(file_path=context.path)  # type: ignore[return-value]
+            return SyslogLogSource(file_path=context.path, name=context.name)  # type: ignore[return-value]
         elif isinstance(context, LogFileContext):
             # Pass configured allowed_directories for security whitelist
             allowed_dirs = None

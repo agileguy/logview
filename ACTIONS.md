@@ -1,5 +1,37 @@
 # LogView Action Log
 
+## 2025-12-14: PR #5 Bug Fixes and Documentation
+
+**Changes:**
+- Fixed 15 Cursor Bugbot review issues across 5 rounds of fixes
+- Added Security section to README.md (allowed directories, path traversal prevention)
+- Added Timestamps and Timezones section to README.md
+- Added Troubleshooting section to README.md with common issues
+- Fixed syslog adapter to use configured context name instead of generating one
+- Fixed plain text log sorting to use line number as tiebreaker (newest entries first)
+
+**Security Fixes:**
+- Empty allowlist no longer silently falls back to defaults (treats as no access)
+- Symlink TOCTOU vulnerability in discovery fixed (use resolved path for all operations)
+- Symlink escape from whitelist blocked in discovery
+- Path leakage in error messages prevented
+- JSONL metadata ordering fixed (line number can't be overwritten)
+
+**Performance Fixes:**
+- Async yielding in file parsing prevents UI blocking
+- Limit applied after sorting ensures newest entries returned
+
+**Files Modified:**
+- `src/logview/adapters/logfile.py` - Multiple security and correctness fixes
+- `src/logview/adapters/discovery.py` - Symlink and TOCTOU fixes
+- `src/logview/adapters/syslog.py` - Added custom name parameter
+- `src/logview/app.py` - Pass config name to SyslogLogSource
+- `README.md` - Security, Timestamps, Troubleshooting sections
+
+**Tests:** 231 passed
+
+---
+
 ## 2025-12-13: Phase 3 - Application Logs Implementation
 
 **Changes:**
