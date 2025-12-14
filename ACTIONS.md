@@ -38,6 +38,19 @@
 
 ---
 
+## 2025-12-14: Documentation Update & Version Bump to 0.3.0
+
+**Changes:**
+- Bumped version from 0.2.0 to 0.3.0 (Phase 3 complete)
+- Updated PLAN.md: Marked Phase 3 as complete with all checkboxes
+- Updated README.md: Project Status shows Phases 1-3 complete
+- Updated CLAUDE.md: Current Phase updated to Phase 4 (not started)
+- Updated CHANGELOG.md: Added 0.3.0 release with all new features and fixes
+
+**Files:** `VERSION`, `PLAN.md`, `README.md`, `CLAUDE.md`, `CHANGELOG.md`, `ACTIONS.md`
+
+---
+
 ## 2025-12-14: PR #5 Bug Fixes and Documentation
 
 **Changes:**
