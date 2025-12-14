@@ -74,15 +74,20 @@ def _parse_timestamp(value: Any) -> datetime:
     if isinstance(value, (int, float)):
         # Unix timestamp - interpret as UTC, then convert to local time
         # Handle different precisions: seconds, milliseconds, microseconds, nanoseconds
-        if value > 1e18:  # Nanoseconds
+        # Use >= to correctly classify boundary values
+        if value >= 1e18:  # Nanoseconds
             value = value / 1e9
-        elif value > 1e15:  # Microseconds
+        elif value >= 1e15:  # Microseconds
             value = value / 1e6
-        elif value > 1e12:  # Milliseconds
+        elif value >= 1e12:  # Milliseconds
             value = value / 1e3
         # Interpret as UTC and convert to local time (naive datetime)
-        utc_dt = datetime.fromtimestamp(value, tz=UTC)
-        return utc_dt.astimezone().replace(tzinfo=None)
+        try:
+            utc_dt = datetime.fromtimestamp(value, tz=UTC)
+            return utc_dt.astimezone().replace(tzinfo=None)
+        except (OSError, OverflowError, ValueError):
+            # Invalid timestamp value - fall through to return current time
+            return datetime.now()
 
     if isinstance(value, str):
         # Try ISO format first
