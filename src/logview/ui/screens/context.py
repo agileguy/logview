@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from textual.app import ComposeResult
@@ -17,8 +18,11 @@ if TYPE_CHECKING:
 class ContextModal(ModalScreen[tuple[str, int] | None]):
     """Modal for selecting a log source context.
 
-    Displays a tree of available log sources with configured sources at
-    root level and discovered sources in a collapsible "Discovered Logs" node.
+    Displays a tree of available log sources organized by type:
+    - GCP Logs grouped by project
+    - GKE Logs grouped by cluster
+    - Local Logs (syslog, logfile)
+    - Discovered Logs
     Returns a tuple of (category, index) or None if cancelled.
     """
 
@@ -108,15 +112,71 @@ class ContextModal(ModalScreen[tuple[str, int] | None]):
         """Handle mount event - populate tree and select active source."""
         tree = self.query_one("#source-tree", Tree)
 
-        # Add configured sources at root level
         active_node: TreeNode[tuple[str, int]] | None = None
 
+        # Categorize configured sources
+        gcp_by_project: dict[str, list[tuple[int, LogSource]]] = defaultdict(list)
+        gke_by_cluster: dict[str, list[tuple[int, LogSource]]] = defaultdict(list)
+        local_sources: list[tuple[int, LogSource]] = []
+
         for idx, source in enumerate(self._configured_sources):
-            is_active = idx == self._active_configured_index
-            label = f"● {source.name}" if is_active else source.name
-            node = tree.root.add_leaf(label, data=("configured", idx))
-            if is_active:
-                active_node = node
+            source_type = getattr(source, "source_type", None)
+            if source_type == "gcp":
+                project = getattr(source, "project_id", "unknown")
+                gcp_by_project[project].append((idx, source))
+            elif source_type == "gke":
+                cluster = getattr(source, "cluster", "unknown")
+                gke_by_cluster[cluster].append((idx, source))
+            else:
+                local_sources.append((idx, source))
+
+        # Add GCP Logs section
+        if gcp_by_project:
+            gcp_node = tree.root.add(
+                f"GCP Logs ({sum(len(v) for v in gcp_by_project.values())})",
+                data=None,
+            )
+            for project, sources in sorted(gcp_by_project.items()):
+                project_node = gcp_node.add(f"📁 {project}", data=None)
+                for idx, source in sources:
+                    is_active = idx == self._active_configured_index
+                    label = f"● {source.name}" if is_active else source.name
+                    node = project_node.add_leaf(label, data=("configured", idx))
+                    if is_active:
+                        active_node = node
+                        project_node.expand()
+                        gcp_node.expand()
+
+        # Add GKE Logs section
+        if gke_by_cluster:
+            gke_node = tree.root.add(
+                f"GKE Logs ({sum(len(v) for v in gke_by_cluster.values())})",
+                data=None,
+            )
+            for cluster, sources in sorted(gke_by_cluster.items()):
+                cluster_node = gke_node.add(f"☸ {cluster}", data=None)
+                for idx, source in sources:
+                    is_active = idx == self._active_configured_index
+                    label = f"● {source.name}" if is_active else source.name
+                    node = cluster_node.add_leaf(label, data=("configured", idx))
+                    if is_active:
+                        active_node = node
+                        cluster_node.expand()
+                        gke_node.expand()
+
+        # Add Local Logs section (syslog, logfile, mock)
+        if local_sources:
+            local_node = tree.root.add(
+                f"Local Logs ({len(local_sources)})",
+                data=None,
+            )
+            for idx, source in local_sources:
+                is_active = idx == self._active_configured_index
+                label = f"● {source.name}" if is_active else source.name
+                node = local_node.add_leaf(label, data=("configured", idx))
+                if is_active:
+                    active_node = node
+                    local_node.expand()
 
         # Add discovered sources under a collapsible node
         if self._discovered_sources:

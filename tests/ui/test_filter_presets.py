@@ -15,7 +15,6 @@ class TestFilterPresetsDisplay:
     @pytest.mark.asyncio
     async def test_no_presets_no_preset_section(self) -> None:
         """Test that preset section is hidden when no presets."""
-        from textual.widgets import Select
 
         from logview.app import LogViewApp
 
