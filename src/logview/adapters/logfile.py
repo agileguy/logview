@@ -154,12 +154,15 @@ class LogFileSource:
         expanded = os.path.expanduser(path)
         resolved = Path(expanded).resolve()
 
+        # Use just the filename in error messages to avoid leaking full paths
+        safe_name = resolved.name
+
         # Check if file exists
         if not resolved.exists():
-            raise LogFileNotFoundError(f"Log file not found: {path}")
+            raise LogFileNotFoundError(f"Log file not found: {safe_name}")
 
         if not resolved.is_file():
-            raise LogFileNotFoundError(f"Path is not a file: {path}")
+            raise LogFileNotFoundError(f"Path is not a file: {safe_name}")
 
         # Security check: ensure path is within allowed directories
         allowed = False
@@ -174,7 +177,7 @@ class LogFileSource:
 
         if not allowed:
             raise LogFileSecurityError(
-                f"Access denied: {path} is outside allowed directories"
+                f"Access denied: {safe_name} is outside allowed directories"
             )
 
         return resolved
@@ -221,10 +224,6 @@ class LogFileSource:
                         entry = self._parse_line(line, file_mtime, line_num)
                         if entry and entry.matches_filter(filter):
                             entries.append(entry)
-
-                            # Respect limit
-                            if len(entries) >= filter.limit:
-                                break
                     except (SyslogParseError, JsonlParseError):
                         # Skip unparseable lines
                         continue
@@ -232,10 +231,11 @@ class LogFileSource:
         except OSError as e:
             raise LogFileError(f"Error reading log file: {e}") from e
 
-        # Sort by timestamp descending (newest first)
+        # Sort by timestamp descending (newest first), then apply limit
+        # Note: We collect all matching entries before sorting to ensure we get
+        # the truly newest entries, not just the first N in file order
         entries.sort(key=lambda e: e.timestamp, reverse=True)
 
-        # Apply limit after sorting
         for entry in entries[: filter.limit]:
             yield entry
 

@@ -144,10 +144,15 @@ class LogViewApp(App[None]):
         elif isinstance(context, SyslogContext):
             return SyslogLogSource(file_path=context.path)  # type: ignore[return-value]
         elif isinstance(context, LogFileContext):
+            # Pass configured allowed_directories for security whitelist
+            allowed_dirs = None
+            if self._config and self._config.discovery:
+                allowed_dirs = self._config.discovery.allowed_directories
             return LogFileSource(  # type: ignore[return-value]
                 name=context.name,
                 path=context.path,
                 format=context.format,
+                allowed_directories=allowed_dirs,
             )
         else:
             # GCP and GKE not implemented yet

@@ -183,15 +183,22 @@ def discover_logs(
                 except OSError:
                     continue
 
+                # Security check: validate resolved path is still in allowed directories
+                # This prevents symlink escape attacks where a symlink inside an
+                # allowed directory points to a file outside the whitelist
+                if not _is_path_allowed(resolved, allowed_dirs):
+                    continue
+
                 # Apply filters
                 if _should_skip_file(file_path):
                     continue
 
-                # Check if readable
-                readable = _is_readable(file_path)
+                # Check if readable - skip unreadable files
+                if not _is_readable(file_path):
+                    continue
 
                 # Check if likely text file
-                if readable and not _is_likely_text_file(file_path):
+                if not _is_likely_text_file(file_path):
                     continue
 
                 # Get file size
@@ -208,7 +215,7 @@ def discover_logs(
                         path=resolved,
                         name=name,
                         size_bytes=size,
-                        readable=readable,
+                        readable=True,  # We already verified readable above
                     )
                 )
 
