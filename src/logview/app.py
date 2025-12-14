@@ -30,6 +30,7 @@ from logview.domain.models import Filter
 from logview.ui.screens.context import ContextModal
 from logview.ui.screens.detail import DetailModal
 from logview.ui.screens.filter import FilterModal
+from logview.ui.screens.help import HelpModal
 from logview.ui.widgets.log_list import LogList
 
 logger = get_logger("app")
@@ -417,8 +418,7 @@ class LogViewApp(App[None]):
 
     def action_show_help(self) -> None:
         """Show the help modal."""
-        # TODO: Implement in later phase
-        self.notify("Help not yet implemented")
+        self.push_screen(HelpModal())
 
     def action_search(self) -> None:
         """Show the search input."""

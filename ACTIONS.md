@@ -1,5 +1,26 @@
 # LogView Action Log
 
+## 2025-12-14: Phase 6 - Help Modal Implementation
+
+**Changes:**
+- Implemented styled Help Modal with keyboard shortcuts reference
+  - Three sections: Navigation, Actions, General
+  - Scrollable content using VerticalScroll
+  - Close button and Escape/? key bindings
+  - CSS styling with theme variables
+- Wired up help modal to main app (`?` keybinding)
+
+**Files Added:**
+- `tests/ui/test_help_modal.py` - 8 UI tests for help modal
+
+**Files Modified:**
+- `src/logview/ui/screens/help.py` - Complete rewrite from placeholder to styled modal
+- `src/logview/app.py` - Import HelpModal, update action_show_help()
+
+**Tests:** All tests passing
+
+---
+
 ## 2025-12-14: Phase 5 - GKE Integration (Complete)
 
 **Changes:**
