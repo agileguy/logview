@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -72,10 +72,17 @@ def _parse_timestamp(value: Any) -> datetime:
         return value
 
     if isinstance(value, (int, float)):
-        # Unix timestamp (seconds or milliseconds)
-        if value > 1e12:  # Likely milliseconds
-            return datetime.fromtimestamp(value / 1000)
-        return datetime.fromtimestamp(value)
+        # Unix timestamp - interpret as UTC, then convert to local time
+        # Handle different precisions: seconds, milliseconds, microseconds, nanoseconds
+        if value > 1e18:  # Nanoseconds
+            value = value / 1e9
+        elif value > 1e15:  # Microseconds
+            value = value / 1e6
+        elif value > 1e12:  # Milliseconds
+            value = value / 1e3
+        # Interpret as UTC and convert to local time (naive datetime)
+        utc_dt = datetime.fromtimestamp(value, tz=UTC)
+        return utc_dt.astimezone().replace(tzinfo=None)
 
     if isinstance(value, str):
         # Try ISO format first
