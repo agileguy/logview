@@ -20,12 +20,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Rotating file handler with configurable size and backup count
   - Default log location: `~/.config/logview/logview.log`
   - Logging throughout all adapters (GCP, syslog, logfile, discovery)
+- **Tree-Based Context Switcher**: Redesigned source selection
+  - Configured sources (syslog, GCP) displayed at root level
+  - Discovered sources in collapsible "Discovered Logs" folder
+  - Active source highlighted with "●" marker
 - Integration tests for GCP adapter (skipped in CI)
+
+### Changed
+- **Performance**: Memory-optimized fetch operations
+  - GCP adapter: Batch processing (100 entries at a time) instead of loading all at once
+  - LogFile adapter: Heap-based top-N selection instead of full sort
 
 ### Fixed
 - GCP adapter now uses `resource_names` parameter (API compatibility with google-cloud-logging 3.x)
 - GCP adapter handles unified `payload` property for message extraction
 - GCP JSON payloads now display correctly (supports `message`, `msg`, `textPayload` fields)
+- Context modal cursor positioning with `move_cursor` instead of `select_node`
 
 ## [0.3.0] - 2024-12-14
 

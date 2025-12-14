@@ -407,27 +407,29 @@ logview/
 
 ---
 
-### Phase 4: GCP Cloud Logging
+### Phase 4: GCP Cloud Logging ✅ COMPLETE
 **Goal:** Cloud integration with proper authentication.
 
 **Deliverables:**
-- [ ] GCP adapter using google-cloud-logging library
-- [ ] Authentication via Application Default Credentials (ADC)
-- [ ] Graceful degradation when google-cloud-logging not installed
-- [ ] GCP-specific filters:
+- [x] GCP adapter using google-cloud-logging library
+- [x] Authentication via Application Default Credentials (ADC)
+- [x] Graceful degradation when google-cloud-logging not installed
+- [x] GCP-specific filters:
   - Project ID (required)
   - Log name (optional, e.g., `cloudaudit.googleapis.com%2Factivity`)
   - Resource type (optional, with common suggestions)
   - Severity (minimum level)
   - Time range
   - Text search (uses Cloud Logging filter syntax)
-- [ ] Pagination handling for large result sets
-- [ ] Error handling:
+- [x] Batch processing for large result sets (memory-efficient)
+- [x] Error handling:
   - Authentication errors (clear guidance to run `gcloud auth application-default login`)
   - Permission denied (project access)
   - Quota exceeded (rate limiting)
   - Project not found
-- [ ] Documentation for GCP setup and authentication
+- [x] Documentation for GCP setup and authentication
+- [x] Application logging system (configurable rotating file handler)
+- [x] Tree-based context switcher (configured vs discovered sources)
 
 **What this phase is NOT:**
 - NOT streaming/tail mode (deferred to Phase 6 - requires different API approach)
@@ -449,7 +451,11 @@ logview/
       "type": "gcp",
       "project": "my-project-id"
     }
-  ]
+  ],
+  "logging": {
+    "level": "DEBUG",
+    "file": "~/.config/logview/logview.log"
+  }
 }
 ```
 
@@ -477,6 +483,8 @@ logview/
 - Errors display helpful messages (not stack traces)
 - Works without google-cloud-logging installed (shows "install gcp extra" message)
 - All unit tests pass without GCP credentials
+
+**Completed:** 2024-12 - Full implementation with 277 tests passing
 
 ---
 
@@ -932,6 +940,15 @@ python -m logview
 ```
 
 ## Changelog
+
+### 2024-12 - Phase 4 Complete
+- GCP Cloud Logging adapter with ADC authentication
+- Graceful degradation when google-cloud-logging not installed
+- Comprehensive error handling with actionable messages
+- Application logging system with rotating file handler
+- Tree-based context switcher (configured vs discovered sources)
+- Memory-optimized batch processing in fetch methods
+- 277 tests passing, 17 skipped (GCP integration)
 
 ### 2024-12 - Phase 3 Complete
 - Log discovery service for finding readable log files

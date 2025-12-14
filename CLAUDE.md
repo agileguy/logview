@@ -332,7 +332,9 @@ print(__version__)  # e.g., "0.2.0"
 
 **Phase 4 (GCP Cloud Logging) - COMPLETE**
 
-Phases 1-4 complete. See ACTIONS.md for detailed progress log.
+Phases 1-4 complete. Next: Phase 5 (GKE Integration).
+
+See ACTIONS.md for detailed progress log.
 
 ## File Locations
 
@@ -343,12 +345,16 @@ Phases 1-4 complete. See ACTIONS.md for detailed progress log.
   - `loader.py` - Config file loading/saving
   - `logging.py` - Application logging setup
 - Log adapters: `src/logview/adapters/`
-  - `gcp.py` - GCP Cloud Logging adapter
-  - `logfile.py` - Generic log file adapter with format auto-detection
+  - `gcp.py` - GCP Cloud Logging adapter (batch processing)
+  - `logfile.py` - Generic log file adapter (heap-based top-N)
   - `syslog.py` - Syslog file adapter
   - `jsonl_parser.py` - JSON Lines format parser
   - `plaintext_parser.py` - Plain text log parser
   - `discovery.py` - Log file discovery service
+- UI screens: `src/logview/ui/screens/`
+  - `context.py` - Tree-based context switcher modal
+  - `filter.py` - Filter editor modal
+  - `detail.py` - Log detail modal
 - Tests: `tests/`
 - CI workflow: `.github/workflows/ci.yml`
 - Version: `VERSION`

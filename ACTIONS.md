@@ -1,5 +1,33 @@
 # LogView Action Log
 
+## 2025-12-14: Tree-Based Context Switcher & Memory Optimizations
+
+**Changes:**
+- Redesigned context selector modal with Tree widget
+  - Configured sources (syslog, GCP) displayed at root level
+  - Discovered sources in collapsible "Discovered Logs" folder
+  - Active source highlighted with "●" marker
+  - Returns tuple[str, int] for (category, index) selection
+- Memory-optimized fetch operations
+  - GCP adapter: Batch processing (100 entries at a time) instead of loading all at once
+  - LogFile adapter: Heap-based top-N selection using heapq instead of full list sort
+- Separate tracking of configured vs discovered sources in app
+- Fixed context modal cursor positioning (use move_cursor instead of select_node)
+- Added mypy configuration to ignore missing google imports in CI
+
+**Files Modified:**
+- `src/logview/ui/screens/context.py` - Complete rewrite to use Tree widget
+- `src/logview/app.py` - Separate configured/discovered source tracking
+- `src/logview/adapters/gcp.py` - Batch processing, functools.partial for type safety
+- `src/logview/adapters/logfile.py` - Heap-based top-N selection
+- `tests/ui/test_context_modal.py` - Updated for new modal structure
+- `pyproject.toml` - Added mypy override for google.* imports
+- Documentation: PLAN.md, README.md, CHANGELOG.md
+
+**Tests:** 277 passed, 17 skipped
+
+---
+
 ## 2025-12-14: Application Logging & GCP Fixes
 
 **Changes:**
