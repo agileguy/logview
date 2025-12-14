@@ -11,6 +11,7 @@ from textual.widgets import Footer, Header
 
 from logview.adapters.base import LogSource
 from logview.adapters.discovery import DiscoveredLog, discover_logs
+from logview.adapters.gcp import GCP_AVAILABLE, GCPLogSource
 from logview.adapters.logfile import LogFileSource
 from logview.adapters.mock import MockLogSource
 from logview.adapters.syslog import SyslogLogSource
@@ -246,8 +247,20 @@ class LogViewApp(App[None]):
                 format=context.format,
                 allowed_directories=allowed_dirs,
             )
+        elif isinstance(context, GCPContext):
+            if not GCP_AVAILABLE:
+                self.notify(
+                    "GCP support requires: pip install logview[gcp]",
+                    severity="warning",
+                )
+                return None
+            return GCPLogSource(  # type: ignore[return-value]
+                project_id=context.project,
+                log_name=context.log_name,
+                name=context.name,
+            )
         else:
-            # GCP and GKE not implemented yet
+            # GKE not implemented yet
             self.notify(f"Source type '{context.type}' not yet implemented", severity="warning")
             return None
 
