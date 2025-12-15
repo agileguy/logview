@@ -56,6 +56,15 @@
     "max_depth": 3,
     "allowed_directories": ["/var/log", "/opt", "/home"]
   },
+  "context_detection": {
+    "enabled": true,
+    "auto_on_startup": false,
+    "project_filter": [],
+    "skip_projects": ["test-*", "temp-*"],
+    "include_gcp_contexts": true,
+    "include_gke_contexts": true,
+    "cache_ttl_seconds": 300
+  },
   "presets": [
     {
       "name": "errors-last-hour",

@@ -112,6 +112,25 @@ class DiscoverySettings(BaseModel):
     )
 
 
+class ContextDetectionSettings(BaseModel):
+    """Context detection settings for GCP/GKE auto-discovery.
+
+    Uses Application Default Credentials to discover accessible projects and clusters.
+    """
+
+    enabled: bool = True  # Master switch for context detection
+    auto_on_startup: bool = False  # Run discovery automatically on app startup
+    project_filter: list[str] = Field(
+        default_factory=list
+    )  # fnmatch patterns to include (e.g., ["prod-*"])
+    skip_projects: list[str] = Field(
+        default_factory=list
+    )  # fnmatch patterns to exclude (e.g., ["test-*"])
+    include_gcp_contexts: bool = True  # Create GCP contexts for projects
+    include_gke_contexts: bool = True  # Create GKE contexts for clusters
+    cache_ttl_seconds: int = 300  # Cache TTL in seconds
+
+
 class Config(BaseModel):
     """Root configuration model."""
 
@@ -120,4 +139,7 @@ class Config(BaseModel):
     ui: UISettings = Field(default_factory=UISettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
     discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
+    context_detection: ContextDetectionSettings = Field(
+        default_factory=ContextDetectionSettings
+    )
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
