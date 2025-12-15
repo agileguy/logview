@@ -634,7 +634,220 @@ labels."k8s-pod/app"="my-app"  -- pod labels
 
 ---
 
-### Phase 7: Productionization
+### Phase 7: Context Detection
+**Goal:** Automatic discovery of GCP projects and GKE clusters using Application Default Credentials.
+
+**Deliverables:**
+- [ ] Context detector module using GCP resource management APIs
+- [ ] Project discovery via google-cloud-resourcemanager
+- [ ] GKE cluster discovery via google-cloud-container
+- [ ] Configuration options for auto-discovery behavior
+- [ ] UI modal for reviewing and selecting discovered contexts
+- [ ] Keyboard shortcut for manual discovery trigger
+- [ ] Optional auto-discovery on application startup
+- [ ] Intelligent merging (don't duplicate existing contexts)
+- [ ] Progress indicators during discovery
+- [ ] Comprehensive error handling and user guidance
+
+**What this phase IS:**
+- Automatic discovery of accessible GCP projects
+- Automatic discovery of GKE clusters in each project
+- User review and selection before adding contexts
+- Respects existing manually-configured contexts
+- Uses same ADC authentication as adapters
+
+**What this phase is NOT:**
+- NOT automatic context switching
+- NOT continuous monitoring for new resources
+- NOT namespace discovery within clusters (too granular)
+- NOT modification of existing contexts (only adds new ones)
+- NOT a replacement for manual configuration
+
+**Discovery Workflow:**
+1. User triggers discovery (keyboard shortcut `d` or auto on startup)
+2. App shows "Discovering contexts..." progress indicator
+3. List all accessible GCP projects using resourcemanager API
+4. For each project, list GKE clusters using container API
+5. Show modal with discovered contexts (project + cluster combinations)
+6. User selects which contexts to add (checkboxes)
+7. Selected contexts merged into config file
+8. App switches to first newly-added context
+
+**Configuration:**
+```json
+{
+  "context_detection": {
+    "enabled": true,
+    "auto_on_startup": false,
+    "project_filter": ["prod-*", "staging-*"],
+    "skip_projects": ["test-*", "temp-*"],
+    "include_gcp_contexts": true,
+    "include_gke_contexts": true,
+    "cache_ttl_seconds": 300
+  }
+}
+```
+
+**Configuration Options:**
+- `enabled`: Master switch for context detection feature (default: true)
+- `auto_on_startup`: Run discovery automatically when app starts (default: false)
+- `project_filter`: Optional list of fnmatch-style patterns for project IDs to include (e.g., ["prod-*", "staging-*"])
+- `skip_projects`: Optional list of fnmatch-style patterns for project IDs to exclude (e.g., ["test-*", "temp-*"])
+- `include_gcp_contexts`: Create GCP contexts for each project (default: true)
+- `include_gke_contexts`: Create GKE contexts for each cluster (default: true)
+- `cache_ttl_seconds`: Cache discovered contexts for this many seconds to avoid repeated API calls (default: 300)
+
+**Context Naming Convention:**
+- GCP: `[detected] PROJECT_ID` (e.g., "[detected] my-prod-project")
+- GKE: `[detected] CLUSTER_NAME (PROJECT_ID)` (e.g., "[detected] prod-cluster (my-project)")
+- Prefix allows user to distinguish auto-detected from manual contexts
+- Can be renamed by user after detection via config file edit
+
+**Detected Context Details:**
+- GKE contexts include cluster location (zone/region) automatically
+- GCP contexts include no specific log_name or resource_type (show all logs)
+- All contexts use the same ADC authentication as manual contexts
+- Contexts can be customized after detection (add log_name, default_namespace, etc.)
+
+**Required Dependencies:**
+```python
+google-cloud-resourcemanager>=1.12.0  # List projects
+google-cloud-container>=2.42.0        # List GKE clusters
+```
+
+**API Usage:**
+```python
+# List projects
+from google.cloud import resourcemanager_v3
+projects_client = resourcemanager_v3.ProjectsClient()
+projects = projects_client.search_projects()
+
+# List clusters per project
+from google.cloud import container_v1
+clusters_client = container_v1.ClusterManagerClient()
+clusters = clusters_client.list_clusters(parent=f"projects/{project_id}/locations/-")
+```
+
+**Discovery Modal UI:**
+```
+┌─ Discovered Contexts ─────────────────────────────┐
+│                                                   │
+│  Found 3 projects and 5 clusters:                │
+│                                                   │
+│  ☑ [GCP] my-prod-project                          │
+│  ☑ [GKE] prod-cluster (my-prod-project)           │
+│  ☑ [GKE] staging-cluster (my-prod-project)        │
+│  ☐ [GCP] my-test-project                          │
+│  ☐ [GKE] test-cluster (my-test-project)           │
+│  ☑ [GCP] my-dev-project                           │
+│  ☑ [GKE] dev-cluster-1 (my-dev-project)           │
+│  ☑ [GKE] dev-cluster-2 (my-dev-project)           │
+│                                                   │
+│  [a] Select All  [n] Select None                  │
+│  [Enter] Add Selected  [Esc] Cancel               │
+└───────────────────────────────────────────────────┘
+```
+
+**Security Considerations:**
+- Use ADC only (no credential storage)
+- Validate all project IDs and cluster names before API calls
+- Handle quota limits gracefully (discovery can be API-heavy)
+- Log discovery activity for troubleshooting
+- Never log credentials or sensitive resource details
+- Rate limiting to avoid quota exhaustion
+
+**Error Handling:**
+- **Libraries not installed**: Show message with install command
+- **Authentication failure**: Guide user to run `gcloud auth application-default login`
+- **Permission denied**: Skip inaccessible projects, continue with others
+- **API quota exceeded**: Show warning, offer to retry later
+- **Network errors**: Retry with exponential backoff, inform user
+- **Empty results**: Show "No accessible projects found" message
+
+**Performance Considerations:**
+- Discovery runs asynchronously (doesn't block UI)
+- Project listing is usually fast (< 1s)
+- Cluster listing can be slow for many projects (1-2s per project)
+- Show progress: "Discovering... (2/5 projects checked)"
+- Cache results for 5 minutes to avoid repeated API calls
+- Timeout after 30s with partial results
+
+**Merge Strategy:**
+- Compare by context type + key identifiers:
+  - GCP: type="gcp" + project
+  - GKE: type="gke" + project + cluster
+- Skip contexts that already exist (exact match)
+- Detect similar contexts (same project/cluster, different name)
+- Offer to update similar contexts vs. create new ones
+- Preserve user customizations (log_name, default_namespace, etc.)
+
+**Implementation Approach:**
+
+**Step 1: Core detector module**
+- Create `src/logview/adapters/context_detector.py`
+- Implement `ContextDetector` class with project/cluster discovery
+- Graceful degradation when libraries not installed
+- Comprehensive error handling and logging
+
+**Step 2: Configuration schema**
+- Add `ContextDetectionSettings` to `src/logview/config/schema.py`
+- Update `Config` model to include `context_detection` field
+- Update example configuration file
+
+**Step 3: Discovery logic**
+- Implement project listing using resourcemanager_v3
+- Implement cluster listing using container_v1
+- Apply filtering (project_filter, skip_projects)
+- Generate context configs from discovered resources
+- Implement caching mechanism (in-memory, TTL-based)
+
+**Step 4: Merge logic**
+- Implement context comparison/deduplication
+- Detect exact matches (skip)
+- Detect similar contexts (same identifiers, different names)
+- Preserve existing context customizations
+
+**Step 5: UI modal**
+- Create `src/logview/ui/screens/discovery.py`
+- Show discovered contexts with checkboxes
+- Implement select all/none functionality
+- Show counts and status during discovery
+- Handle empty results gracefully
+
+**Step 6: App integration**
+- Add keyboard binding `d` for discovery in main app
+- Wire up optional auto-discovery on startup
+- Save selected contexts to config file
+- Switch to first newly-added context after save
+
+**Step 7: Testing**
+- Unit tests for detector with mocked clients
+- Unit tests for filtering and merge logic
+- UI tests for discovery modal
+- Integration tests (optional, marked for skip in CI)
+
+**Testing Strategy:**
+- Unit tests with mocked GCP clients (no real credentials)
+- Mock projects and clusters responses
+- Test filtering logic (project_filter, skip_projects)
+- Test merge logic (no duplicates)
+- Integration tests against real GCP (optional, skipped in CI)
+- Mark integration tests with `@pytest.mark.context_detection_integration`
+- UI tests with Textual pilot for discovery modal
+
+**Exit Criteria:**
+- Can discover projects using ADC
+- Can discover GKE clusters in each project
+- Discovery modal shows results with selection UI
+- Selected contexts are added to config without duplicates
+- Works without libraries installed (shows install message)
+- All unit tests pass without GCP credentials
+- Error messages are actionable and helpful
+- Discovery completes in reasonable time (< 30s for 10 projects)
+
+---
+
+### Phase 8: Productionization
 **Goal:** Make LogView easy to install and distribute with professional packaging.
 
 **Deliverables:**
@@ -725,7 +938,7 @@ pip install -e ".[dev]"
 
 ---
 
-### Phase 8: Additional Sources (Future)
+### Phase 9: Additional Sources (Future)
 **Goal:** Extensibility proven with more sources.
 
 **Potential adapters:**
