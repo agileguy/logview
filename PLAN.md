@@ -938,6 +938,130 @@ pip install -e ".[dev]"
 
 ---
 
+### Phase 8.5: Source Filtering
+**Goal:** Enable filtering of log entries by source name for better log analysis.
+
+**Motivation:**
+When viewing logs from multiple sources (e.g., different pods, services, or log files), users often want to focus on entries from specific sources. Currently, the filter modal supports time range, severity, text search in message, and source-specific fields, but lacks a direct way to filter by the source name itself.
+
+**What this phase IS:**
+- Add a source filter field to the Filter model
+- Add source filter input to the filter modal UI
+- Substring match on source name (case-insensitive)
+- Works with all log sources (GCP, GKE, syslog, logfile, etc.)
+- Consistent with existing text_search behavior
+
+**What this phase is NOT:**
+- NOT a source selector/dropdown (remains text input for flexibility)
+- NOT regex or pattern matching (simple substring match)
+- NOT multi-source selection (single filter string)
+- NOT autocomplete (keep UI simple)
+
+**Deliverables:**
+- [ ] Add `source_filter` field to Filter model
+- [ ] Update `LogEntry.matches_filter()` to check source filtering
+- [ ] Add source filter Input widget to FilterModal
+- [ ] Update FilterModal to populate/read source filter
+- [ ] Unit tests for source filtering logic
+- [ ] UI tests for filter modal with source filter
+- [ ] Update documentation (README, help modal)
+
+**Implementation Details:**
+
+**Model Changes (`src/logview/domain/models.py`):**
+```python
+@dataclass(frozen=True)
+class Filter:
+    """A filter for querying logs."""
+
+    time_range: TimeRange | None = None
+    fields: dict[str, str] = field(default_factory=dict)
+    text_search: str | None = None
+    source_filter: str | None = None  # NEW: Filter by source name
+    severity: Severity | None = None
+    limit: int = 1000
+```
+
+**Filtering Logic:**
+```python
+def matches_filter(self, log_filter: Filter) -> bool:
+    """Check if this entry matches a filter."""
+    # ... existing checks ...
+
+    # Check source filter (case-insensitive substring match)
+    if log_filter.source_filter:
+        filter_lower = log_filter.source_filter.lower()
+        if filter_lower not in self.source.lower():
+            return False
+
+    return True
+```
+
+**UI Changes (`src/logview/ui/screens/filter.py`):**
+- Add Input widget with ID "source-input" after text search input
+- Label: "Source Filter (substring match):"
+- Populate from current filter's source_filter
+- Read value when applying filter
+
+**Example Use Cases:**
+1. Filter GKE logs to specific pods: source_filter="api-server"
+2. Filter syslog to specific service: source_filter="nginx"
+3. Filter discovered logs to specific file: source_filter="app.log"
+4. Combine with text search: source="worker" AND message contains "error"
+
+**Testing Strategy:**
+```python
+# Unit tests for models
+def test_source_filter_match():
+    entry = LogEntry(source="api-server-abc123", ...)
+    filter = Filter(source_filter="api-server")
+    assert entry.matches_filter(filter)
+
+def test_source_filter_case_insensitive():
+    entry = LogEntry(source="API-Server-123", ...)
+    filter = Filter(source_filter="api-server")
+    assert entry.matches_filter(filter)
+
+def test_source_filter_no_match():
+    entry = LogEntry(source="worker-def456", ...)
+    filter = Filter(source_filter="api-server")
+    assert not entry.matches_filter(filter)
+
+# UI tests for filter modal
+def test_source_filter_input_present():
+    """Test that source filter input is in modal."""
+
+def test_source_filter_populates_from_current():
+    """Test that existing source filter is shown."""
+
+def test_source_filter_applies_correctly():
+    """Test that source filter is saved when applied."""
+```
+
+**Documentation Updates:**
+- README.md: Add source filter to filtering section
+- Help modal: Add source filter to keyboard shortcuts/features
+- Example in docs showing source filtering
+
+**Exit Criteria:**
+- [ ] Filter model has source_filter field
+- [ ] LogEntry.matches_filter() checks source_filter
+- [ ] FilterModal has source filter input
+- [ ] All unit tests pass
+- [ ] UI tests verify source filter behavior
+- [ ] Documentation updated
+- [ ] Manual testing confirms filtering works as expected
+
+**Implementation Steps:**
+1. Add source_filter to Filter model with tests
+2. Update LogEntry.matches_filter() with tests
+3. Add source filter input to FilterModal
+4. Update FilterModal to handle source_filter
+5. Add UI tests for filter modal
+6. Update documentation
+
+---
+
 ### Phase 9: Additional Sources (Future)
 **Goal:** Extensibility proven with more sources.
 
