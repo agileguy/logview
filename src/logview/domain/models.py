@@ -80,6 +80,7 @@ class Filter:
     time_range: TimeRange | None = None
     fields: dict[str, str] = field(default_factory=dict)
     text_search: str | None = None
+    source_filter: str | None = None
     severity: Severity | None = None
     limit: int = 1000
 
@@ -129,6 +130,12 @@ class LogEntry:
         if log_filter.text_search:
             search_lower = log_filter.text_search.lower()
             if search_lower not in self.message.lower():
+                return False
+
+        # Check source filter (case-insensitive substring match)
+        if log_filter.source_filter:
+            filter_lower = log_filter.source_filter.lower()
+            if filter_lower not in self.source.lower():
                 return False
 
         # Check field filters
