@@ -187,7 +187,21 @@ check_python() {
 determine_install_method() {
     if [[ -n "$INSTALL_METHOD" ]]; then
         case "$INSTALL_METHOD" in
-            pip|pipx)
+            pip)
+                if ! command_exists pip3 && ! command_exists pip; then
+                    error "pip is not installed"
+                    info "Install pip first or use --method pipx"
+                    exit 1
+                fi
+                info "Using forced installation method: $INSTALL_METHOD"
+                return
+                ;;
+            pipx)
+                if ! command_exists pipx; then
+                    error "pipx is not installed"
+                    info "Install pipx first or use --method pip"
+                    exit 1
+                fi
                 info "Using forced installation method: $INSTALL_METHOD"
                 return
                 ;;
@@ -294,7 +308,7 @@ uninstall_logview() {
 
     # Try pipx first
     if command_exists pipx; then
-        if pipx list | grep -q logview; then
+        if pipx list --short 2>/dev/null | grep -q "^logview$"; then
             pipx uninstall logview
             success "LogView removed via pipx"
             uninstalled=true

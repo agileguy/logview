@@ -55,7 +55,8 @@ check_prerequisites() {
 # Clean previous builds
 clean_build() {
     info "Cleaning previous build artifacts..."
-    rm -rf dist/ build/ *.egg-info
+    rm -rf dist/ build/
+    rm -f ./*.egg-info
     success "Clean complete"
 }
 
@@ -106,9 +107,9 @@ generate_checksums() {
 
     # Generate SHA256 checksums
     if command_exists shasum; then
-        shasum -a 256 *.whl *.tar.gz > SHA256SUMS
+        shasum -a 256 ./*.whl ./*.tar.gz > SHA256SUMS
     elif command_exists sha256sum; then
-        sha256sum *.whl *.tar.gz > SHA256SUMS
+        sha256sum ./*.whl ./*.tar.gz > SHA256SUMS
     else
         warning "shasum/sha256sum not found, skipping checksum generation"
         cd ..
