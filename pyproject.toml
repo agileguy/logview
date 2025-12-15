@@ -24,15 +24,16 @@ classifiers = [
     "Typing :: Typed",
 ]
 
+dependencies = [
+    "textual>=0.45.0",
+    "pydantic>=2.0.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/agileguy/logview"
 Repository = "https://github.com/agileguy/logview"
 Issues = "https://github.com/agileguy/logview/issues"
 Changelog = "https://github.com/agileguy/logview/blob/main/CHANGELOG.md"
-dependencies = [
-    "textual>=0.45.0",
-    "pydantic>=2.0.0",
-]
 
 [project.optional-dependencies]
 gcp = ["google-cloud-logging>=3.0.0"]
