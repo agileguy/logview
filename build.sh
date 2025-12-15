@@ -73,9 +73,7 @@ get_version() {
 build_wheel() {
     info "Building wheel..."
 
-    python3 -m build --wheel
-
-    if [[ $? -eq 0 ]]; then
+    if python3 -m build --wheel; then
         success "Wheel built successfully"
     else
         error "Wheel build failed"
@@ -87,9 +85,7 @@ build_wheel() {
 build_sdist() {
     info "Building source distribution..."
 
-    python3 -m build --sdist
-
-    if [[ $? -eq 0 ]]; then
+    if python3 -m build --sdist; then
         success "Source distribution built successfully"
     else
         error "Source distribution build failed"

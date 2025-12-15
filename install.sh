@@ -276,20 +276,18 @@ uninstall_logview() {
         fi
     fi
 
-    # Try pip
-    if [[ "$uninstalled" == false ]]; then
-        if command_exists pip3; then
-            PIP_CMD="pip3"
-        elif command_exists pip; then
-            PIP_CMD="pip"
-        fi
+    # Try pip (always check, even if pipx succeeded)
+    if command_exists pip3; then
+        PIP_CMD="pip3"
+    elif command_exists pip; then
+        PIP_CMD="pip"
+    fi
 
-        if [[ -n "$PIP_CMD" ]]; then
-            if $PIP_CMD show logview >/dev/null 2>&1; then
-                $PIP_CMD uninstall -y logview
-                success "LogView removed via pip"
-                uninstalled=true
-            fi
+    if [[ -n "$PIP_CMD" ]]; then
+        if $PIP_CMD show logview >/dev/null 2>&1; then
+            $PIP_CMD uninstall -y logview
+            success "LogView removed via pip"
+            uninstalled=true
         fi
     fi
 
