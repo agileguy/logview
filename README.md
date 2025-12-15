@@ -61,9 +61,19 @@ pipx install logview[all]
 > **Note**: Requires PyPI publication
 
 ```bash
+# Base installation (local logs only)
 pip install logview
 
-# With GCP/GKE support
+# With GCP Cloud Logging support
+pip install logview[gcp]
+
+# With GKE support
+pip install logview[gke]
+
+# With context detection (auto-discover GCP/GKE)
+pip install logview[detection]
+
+# With everything
 pip install logview[all]
 ```
 
@@ -127,6 +137,7 @@ python -m logview
 | `↑/↓` | Navigate log entries |
 | `Enter` | View log details |
 | `c` | Change context |
+| `d` | Discover GCP/GKE contexts (requires `[detection]` extra) |
 | `f` | Open filter (with preset support) |
 | `/` | Search within results |
 | `n/N` | Next/previous search match |

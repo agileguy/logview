@@ -364,17 +364,20 @@ print(__version__)  # e.g., "0.2.0"
 
 ## Current Phase
 
-**Phase 6 (Enhanced UX) - COMPLETE**
+**Phase 7 (Context Detection) - IN PROGRESS**
 
-All phases 1-6 complete. Project ready for Phase 7 (Additional Sources) or production use.
+Implementing automatic discovery of GCP projects and GKE clusters using Application Default Credentials.
 
-Key achievements:
-- Help modal, search within results, export logs, filter presets
-- Settings modal with full theme support (12 built-in Textual themes)
-- Enhanced status bar showing adapter and filter information
-- Theme persistence from command palette and settings modal
+Key features:
+- Automatic discovery of accessible GCP projects
+- Automatic discovery of GKE clusters in each project
+- User review and selection modal with checkboxes
+- Intelligent merging (no duplicates, preserves customizations)
+- Configurable filters (include/exclude patterns)
+- Keyboard shortcut 'd' for manual discovery
+- Optional auto-discovery on startup
 
-See ACTIONS.md for detailed progress log.
+Previous phases 1-6 complete. See ACTIONS.md for detailed progress log.
 
 ## File Locations
 

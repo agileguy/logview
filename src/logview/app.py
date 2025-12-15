@@ -12,6 +12,12 @@ from textual.timer import Timer
 from textual.widgets import Footer, Header, Input, Label
 
 from logview.adapters.base import LogSource
+from logview.adapters.context_detector import (
+    DETECTION_AVAILABLE,
+    ContextDetector,
+    DetectionNotInstalledError,
+    merge_contexts,
+)
 from logview.adapters.discovery import DiscoveredLog, discover_logs
 from logview.adapters.gcp import GCP_AVAILABLE, GCPLogSource
 from logview.adapters.gke import GKELogSource
@@ -31,6 +37,7 @@ from logview.config.schema import (
 from logview.domain.models import Filter
 from logview.ui.screens.context import ContextModal
 from logview.ui.screens.detail import DetailModal
+from logview.ui.screens.discovery import DiscoveryModal
 from logview.ui.screens.export import ExportModal
 from logview.ui.screens.filter import FilterModal
 from logview.ui.screens.help import HelpModal
@@ -55,6 +62,7 @@ class LogViewApp(App[None]):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("c", "show_context", "Context"),
+        ("d", "discover_contexts", "Discover"),
         ("f", "show_filter", "Filter"),
         ("r", "refresh", "Refresh"),
         ("?", "show_help", "Help"),
@@ -702,6 +710,118 @@ class LogViewApp(App[None]):
             SettingsModal(self._config.ui, handle_save),
             lambda result: None,  # Ignore dismiss result
         )
+
+    def action_discover_contexts(self) -> None:
+        """Discover GCP projects and GKE clusters."""
+        if self._config is None:
+            # Load config to get detection settings
+            try:
+                self._config = load_config(self._config_path)
+            except (OSError, ValueError) as e:
+                logger.warning("Failed to load config, creating new: %s", e)
+                self._config = Config()
+
+        # Check if detection is enabled
+        if not self._config.context_detection.enabled:
+            self.notify(
+                "Context detection is disabled. Enable it in config file.",
+                severity="warning",
+            )
+            return
+
+        # Check if detection libraries are available
+        if not DETECTION_AVAILABLE:
+            self.notify(
+                "Context detection requires additional dependencies.\n"
+                "Install with: pip install logview[detection]",
+                severity="error",
+                timeout=10,
+            )
+            return
+
+        # Show "Discovering..." notification
+        self.notify("Discovering GCP projects and GKE clusters...", timeout=30)
+
+        async def run_discovery() -> None:
+            """Run discovery asynchronously."""
+            error_message: str | None = None
+            discovered_contexts = []
+
+            try:
+                # Create detector with async context manager to ensure cleanup
+                async with ContextDetector(
+                    project_filter=self._config.context_detection.project_filter if self._config else [],
+                    skip_projects=self._config.context_detection.skip_projects if self._config else [],
+                    include_gcp_contexts=self._config.context_detection.include_gcp_contexts if self._config else True,
+                    include_gke_contexts=self._config.context_detection.include_gke_contexts if self._config else True,
+                    cache_ttl_seconds=self._config.context_detection.cache_ttl_seconds if self._config else 300,
+                ) as detector:
+                    # Run discovery
+                    discovered_contexts = await detector.discover()
+
+                    logger.info("Discovery complete: %d contexts found", len(discovered_contexts))
+
+            except DetectionNotInstalledError as e:
+                logger.error("Detection libraries not installed: %s", e)
+                error_message = str(e)
+            except Exception as e:
+                logger.error("Discovery failed: %s", e)
+                error_message = str(e)
+
+            # Show modal with results
+            def handle_selection(selected: list[Any] | None) -> None:
+                if selected is None or not selected:
+                    self.notify("Discovery cancelled", severity="information")
+                    return
+
+                if self._config is None:
+                    self.notify("Config not loaded", severity="error")
+                    return
+
+                # Merge selected contexts with existing
+                new_contexts = merge_contexts(selected, self._config.contexts)
+
+                if not new_contexts:
+                    self.notify(
+                        "All selected contexts already exist in configuration",
+                        severity="information",
+                    )
+                    return
+
+                # Add new contexts to config
+                self._config.contexts.extend(new_contexts)
+
+                # Save config
+                try:
+                    save_config(self._config, self._config_path)
+                    self.notify(
+                        f"Added {len(new_contexts)} new context(s)",
+                        severity="information",
+                    )
+
+                    # Reload sources to include new contexts
+                    self._register_sources_from_config()
+
+                    # Switch to first new context if available
+                    if new_contexts and self._configured_sources:
+                        # Find the first of the newly added sources
+                        # New contexts are appended to config, so they're at the end
+                        first_new_index = len(self._configured_sources) - len(new_contexts)
+                        new_source = self._configured_sources[first_new_index]
+                        self.set_active_source(new_source)
+                        self.notify(f"Switched to {new_source.name}")
+
+                except OSError as e:
+                    logger.error("Failed to save config: %s", e)
+                    self.notify(f"Failed to save config: {e}", severity="error")
+
+            self.push_screen(
+                DiscoveryModal(discovered_contexts, error_message),
+                handle_selection,
+            )
+
+        # Run discovery in background
+        self.run_worker(run_discovery(), exclusive=True)
 
     def action_export(self) -> None:
         """Export visible logs to file."""
