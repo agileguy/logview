@@ -107,3 +107,73 @@ class TestFilterPresetOperations:
         )
         assert preset.namespace == "default"
         assert preset.pod == "api-*"
+
+    def test_preset_with_source_filter(self) -> None:
+        """Test preset with source_filter field."""
+        preset = FilterPreset(
+            name="api-logs",
+            source_filter="api-server",
+            severity="INFO",
+        )
+        assert preset.source_filter == "api-server"
+        assert preset.severity == "INFO"
+
+    @pytest.mark.asyncio
+    async def test_load_preset_populates_source_filter(self) -> None:
+        """Test that loading a preset populates the source filter input."""
+        from textual.widgets import Input
+
+        from logview.app import LogViewApp
+
+        presets = [
+            FilterPreset(
+                name="api-errors",
+                source_filter="api-server",
+                severity="ERROR",
+            )
+        ]
+
+        app = LogViewApp()
+        async with app.run_test() as pilot:
+            modal = FilterModal(Filter(), presets=presets)
+            app.push_screen(modal)
+            await pilot.pause()
+
+            # Load the preset
+            modal._load_preset("api-errors")
+            await pilot.pause()
+
+            # Check source filter input was populated
+            source_input = modal.query_one("#source-filter", Input)
+            assert source_input.value == "api-server"
+
+    @pytest.mark.asyncio
+    async def test_save_preset_includes_source_filter(self) -> None:
+        """Test that saving a preset includes the source filter value."""
+        from textual.widgets import Input
+
+        from logview.app import LogViewApp
+
+        app = LogViewApp()
+        async with app.run_test() as pilot:
+            saved_presets: list[FilterPreset] = []
+
+            def on_save(preset: FilterPreset) -> None:
+                saved_presets.append(preset)
+
+            modal = FilterModal(Filter(), on_save_preset=on_save)
+            app.push_screen(modal)
+            await pilot.pause()
+
+            # Set source filter value
+            source_input = modal.query_one("#source-filter", Input)
+            source_input.value = "nginx"
+            await pilot.pause()
+
+            # Save preset
+            modal._save_preset()
+            await pilot.pause()
+
+            # Verify source_filter was included
+            assert len(saved_presets) == 1
+            assert saved_presets[0].source_filter == "nginx"

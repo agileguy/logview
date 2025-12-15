@@ -361,6 +361,9 @@ class FilterModal(ModalScreen[Filter | None]):
         # Apply text search
         self.query_one("#text-search", Input).value = preset.text_search or ""
 
+        # Apply source filter
+        self.query_one("#source-filter", Input).value = preset.source_filter or ""
+
         self.notify(f"Loaded preset: {name}")
 
     def _save_preset(self) -> None:
@@ -407,10 +410,14 @@ class FilterModal(ModalScreen[Filter | None]):
             if severity:
                 severity_str = severity.value
 
+        source_input = self.query_one("#source-filter", Input)
+        source_filter = source_input.value.strip() if source_input.value.strip() else None
+
         preset = FilterPreset(
             name=name,
             severity=severity_str,
             time_range_minutes=time_range_minutes,
+            source_filter=source_filter,
             text_search=current_text if current_text else None,
         )
 
