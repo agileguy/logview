@@ -14,6 +14,9 @@ if TYPE_CHECKING:
 
 from logview.adapters.context_detector import DiscoveredContext
 
+# Constant for widget ID generation when cluster is not specified
+_NO_CLUSTER_ID = "none"
+
 
 class DiscoveryModal(ModalScreen[list[DiscoveredContext] | None]):
     """Modal for reviewing and selecting discovered contexts.
@@ -146,7 +149,7 @@ class DiscoveryModal(ModalScreen[list[DiscoveredContext] | None]):
                         checkbox = Checkbox(
                             self._format_context_label(ctx),
                             value=True,  # Pre-select all by default
-                            id=f"ctx-{ctx.context_type}-{ctx.project}-{ctx.cluster or 'none'}",
+                            id=f"ctx-{ctx.context_type}-{ctx.project}-{ctx.cluster or _NO_CLUSTER_ID}",
                         )
                         self._checkboxes.append(checkbox)
                         yield checkbox

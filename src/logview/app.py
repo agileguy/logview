@@ -748,19 +748,18 @@ class LogViewApp(App[None]):
             discovered_contexts = []
 
             try:
-                # Create detector
-                detector = ContextDetector(
+                # Create detector with async context manager to ensure cleanup
+                async with ContextDetector(
                     project_filter=self._config.context_detection.project_filter if self._config else [],
                     skip_projects=self._config.context_detection.skip_projects if self._config else [],
                     include_gcp_contexts=self._config.context_detection.include_gcp_contexts if self._config else True,
                     include_gke_contexts=self._config.context_detection.include_gke_contexts if self._config else True,
                     cache_ttl_seconds=self._config.context_detection.cache_ttl_seconds if self._config else 300,
-                )
+                ) as detector:
+                    # Run discovery
+                    discovered_contexts = await detector.discover()
 
-                # Run discovery
-                discovered_contexts = await detector.discover()
-
-                logger.info("Discovery complete: %d contexts found", len(discovered_contexts))
+                    logger.info("Discovery complete: %d contexts found", len(discovered_contexts))
 
             except DetectionNotInstalledError as e:
                 logger.error("Detection libraries not installed: %s", e)
@@ -805,8 +804,10 @@ class LogViewApp(App[None]):
 
                     # Switch to first new context if available
                     if new_contexts and self._configured_sources:
-                        # Find the last added source (most recently added)
-                        new_source = self._configured_sources[-1]
+                        # Find the first of the newly added sources
+                        # New contexts are appended to config, so they're at the end
+                        first_new_index = len(self._configured_sources) - len(new_contexts)
+                        new_source = self._configured_sources[first_new_index]
                         self.set_active_source(new_source)
                         self.notify(f"Switched to {new_source.name}")
 

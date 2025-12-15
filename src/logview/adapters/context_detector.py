@@ -13,7 +13,7 @@ import asyncio
 import fnmatch
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
 from logview.config.schema import Context, GCPContext, GKEContext
@@ -92,6 +92,10 @@ class ProjectsClientProtocol(Protocol):
         """Search for projects."""
         ...
 
+    def close(self) -> None:
+        """Close the client and release resources."""
+        ...
+
 
 class ClusterManagerClientProtocol(Protocol):
     """Protocol for GKE Cluster Manager client."""
@@ -101,6 +105,10 @@ class ClusterManagerClientProtocol(Protocol):
         parent: str,
     ) -> Any:
         """List clusters in a project."""
+        ...
+
+    def close(self) -> None:
+        """Close the client and release resources."""
         ...
 
 
@@ -239,11 +247,14 @@ class ContextDetector:
     Uses Application Default Credentials to discover accessible resources.
     Results are cached to avoid repeated API calls.
 
+    This class manages GCP client resources and should be used as an async
+    context manager to ensure proper cleanup:
+
     Example:
-        >>> detector = ContextDetector()
-        >>> contexts = await detector.discover()
-        >>> for ctx in contexts:
-        ...     print(f"{ctx.context_type}: {ctx.name}")
+        >>> async with ContextDetector() as detector:
+        ...     contexts = await detector.discover()
+        ...     for ctx in contexts:
+        ...         print(f"{ctx.context_type}: {ctx.name}")
     """
 
     def __init__(
@@ -293,6 +304,40 @@ class ContextDetector:
             include_gke_contexts,
             cache_ttl_seconds,
         )
+
+    async def __aenter__(self) -> ContextDetector:
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Async context manager exit - cleanup clients."""
+        await self.close()
+
+    async def close(self) -> None:
+        """Close and cleanup GCP clients.
+
+        This method should be called when done with the detector to release
+        resources. It's automatically called when using the detector as an
+        async context manager.
+        """
+        if self._projects_client is not None:
+            # GCP clients have a close() method (not async)
+            try:
+                self._projects_client.close()
+                logger.debug("Closed projects client")
+            except Exception as e:
+                logger.warning("Error closing projects client: %s", e)
+            finally:
+                self._projects_client = None
+
+        if self._clusters_client is not None:
+            try:
+                self._clusters_client.close()
+                logger.debug("Closed clusters client")
+            except Exception as e:
+                logger.warning("Error closing clusters client: %s", e)
+            finally:
+                self._clusters_client = None
 
     def _get_projects_client(self) -> ProjectsClientProtocol:
         """Get or create the projects client.
@@ -432,8 +477,9 @@ class ContextDetector:
 
         except Exception as e:
             logger.error("Project discovery failed: %s (%s)", e, type(e).__name__)
+            # Propagate authentication and quota errors
             self._handle_detection_error(e)
-            return []  # Unreachable but needed for type checker
+            return []  # Unreachable - _handle_detection_error always raises
 
     async def discover_clusters(self, project_id: str) -> list[DiscoveredCluster]:
         """Discover GKE clusters in a project.
@@ -493,9 +539,29 @@ class ContextDetector:
             return clusters
 
         except Exception as e:
-            # Don't fail entire discovery if one project fails
+            # Check if this is a serious error that should propagate
+            error_msg = str(e).lower()
+
+            # API not enabled is expected for projects without GKE
+            if "api" in error_msg and ("not enabled" in error_msg or "disabled" in error_msg):
+                logger.debug(
+                    "GKE API not enabled for project %s, skipping cluster discovery",
+                    project_id
+                )
+                return []
+
+            # Permission denied is expected for projects we can't access
+            if "permission" in error_msg or "forbidden" in error_msg or "403" in error_msg:
+                logger.debug(
+                    "No permission to list clusters in project %s, skipping",
+                    project_id
+                )
+                return []
+
+            # For other errors, log as warning but don't fail entire discovery
             logger.warning(
-                "Cluster discovery failed for project %s: %s", project_id, e
+                "Cluster discovery failed for project %s: %s (%s)",
+                project_id, e, type(e).__name__
             )
             return []
 
@@ -505,19 +571,27 @@ class ContextDetector:
     ) -> list[DiscoveredContext]:
         """Discover all accessible contexts.
 
+        Uses cached results if available and not expired (based on cache_ttl_seconds
+        from initialization). The cache is timezone-aware and remains valid across
+        daylight saving time changes.
+
         Args:
             force_refresh: Bypass cache and force a fresh discovery.
 
         Returns:
-            List of discovered contexts.
+            List of discovered contexts (GCP projects and/or GKE clusters).
 
         Raises:
             DetectionAuthenticationError: If authentication fails.
             DetectionQuotaExceededError: If quota is exceeded.
+
+        Note:
+            GKE cluster discovery is performed in parallel across all projects
+            for better performance.
         """
         # Check cache
         if not force_refresh and self._cache is not None:
-            age = datetime.now() - self._cache.timestamp
+            age = datetime.now(UTC) - self._cache.timestamp
             if age < self._cache_ttl:
                 logger.info("Returning cached contexts (age: %s)", age)
                 return self._cache.discovered_contexts
@@ -541,13 +615,18 @@ class ContextDetector:
                 )
             logger.info("Created %d GCP contexts", len(projects))
 
-        # Discover and create GKE contexts
+        # Discover and create GKE contexts (in parallel for better performance)
         if self._include_gke:
-            cluster_count = 0
-            for project in projects:
-                clusters = await self.discover_clusters(project.project_id)
-                cluster_count += len(clusters)
+            # Discover clusters in all projects concurrently
+            cluster_results = await asyncio.gather(
+                *[self.discover_clusters(project.project_id) for project in projects],
+                return_exceptions=False,  # Let errors propagate
+            )
 
+            # Flatten results and create contexts
+            cluster_count = 0
+            for clusters in cluster_results:
+                cluster_count += len(clusters)
                 for cluster in clusters:
                     contexts.append(
                         DiscoveredContext(
@@ -564,7 +643,7 @@ class ContextDetector:
         # Update cache
         self._cache = DetectionCache(
             discovered_contexts=contexts,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
         )
 
         logger.info("Discovery complete: %d total contexts", len(contexts))
