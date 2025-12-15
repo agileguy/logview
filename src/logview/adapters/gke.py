@@ -587,8 +587,10 @@ class GKELogSource:
                 for entry in batch:
                     try:
                         log_entry = _parse_gke_log_entry(entry, self._cluster)
-                        yield log_entry
-                        count += 1
+                        # Apply client-side filtering (e.g., source_filter)
+                        if log_entry.matches_filter(log_filter):
+                            yield log_entry
+                            count += 1
                     except Exception as e:
                         parse_errors += 1
                         logger.debug("Failed to parse GKE entry: %s", e)
