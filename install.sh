@@ -46,6 +46,11 @@ parse_args() {
                 shift
                 ;;
             --method)
+                if [[ -z "$2" || "$2" == --* ]]; then
+                    error "--method requires an argument (pip or pipx)"
+                    show_help
+                    exit 1
+                fi
                 INSTALL_METHOD="$2"
                 shift 2
                 ;;
@@ -126,9 +131,29 @@ get_python_version() {
     fi
 }
 
-# Compare version numbers
+# Compare version numbers (portable - works on macOS and Linux)
+# Returns 0 if $1 >= $2, 1 otherwise
 version_ge() {
-    printf '%s\n%s\n' "$2" "$1" | sort -V -C
+    local actual="$1"
+    local required="$2"
+
+    # Split versions into arrays
+    IFS='.' read -ra act_parts <<< "$actual"
+    IFS='.' read -ra req_parts <<< "$required"
+
+    # Compare each component
+    for i in "${!req_parts[@]}"; do
+        local act_part="${act_parts[$i]:-0}"  # Default to 0 if not present
+        local req_part="${req_parts[$i]}"
+
+        if (( act_part > req_part )); then
+            return 0
+        elif (( act_part < req_part )); then
+            return 1
+        fi
+    done
+
+    return 0  # Equal versions
 }
 
 # Check Python installation
