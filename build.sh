@@ -56,7 +56,7 @@ check_prerequisites() {
 clean_build() {
     info "Cleaning previous build artifacts..."
     rm -rf dist/ build/
-    rm -f ./*.egg-info
+    rm -rf ./*.egg-info
     success "Clean complete"
 }
 
