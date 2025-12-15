@@ -387,6 +387,11 @@ class FilterModal(ModalScreen[Filter | None]):
             sev_idx = int(str(severity_select.value))
             parts.append(SEVERITY_OPTIONS[sev_idx][0].lower().replace("+", ""))
 
+        source_input = self.query_one("#source-filter", Input)
+        source_value = source_input.value.strip()
+        if source_value:
+            parts.append(source_value[:20])
+
         if current_text:
             parts.append(current_text[:20])
 

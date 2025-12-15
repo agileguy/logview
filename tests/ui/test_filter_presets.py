@@ -177,3 +177,34 @@ class TestFilterPresetOperations:
             # Verify source_filter was included
             assert len(saved_presets) == 1
             assert saved_presets[0].source_filter == "nginx"
+
+    @pytest.mark.asyncio
+    async def test_save_preset_auto_name_includes_source_filter(self) -> None:
+        """Test that auto-generated preset name includes source filter."""
+        from textual.widgets import Input
+
+        from logview.app import LogViewApp
+
+        app = LogViewApp()
+        async with app.run_test() as pilot:
+            saved_presets: list[FilterPreset] = []
+
+            def on_save(preset: FilterPreset) -> None:
+                saved_presets.append(preset)
+
+            modal = FilterModal(Filter(), on_save_preset=on_save)
+            app.push_screen(modal)
+            await pilot.pause()
+
+            # Set source filter value
+            source_input = modal.query_one("#source-filter", Input)
+            source_input.value = "api-server"
+            await pilot.pause()
+
+            # Save preset
+            modal._save_preset()
+            await pilot.pause()
+
+            # Verify preset name includes source filter
+            assert len(saved_presets) == 1
+            assert "api-server" in saved_presets[0].name
