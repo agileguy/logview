@@ -115,23 +115,35 @@ generate_checksums() {
 
     cd dist
 
-    # Check for files to checksum
-    local has_files=false
-    if compgen -G "./*.whl" > /dev/null || compgen -G "./*.tar.gz" > /dev/null; then
-        has_files=true
-    fi
+    # Find all distribution files using find (safe and explicit)
+    local files=()
+    while IFS= read -r -d '' file; do
+        files+=("$file")
+    done < <(find . -maxdepth 1 \( -name "*.whl" -o -name "*.tar.gz" \) -print0)
 
-    if [[ "$has_files" == false ]]; then
+    if [[ ${#files[@]} -eq 0 ]]; then
         warning "No .whl or .tar.gz files found, skipping checksum generation"
         cd ..
         return
     fi
 
-    # Generate SHA256 checksums
+    # Generate SHA256 checksums for found files
     if command_exists shasum; then
-        shasum -a 256 ./*.whl ./*.tar.gz 2>/dev/null > SHA256SUMS
+        if shasum -a 256 "${files[@]}"; then
+            shasum -a 256 "${files[@]}" > SHA256SUMS
+        else
+            error "Checksum generation failed"
+            cd ..
+            exit 1
+        fi
     elif command_exists sha256sum; then
-        sha256sum ./*.whl ./*.tar.gz 2>/dev/null > SHA256SUMS
+        if sha256sum "${files[@]}"; then
+            sha256sum "${files[@]}" > SHA256SUMS
+        else
+            error "Checksum generation failed"
+            cd ..
+            exit 1
+        fi
     else
         warning "shasum/sha256sum not found, skipping checksum generation"
         cd ..

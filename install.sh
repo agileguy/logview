@@ -256,19 +256,23 @@ install_logview() {
         fi
     fi
 
-    local package="logview"
-    if [[ "$WITH_GCP" == true ]]; then
-        package="logview[all]"
-        info "Installing with GCP/GKE support"
-    fi
-
     case "$INSTALL_METHOD" in
         pipx)
-            if pipx install "$package"; then
-                success "LogView installed via pipx"
+            if [[ "$WITH_GCP" == true ]]; then
+                info "Installing with GCP/GKE support"
+                if pipx install "logview[all]"; then
+                    success "LogView installed via pipx"
+                else
+                    error "Installation failed"
+                    exit 1
+                fi
             else
-                error "Installation failed"
-                exit 1
+                if pipx install logview; then
+                    success "LogView installed via pipx"
+                else
+                    error "Installation failed"
+                    exit 1
+                fi
             fi
             ;;
         pip)
@@ -278,11 +282,21 @@ install_logview() {
                 PIP_CMD="pip"
             fi
 
-            if $PIP_CMD install --user "$package"; then
-                success "LogView installed via pip"
+            if [[ "$WITH_GCP" == true ]]; then
+                info "Installing with GCP/GKE support"
+                if $PIP_CMD install --user "logview[all]"; then
+                    success "LogView installed via pip"
+                else
+                    error "Installation failed"
+                    exit 1
+                fi
             else
-                error "Installation failed"
-                exit 1
+                if $PIP_CMD install --user logview; then
+                    success "LogView installed via pip"
+                else
+                    error "Installation failed"
+                    exit 1
+                fi
             fi
             ;;
     esac
@@ -319,6 +333,21 @@ offer_path_update() {
     shell_config=$(detect_shell_config)
 
     if [[ -z "$shell_config" ]]; then
+        return
+    fi
+
+    # Validate path contains only safe characters (security check)
+    if ! [[ "$path_to_add" =~ ^[a-zA-Z0-9/_.-]+$ ]]; then
+        warning "Path contains unsafe characters, skipping automatic PATH update"
+        info "Manually add: export PATH=\"\$PATH:$path_to_add\""
+        return
+    fi
+
+    # Check if running in interactive terminal (not piped from curl)
+    if [[ ! -t 0 ]]; then
+        info "Non-interactive session detected, skipping PATH prompt"
+        info "To add to PATH manually, add this to your $shell_config:"
+        info "  export PATH=\"\$PATH:$path_to_add\""
         return
     fi
 
