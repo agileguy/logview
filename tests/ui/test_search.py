@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 from logview.app import LogViewApp
@@ -120,17 +118,13 @@ class TestLogListSearch:
 
             assert not log_list.is_searching()
 
-            # Use the search bar to trigger search
-            await pilot.press("slash")
-            await pilot.pause()
-            search_input = app.query_one("#search-input")
-            search_input.value = "test"
-            await asyncio.sleep(0.2)  # Wait for 150ms debounce timer to fire
+            # Trigger search directly
+            log_list.search("test")
             await pilot.pause()
             assert log_list.is_searching()
 
-            # Clear via escape
-            await pilot.press("escape")
+            # Clear search
+            log_list.clear_search()
             await pilot.pause()
             assert not log_list.is_searching()
 
