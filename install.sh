@@ -299,6 +299,45 @@ create_config_dir() {
     fi
 }
 
+# Detect shell config file
+detect_shell_config() {
+    if [[ -n "$ZSH_VERSION" ]] && [[ -f "$HOME/.zshrc" ]]; then
+        echo "$HOME/.zshrc"
+    elif [[ -n "$BASH_VERSION" ]] && [[ -f "$HOME/.bashrc" ]]; then
+        echo "$HOME/.bashrc"
+    elif [[ -f "$HOME/.profile" ]]; then
+        echo "$HOME/.profile"
+    else
+        echo ""
+    fi
+}
+
+# Offer to update PATH
+offer_path_update() {
+    local path_to_add="$1"
+    local shell_config
+    shell_config=$(detect_shell_config)
+
+    if [[ -z "$shell_config" ]]; then
+        return
+    fi
+
+    echo ""
+    read -r -p "Would you like to automatically add this to your PATH in $shell_config? (y/n) " response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            echo "" >> "$shell_config"
+            echo "# LogView PATH (added by install.sh)" >> "$shell_config"
+            echo "export PATH=\"\$PATH:$path_to_add\"" >> "$shell_config"
+            success "PATH updated in $shell_config"
+            info "Restart your shell or run: source $shell_config"
+            ;;
+        *)
+            info "Skipping automatic PATH update"
+            ;;
+    esac
+}
+
 # Verify installation
 verify_installation() {
     info "Verifying installation..."
@@ -315,11 +354,15 @@ verify_installation() {
             user_base=$(python3 -m site --user-base)
             info "Add this to your ~/.bashrc or ~/.zshrc:"
             info "  export PATH=\"\$PATH:$user_base/bin\""
+            offer_path_update "$user_base/bin"
         elif [[ "$INSTALL_METHOD" == "pipx" ]]; then
             info "Run: pipx ensurepath"
+            info "Or let pipx handle PATH setup automatically"
         fi
 
-        warning "You may need to restart your shell or run: source ~/.bashrc"
+        if [[ "$INSTALL_METHOD" != "pipx" ]]; then
+            warning "You may need to restart your shell or run: source ~/.bashrc"
+        fi
     fi
 }
 

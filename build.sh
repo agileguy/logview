@@ -62,12 +62,22 @@ clean_build() {
 
 # Read version from VERSION file
 get_version() {
-    if [[ -f VERSION ]]; then
-        cat VERSION
-    else
+    if [[ ! -f VERSION ]]; then
         error "VERSION file not found"
         exit 1
     fi
+
+    local version
+    version=$(cat VERSION)
+
+    # Validate semver format (MAJOR.MINOR.PATCH with optional pre-release/build)
+    if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+        error "Invalid version format in VERSION file: $version"
+        error "Expected semver format: MAJOR.MINOR.PATCH (e.g., 0.2.0)"
+        exit 1
+    fi
+
+    echo "$version"
 }
 
 # Build wheel
@@ -105,11 +115,23 @@ generate_checksums() {
 
     cd dist
 
+    # Check for files to checksum
+    local has_files=false
+    if compgen -G "./*.whl" > /dev/null || compgen -G "./*.tar.gz" > /dev/null; then
+        has_files=true
+    fi
+
+    if [[ "$has_files" == false ]]; then
+        warning "No .whl or .tar.gz files found, skipping checksum generation"
+        cd ..
+        return
+    fi
+
     # Generate SHA256 checksums
     if command_exists shasum; then
-        shasum -a 256 ./*.whl ./*.tar.gz > SHA256SUMS
+        shasum -a 256 ./*.whl ./*.tar.gz 2>/dev/null > SHA256SUMS
     elif command_exists sha256sum; then
-        sha256sum ./*.whl ./*.tar.gz > SHA256SUMS
+        sha256sum ./*.whl ./*.tar.gz 2>/dev/null > SHA256SUMS
     else
         warning "shasum/sha256sum not found, skipping checksum generation"
         cd ..
