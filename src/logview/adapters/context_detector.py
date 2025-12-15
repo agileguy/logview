@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
+from logview.config.schema import Context, GCPContext, GKEContext
+
 logger = logging.getLogger("logview.adapters.context_detector")
 
 if TYPE_CHECKING:
@@ -140,6 +142,95 @@ class DetectionCache:
 
     discovered_contexts: list[DiscoveredContext]
     timestamp: datetime
+
+
+# Merge utility functions
+def _context_matches(discovered: DiscoveredContext, existing: Context) -> bool:
+    """Check if a discovered context matches an existing context.
+
+    Args:
+        discovered: The discovered context.
+        existing: The existing context from configuration.
+
+    Returns:
+        True if they represent the same resource, False otherwise.
+    """
+    # Type must match
+    if discovered.context_type != existing.type:
+        return False
+
+    # For GCP contexts, match on project
+    if discovered.context_type == "gcp" and isinstance(existing, GCPContext):
+        return discovered.project == existing.project
+
+    # For GKE contexts, match on project + cluster
+    if discovered.context_type == "gke" and isinstance(existing, GKEContext):
+        return (
+            discovered.project == existing.project
+            and discovered.cluster == existing.cluster
+        )
+
+    return False
+
+
+def merge_contexts(
+    discovered: list[DiscoveredContext],
+    existing: list[Context],
+) -> list[Context]:
+    """Merge discovered contexts with existing contexts.
+
+    Filters out discovered contexts that already exist in the configuration.
+    Preserves existing contexts unchanged.
+
+    Args:
+        discovered: List of discovered contexts.
+        existing: List of existing contexts from configuration.
+
+    Returns:
+        List of new contexts to add (discovered contexts not in existing).
+    """
+    new_contexts: list[Context] = []
+
+    for disc_ctx in discovered:
+        # Check if this context already exists
+        exists = any(_context_matches(disc_ctx, existing_ctx) for existing_ctx in existing)
+
+        if exists:
+            logger.debug(
+                "Skipping discovered context (already exists): %s %s",
+                disc_ctx.context_type,
+                disc_ctx.project,
+            )
+            continue
+
+        # Convert to Config context model
+        if disc_ctx.context_type == "gcp":
+            new_contexts.append(
+                GCPContext(
+                    name=disc_ctx.name,
+                    type="gcp",
+                    project=disc_ctx.project,
+                )
+            )
+        elif disc_ctx.context_type == "gke":
+            new_contexts.append(
+                GKEContext(
+                    name=disc_ctx.name,
+                    type="gke",
+                    project=disc_ctx.project,
+                    cluster=disc_ctx.cluster or "",  # Should always be set for GKE
+                    location=disc_ctx.location,
+                )
+            )
+
+    logger.info(
+        "Merge complete: %d discovered, %d existing, %d new",
+        len(discovered),
+        len(existing),
+        len(new_contexts),
+    )
+
+    return new_contexts
 
 
 class ContextDetector:
