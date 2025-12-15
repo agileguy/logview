@@ -18,18 +18,64 @@ A testable, responsive log viewer TUI with pluggable log source contexts.
 
 ## Installation
 
+### Quick Install (Recommended)
+
 ```bash
-# Using uv (recommended)
-uv pip install -e .
+curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh | bash
+```
 
-# Or with pip
-pip install -e .
+This will:
+- Check Python 3.11+ is installed
+- Install LogView using pipx (isolated environment) or pip
+- Create config directory at `~/.config/logview/`
+- Verify the installation
 
-# With optional GCP/GKE support
-pip install -e ".[all]"
+### Alternative Methods
 
-# Development dependencies
+#### Using pipx (Isolated Environment)
+
+```bash
+pipx install logview
+
+# With GCP/GKE support
+pipx install logview[all]
+```
+
+#### Using pip
+
+```bash
+pip install logview
+
+# With GCP/GKE support
+pip install logview[all]
+```
+
+#### From Source (Development)
+
+```bash
+git clone https://github.com/agileguy/logview.git
+cd logview
 pip install -e ".[dev]"
+```
+
+### System Requirements
+
+- **Python**: 3.11 or higher
+- **Operating System**: Linux or macOS
+- **Optional**: pipx (recommended for isolated installation)
+
+### Uninstall
+
+```bash
+# Via the install script
+curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh | bash -s -- --uninstall
+
+# Or manually
+pipx uninstall logview  # if installed with pipx
+pip uninstall logview   # if installed with pip
+
+# Remove configuration (optional)
+rm -rf ~/.config/logview
 ```
 
 ## Usage
@@ -126,7 +172,7 @@ To use GCP Cloud Logging as a log source:
 
 1. **Install with GCP support**:
    ```bash
-   pip install -e ".[gcp]"
+   pipx install logview[all]  # or pip install logview[all]
    ```
 
 2. **Authenticate with GCP**:
@@ -160,7 +206,7 @@ with Kubernetes-specific resource filters.
 
 1. **Install with GCP support** (same as GCP Cloud Logging):
    ```bash
-   pip install -e ".[gcp]"
+   pipx install logview[all]  # or pip install logview[all]
    ```
 
 2. **Authenticate with GCP**:
@@ -284,8 +330,9 @@ This project is under active development. See [PLAN.md](PLAN.md) for the roadmap
 - [x] Phase 3: Application Logs (logfile adapter with format auto-detection)
 - [x] Phase 4: GCP Cloud Logging
 - [x] Phase 5: GKE Integration
-- [ ] Phase 6: File watching & Enhanced UX
-- [ ] Phase 7: Extended format support
+- [x] Phase 6: Enhanced UX (search, export, themes, help modal)
+- [x] Phase 7: Productionization (install.sh, wheel packaging)
+- [ ] Phase 8: Additional Sources (AWS CloudWatch, Azure Monitor, Elasticsearch, etc.)
 
 ## License
 
