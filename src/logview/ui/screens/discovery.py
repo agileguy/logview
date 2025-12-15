@@ -10,7 +10,9 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Checkbox, Label, Static
 
 if TYPE_CHECKING:
-    from logview.adapters.context_detector import DiscoveredContext
+    pass
+
+from logview.adapters.context_detector import DiscoveredContext
 
 
 class DiscoveryModal(ModalScreen[list[DiscoveredContext] | None]):
@@ -195,7 +197,9 @@ class DiscoveryModal(ModalScreen[list[DiscoveredContext] | None]):
         """Add selected contexts and close modal."""
         selected = [
             ctx
-            for ctx, checkbox in zip(self._discovered_contexts, self._checkboxes)
+            for ctx, checkbox in zip(
+                self._discovered_contexts, self._checkboxes, strict=True
+            )
             if checkbox.value
         ]
         self.dismiss(selected)
