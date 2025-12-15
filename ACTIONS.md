@@ -1,5 +1,77 @@
 # LogView Action Log
 
+## 2025-12-15: PR #12 Review Cycle - Cursor Bugbot Fixes & Auto-Naming Enhancement
+
+**Summary:**
+Addressed all Cursor Bugbot review comments on PR #12 through iterative fix-commit-review cycles. Implemented 3 critical fixes for FilterPreset handling and enhanced preset auto-naming for better discoverability.
+
+**Review Cycle:**
+1. **Initial PR**: Source filtering implementation pushed
+2. **Cursor Review 1**: Identified 2 bugs in preset operations
+3. **Fix Round 1**: Fixed preset load/save operations (commit 785e16f, 5a1882d)
+4. **Cursor Review 2**: No new comments, all issues resolved ✓
+5. **User Feedback**: Suggested auto-naming enhancement
+6. **Enhancement**: Added source_filter to preset names (commit 6de05f6)
+7. **Final CI**: All checks pass, 0 review comments ✓
+
+**Bugs Fixed:**
+
+**1. Missing source_filter in FilterPreset Schema** (Commit 785e16f)
+- **Issue**: FilterPreset model didn't have source_filter field
+- **Impact**: Source filter couldn't be saved in presets, silently dropped
+- **Fix**: Added `source_filter: str | None = None` to FilterPreset schema
+- **Tests**: Added serialization/deserialization tests
+
+**2. Preset Loading Didn't Populate Source Filter** (Commit 5a1882d)
+- **Issue**: `_load_preset()` loaded time, severity, text but not source_filter
+- **Impact**: Users couldn't see source filter when loading preset
+- **Fix**: Added `self.query_one("#source-filter", Input).value = preset.source_filter or ""`
+- **Location**: `src/logview/ui/screens/filter.py:365`
+- **Tests**: `test_load_preset_populates_source_filter`
+
+**3. Preset Saving Didn't Include Source Filter** (Commit 5a1882d)
+- **Issue**: `_save_preset()` didn't read source_filter from input widget
+- **Impact**: Source filter value lost during preset save
+- **Fix**: Read #source-filter input and include in FilterPreset construction
+- **Location**: `src/logview/ui/screens/filter.py:413-420`
+- **Tests**: `test_save_preset_includes_source_filter`
+
+**Enhancement:**
+
+**4. Auto-Naming Includes Source Filter** (Commit 6de05f6)
+- **User Feedback**: "Consider adding source_filter to auto-generated preset name for better discoverability"
+- **Example**: "last-15-minutes-error-api-server" instead of "last-15-minutes-error"
+- **Fix**: Added source_filter to preset naming logic (before text_search)
+- **Location**: `src/logview/ui/screens/filter.py:390-393`
+- **Tests**: `test_save_preset_auto_name_includes_source_filter`
+
+**Quality Metrics:**
+- **Tests**: 432 passing (4 new tests added)
+- **Coverage**: >70% maintained
+- **Type Check**: mypy clean
+- **Linting**: ruff clean
+- **CI**: All checks green ✓
+- **Review Comments**: 0 after final push ✓
+
+**Files Modified:**
+- `src/logview/config/schema.py` - Add source_filter to FilterPreset
+- `src/logview/ui/screens/filter.py` - Preset load/save/naming fixes
+- `tests/ui/test_filter_presets.py` - 4 new tests
+- `tests/unit/test_config.py` - Schema and roundtrip tests
+
+**Commits:**
+1. `785e16f` - fix: add source_filter field to FilterPreset model
+2. `5a1882d` - fix: add source_filter to preset save/load operations
+3. `6de05f6` - enhance: include source_filter in preset auto-naming
+
+**Lessons Learned:**
+- CLAUDE.md commit-review cycle requirements worked perfectly
+- Running CI checks in background improved efficiency
+- Comprehensive test coverage caught integration issues early
+- User feedback during review cycle improved feature beyond initial scope
+
+---
+
 ## 2025-12-15: Phase 8.5 Complete - Source Filtering (PR #12)
 
 **Summary:**
