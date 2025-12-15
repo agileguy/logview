@@ -1,8 +1,8 @@
 """Unit tests for context detector."""
 
+from unittest.mock import Mock, patch
+
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock, Mock, patch
 
 from logview.adapters.context_detector import (
     ContextDetector,
@@ -10,8 +10,8 @@ from logview.adapters.context_detector import (
     DiscoveredCluster,
     DiscoveredContext,
     DiscoveredProject,
-    merge_contexts,
     _context_matches,
+    merge_contexts,
 )
 from logview.config.schema import GCPContext, GKEContext, SyslogContext
 
