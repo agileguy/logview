@@ -100,7 +100,7 @@ class HelpModal(ModalScreen[None]):
                 yield Static("Actions", classes="help-section-title")
                 yield Static("[b]Enter[/b]       View log entry details", classes="help-row")
                 yield Static("[b]c[/b]           Change log source context", classes="help-row")
-                yield Static("[b]f[/b]           Open filter editor", classes="help-row")
+                yield Static("[b]f[/b]           Open filter (source, time, severity, text)", classes="help-row")
                 yield Static("[b]r[/b]           Refresh logs", classes="help-row")
                 yield Static("[b]/[/b]           Search within results", classes="help-row")
                 yield Static("[b]n[/b]           Next search match", classes="help-row")

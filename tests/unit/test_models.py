@@ -87,6 +87,7 @@ class TestFilter:
         assert f.time_range is None
         assert f.fields == {}
         assert f.text_search is None
+        assert f.source_filter is None
         assert f.severity is None
         assert f.limit == 1000
 
@@ -207,6 +208,37 @@ class TestLogEntry:
         assert entry.matches_filter(Filter(text_search="connection"))
         assert entry.matches_filter(Filter(text_search="DATABASE"))  # case insensitive
         assert not entry.matches_filter(Filter(text_search="timeout"))
+
+    def test_matches_filter_source_filter(self) -> None:
+        """Test source filtering."""
+        entry = LogEntry(
+            timestamp=datetime.now(),
+            severity=Severity.INFO,
+            message="Test message",
+            source="api-server-abc123",
+        )
+
+        # Should match substring
+        assert entry.matches_filter(Filter(source_filter="api-server"))
+        assert entry.matches_filter(Filter(source_filter="abc"))
+        # Should be case insensitive
+        assert entry.matches_filter(Filter(source_filter="API-SERVER"))
+        # Should not match non-present string
+        assert not entry.matches_filter(Filter(source_filter="worker"))
+
+    def test_matches_filter_source_filter_case_insensitive(self) -> None:
+        """Test source filtering is case insensitive."""
+        entry = LogEntry(
+            timestamp=datetime.now(),
+            severity=Severity.INFO,
+            message="Test",
+            source="WorkerPod-123",
+        )
+
+        assert entry.matches_filter(Filter(source_filter="worker"))
+        assert entry.matches_filter(Filter(source_filter="WORKER"))
+        assert entry.matches_filter(Filter(source_filter="pod"))
+        assert entry.matches_filter(Filter(source_filter="POD"))
 
     def test_matches_filter_fields(self) -> None:
         """Test field filtering."""
