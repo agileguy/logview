@@ -81,7 +81,7 @@ class TestContextModal:
         self,
         configured_sources: list[MockSourceForTest],
     ) -> None:
-        """Test that the modal shows configured sources at root level."""
+        """Test that the modal shows configured sources organized by type."""
         app = LogViewApp()
         async with app.run_test() as pilot:
             app.push_screen(
@@ -95,8 +95,12 @@ class TestContextModal:
             from textual.widgets import Tree
 
             tree = app.screen.query_one(Tree)
-            # Root should have 2 children (configured sources)
-            assert len(tree.root.children) == 2
+            # Root should have 1 child: "Local Logs (2)" since mock sources have no source_type
+            assert len(tree.root.children) == 1
+            local_node = tree.root.children[0]
+            assert "Local Logs" in str(local_node.label)
+            # The Local Logs node should have 2 children
+            assert len(local_node.children) == 2
 
     @pytest.mark.asyncio
     async def test_modal_shows_discovered_sources_in_folder(
@@ -118,8 +122,8 @@ class TestContextModal:
             from textual.widgets import Tree
 
             tree = app.screen.query_one(Tree)
-            # Root should have 3 children: 2 configured + 1 "Discovered Logs" folder
-            assert len(tree.root.children) == 3
+            # Root should have 2 children: "Local Logs (2)" + "Discovered Logs (3)"
+            assert len(tree.root.children) == 2
 
             # The last one should be the discovered folder
             discovered_node = tree.root.children[-1]
@@ -227,9 +231,12 @@ class TestContextModal:
             from textual.widgets import Tree
 
             tree = app.screen.query_one(Tree)
-            # Check that GCP Logs has the active marker
-            gcp_node = tree.root.children[1]
-            assert "●" in str(gcp_node.label)
+            # Navigate: root -> "Local Logs" -> second child (index 1)
+            local_logs_node = tree.root.children[0]
+            assert "Local Logs" in str(local_logs_node.label)
+            # Check that the second source has the active marker
+            active_source_node = local_logs_node.children[1]
+            assert "●" in str(active_source_node.label)
 
 
 class TestContextModalSelection:

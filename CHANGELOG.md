@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2025-12-14
+
+### Added
+- **Enhanced Status Bar**: Show adapter type and active filters in status bar
+  - GCP adapter displays project ID
+  - GKE adapter displays cluster name and project
+  - Syslog/LogFile adapters display filename
+  - Active filters displayed: severity, text search, field filters, time range, limit
+  - Smart truncation of long values for readability
+- **Custom Theme Support**: Config now accepts any Textual theme name
+  - Support for catppuccin-mocha, dracula, nord, and other Textual themes
+  - Themes properly persist across restarts
+
+### Fixed
+- **Critical: Config file corruption** when toggling theme via command palette
+  - Previously created empty config instead of loading from disk
+  - Would wipe out user's contexts, filter presets, and settings
+  - Now properly loads existing config before saving theme changes
+- **Theme persistence** for custom Textual themes
+  - Schema now accepts any theme string instead of just "dark"/"light"
+  - Properly strips/adds "textual-" prefix when saving/loading
+  - Fixed InvalidThemeError by only adding "textual-" prefix to base themes (dark/light/ansi)
+  - Removed non-existent themes from settings dropdown (only valid Textual 6.8.0 themes shown)
+
+### Added (Tests)
+- Settings persistence tests for theme and timestamp format changes
+- Custom theme validation tests
+
+## [0.5.0] - 2025-12-14
+
+### Added
+- **Help Modal**: Styled keyboard shortcuts reference (`?` key)
+  - Three sections: Navigation, Actions, General
+  - Scrollable content, close with Escape or Close button
+- **Search Within Results**: Filter already-loaded entries (`/` key)
+  - Case-insensitive text search
+  - Real-time filtering as you type
+  - Match count display (e.g., "3/10 matches")
+  - Navigate matches with `n` (next) and `N` (previous)
+- **Export Logs**: Save visible entries to file (`e` key)
+  - JSON (pretty-printed) or JSONL format
+  - Default filename with timestamp
+  - Exports filtered entries if search is active
+- **Filter Presets**: Save and load filter configurations
+  - Save current filter settings as named preset
+  - Load preset from dropdown in filter modal
+  - Delete unused presets
+  - Presets persist in config.json
+- **Settings Modal**: Configure UI preferences (`s` key)
+  - Theme selection (dark/light) with immediate application
+  - Timestamp format presets
+  - Max message width configuration
+  - Show metadata toggle
+  - Settings persist to config.json
+
+## [0.4.0] - 2025-12-14
+
 ### Added
 - **GKE (Google Kubernetes Engine) Adapter**: Query GKE logs via Cloud Logging API
   - Uses k8s_container resource type for Kubernetes-specific queries
@@ -16,16 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reuses GCP adapter's batch processing for memory efficiency
   - Cluster and namespace name validation
   - Graceful degradation when google-cloud-logging not installed
-
-### Security
-- **GKE Wildcard Validation**: Strict validation for wildcard patterns
-  - Only trailing wildcards allowed (`kube-*` ✓, `*-system` ✗, `kube-*-system` ✗)
-  - Wildcard-only patterns rejected (`*` ✗)
-  - Invalid patterns raise `GKEInvalidFilterError` with clear error messages
-  - `validate_filter` now validates wildcards before `fetch` (fail-fast)
-- **Quote Escaping**: All filter values properly escaped for Cloud Logging syntax
-  - Namespace, pod, container, labels, and text search values escaped
-  - Prevents filter syntax errors from special characters
 - **GCP Cloud Logging Adapter**: Query logs from Google Cloud Logging
   - Application Default Credentials (ADC) authentication
   - Graceful degradation when google-cloud-logging not installed
@@ -43,6 +90,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Discovered sources in collapsible "Discovered Logs" folder
   - Active source highlighted with "●" marker
 - Integration tests for GCP and GKE adapters (skipped in CI)
+
+### Security
+- **GKE Wildcard Validation**: Strict validation for wildcard patterns
+  - Only trailing wildcards allowed (`kube-*` ✓, `*-system` ✗, `kube-*-system` ✗)
+  - Wildcard-only patterns rejected (`*` ✗)
+  - Invalid patterns raise `GKEInvalidFilterError` with clear error messages
+  - `validate_filter` now validates wildcards before `fetch` (fail-fast)
+- **Quote Escaping**: All filter values properly escaped for Cloud Logging syntax
+  - Namespace, pod, container, labels, and text search values escaped
+  - Prevents filter syntax errors from special characters
 
 ### Changed
 - **Performance**: Memory-optimized fetch operations
@@ -116,7 +173,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI pipeline
 - Comprehensive test suite (pytest, mypy, ruff)
 
-[Unreleased]: https://github.com/agileguy/logview/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/agileguy/logview/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/agileguy/logview/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/agileguy/logview/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/agileguy/logview/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/agileguy/logview/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/agileguy/logview/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/agileguy/logview/releases/tag/v0.1.0

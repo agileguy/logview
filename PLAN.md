@@ -566,28 +566,69 @@ labels."k8s-pod/app"="my-app"  -- pod labels
 ---
 
 ### Phase 6: Enhanced UX ✅ COMPLETE
-**Goal:** Polish and power-user features.
+**Goal:** Polish and power-user features for daily use.
+
+**Already Complete (from previous phases):**
+- [x] Copy log entry to clipboard (DetailModal)
+- [x] Color themes (light/dark via Textual, persisted to config)
+- [x] Responsive layout (Textual built-in)
+- [x] Mouse support (Textual built-in)
 
 **Deliverables:**
-- [x] Filter presets (save/load common filters)
-- [x] Search within current results (/ key with debouncing)
-- [x] Copy log entry to clipboard
+- [x] Keyboard shortcut help modal (styled, comprehensive)
+- [x] Search/filter within current results (/ key, filter matches)
 - [x] Export visible logs to JSON/JSONL file
-- [x] Keyboard shortcut help modal
-- [x] Settings modal with theme selection
-- [x] Color themes (12 built-in Textual themes)
-- [x] Theme persistence to config file
-- [x] Responsive layout (terminal resize handling)
-- [x] Mouse support (optional scrolling, clicking)
+- [x] Filter presets UI (save current filter, load from list)
+- [x] Settings modal with theme, timestamp format, message width, metadata toggle
+- [x] Enhanced status bar (shows adapter type, active filters)
+- [x] Custom theme support (12 built-in Textual themes)
+- [x] Theme persistence from command palette and settings modal
+
+**Implementation Order:**
+1. **Help Modal** - Quick win, users need to discover keybindings
+   - Styled modal with sections (Navigation, Actions, General)
+   - Show current context and filter info
+   - Dismiss with Escape or ?
+
+2. **Search Within Results** - High value for large log sets
+   - Input field appears at bottom when / pressed
+   - Case-insensitive text search
+   - Highlight matching entries in list
+   - n/N to jump to next/previous match
+   - Escape to clear search and close input
+
+3. **Export Logs** - Share/analyze logs externally
+   - `e` key opens export dialog
+   - Export visible (filtered) logs to JSON or JSONL
+   - Default filename with timestamp
+   - Notify on success with path
+
+4. **Filter Presets** - Power user efficiency
+   - Save current filter as named preset
+   - Load preset from list (integrate with filter modal)
+   - Delete unused presets
+   - Stored in config file (schema already exists)
+
+5. **Status Bar** - Better awareness of current state
+   - Show: context name, entry count, active filter summary
+   - Indicate when filter is active vs showing all
+
+**What this phase is NOT:**
+- NOT live file watching/tail -f (deferred - requires different architecture)
+- NOT syntax highlighting in log content (low value, high complexity)
+- NOT custom keybinding configuration (deferred)
 
 **Testing strategy:**
-- End-to-end tests with Textual pilot
-- Manual testing checklist for UX
+- Unit tests for export formatting
+- UI tests with Textual pilot for modals and search
+- Integration tests for preset save/load
 
 **Exit criteria:**
-- All keybindings documented and working
-- Resize handling works without crashes
-- Theme switching works
+- Help modal shows all keybindings with clear sections
+- Search highlights and navigates within visible logs
+- Export produces valid JSON/JSONL files
+- Presets save to and load from config file
+- Status bar shows context, count, and filter state
 
 **Completed:** 2024-12 - Full implementation with 396 tests passing
 
@@ -889,7 +930,7 @@ class FilterPreset(BaseModel):
 
 
 class UISettings(BaseModel):
-    theme: Literal["dark", "light"] = "dark"
+    theme: str = "dark"  # Any Textual theme: dark, light, ansi, catppuccin-mocha, etc.
     timestamp_format: str = "%Y-%m-%d %H:%M:%S"
     max_message_width: int = 80
     show_metadata: bool = False
@@ -1080,6 +1121,26 @@ python -m logview
 ```
 
 ## Changelog
+
+### 2025-12 - Phase 6 Complete
+- Help modal with keyboard shortcuts reference
+- Search within results (/ key, n/N navigation)
+- Export logs to JSON/JSONL files
+- Filter presets (save, load, delete)
+- Settings modal with theme, timestamp format, message width, metadata toggle
+- Enhanced status bar showing adapter type and active filters
+- Custom theme support (12 built-in Textual themes)
+- Theme persistence from command palette and settings modal
+- Fixed InvalidThemeError with proper prefix handling for custom themes
+- 417 tests passing, 38 skipped (GCP/GKE integration)
+
+### 2024-12 - Phase 5 Complete
+- GKE adapter using Cloud Logging API
+- Kubernetes-specific filters (namespace, pod, container, labels)
+- Wildcard support for namespace and pod filters
+- Location/zone filtering
+- Batch processing for memory efficiency
+- 372 tests passing, 58 GKE unit tests, 20 GKE integration tests
 
 ### 2024-12 - Phase 4 Complete
 - GCP Cloud Logging adapter with ADC authentication

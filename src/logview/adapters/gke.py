@@ -501,6 +501,21 @@ class GKELogSource:
             return f"GKE: {self._cluster}/{self._namespace}"
         return f"GKE: {self._cluster}"
 
+    @property
+    def project_id(self) -> str:
+        """Get the GCP project ID."""
+        return self._project_id
+
+    @property
+    def cluster(self) -> str:
+        """Get the GKE cluster name."""
+        return self._cluster
+
+    @property
+    def source_type(self) -> str:
+        """Get the source type identifier."""
+        return "gke"
+
     async def fetch(self, log_filter: Filter) -> AsyncIterator[LogEntry]:
         """Fetch logs from GKE via Cloud Logging.
 

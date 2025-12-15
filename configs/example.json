@@ -70,7 +70,7 @@
     }
   ],
   "ui": {
-    "theme": "dark",
+    "theme": "catppuccin-mocha",
     "timestamp_format": "%Y-%m-%d %H:%M:%S",
     "max_message_width": 80,
     "show_metadata": false

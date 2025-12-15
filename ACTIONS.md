@@ -1,5 +1,263 @@
 # LogView Action Log
 
+## 2025-12-14: Search Debouncing and Code Quality Improvements
+
+**Summary:**
+Implemented search input debouncing (150ms delay) for better performance and addressed 5 code quality issues identified in code review.
+
+**Changes:**
+
+**Search Performance:**
+- Added 150ms debouncing to search input (`src/logview/app.py`)
+  - Prevents triggering search on every keystroke
+  - Significantly improves performance with large log sets
+  - Example: typing 10 characters now triggers 1 search instead of 10
+  - Uses Textual's `set_timer()` API with proper timer cancellation
+- Updated test to account for debounce delay (`tests/ui/test_search.py`)
+
+**Code Quality Fixes:**
+1. **Race condition fix** - Theme persistence now uses try/finally blocks
+   - Ensures `_loading_theme` flag always cleared even on exceptions
+   - Applied to `_apply_ui_settings()` and `action_show_settings()` in `app.py`
+
+2. **Theme prefix handling** - Replaced magic numbers with `TEXTUAL_PREFIX` constant
+   - Added logging for unexpected "textual-" prefix in config
+   - Improves maintainability and debugging
+
+3. **Exception handling** - Replaced broad `Exception` catches with specific types
+   - `OSError` (auto-fixed from `IOError`), `ValueError`, `NoMatches`
+   - Added proper error logging throughout
+   - Applied to config loading, saving, and UI widget queries
+
+4. **User feedback** - Settings modal now notifies users of invalid width input
+   - "Width too small, using minimum (20)"
+   - "Width too large, using maximum (500)"
+   - "Invalid width, using default (80)"
+
+5. **Logging improvements** - Added logger to filter modal for better debugging
+   - Widget query failures now logged at debug level
+
+**Files Modified:**
+- `src/logview/app.py` - Debouncing, try/finally, constants, exception handling
+- `src/logview/ui/screens/settings.py` - User notifications for invalid input
+- `src/logview/ui/screens/filter.py` - Specific exceptions, logging
+- `tests/ui/test_search.py` - Test updated for debounce delay
+
+**Testing:**
+- All 379 tests pass (38 skipped - GCP integration)
+- mypy: Success (no type errors)
+- ruff: All checks passed
+
+---
+
+## 2025-12-14: Phase 6 Complete - Enhanced UX (PR #9)
+
+**Summary:**
+Phase 6 completed with comprehensive UX enhancements, critical bug fixes, and extensive documentation. All deliverables implemented and tested. Version bumped to 0.6.0.
+
+**Major Features:**
+- Enhanced status bar showing adapter type and active filters
+- Custom theme support (12 built-in Textual themes)
+- Theme persistence from command palette and settings modal
+- Comprehensive user manual (USER.md - 1,344 lines)
+- Help modal with keyboard shortcuts
+- Search within results with real-time filtering
+- Export to JSON/JSONL files
+- Filter presets (save, load, delete)
+- Settings modal with theme, timestamp format, message width, metadata toggle
+
+**Critical Bug Fixes:**
+- **Config file corruption**: Fixed theme changes via command palette wiping user config
+  - Now properly loads existing config from disk before saving
+  - Prevents loss of contexts, filter presets, and settings
+- **Theme persistence**: Fixed InvalidThemeError when using custom themes
+  - Only add "textual-" prefix to base themes (dark/light/ansi)
+  - Custom themes (catppuccin-mocha, dracula, etc.) use names as-is
+  - Removed non-existent themes from settings dropdown
+- **Theme watcher**: Implemented `watch_theme` to catch ALL theme changes
+  - Works from command palette, settings modal, toggle dark action
+  - Added `_loading_theme` flag to prevent double-saves during startup
+
+**Files Added:**
+- `USER.md` - Comprehensive 1,344-line user manual
+  - Getting Started, Configuration, Log Sources
+  - Viewing, Filtering, Searching workflows
+  - Themes, Export, Keyboard shortcuts
+  - Advanced features, Troubleshooting, FAQ
+  - 4 appendices with reference material
+
+**Files Modified:**
+- `src/logview/app.py` - Status bar, theme watcher, theme persistence fixes
+- `src/logview/ui/screens/settings.py` - 12 themes dropdown
+- `src/logview/config/schema.py` - Theme type changed to str
+- `tests/ui/test_app.py` - Theme persistence tests
+- `tests/ui/test_settings_modal.py` - Settings persistence tests
+- `README.md` - Themes section, keyboard shortcuts, documentation links
+- `CLAUDE.md` - Updated to Phase 6 complete
+- `PLAN.md` - Updated deliverables, added Phase 5 and 6 changelog entries
+- `CHANGELOG.md` - Added 0.6.0 release notes with all features and fixes
+- `configs/example.json` - Changed theme example to catppuccin-mocha
+- `VERSION` - Bumped to 0.6.0
+
+**Tests:** 417 passed, 38 skipped
+
+**Quality Checks:**
+- ✅ All tests pass (417 total)
+- ✅ mypy type checking passes
+- ✅ ruff linting passes
+- ✅ Manual testing: Theme persistence works from all sources
+- ✅ Manual testing: Custom themes load without errors
+- ✅ Manual testing: Config no longer gets corrupted
+
+**Commits (9 total):**
+1. `a04da24` - feat: enhance status bar with adapter info and active filters
+2. `386c295` - fix: preserve custom Textual themes and prevent config loss
+3. `c91eaa9` - chore: bump version to 0.6.0
+4. `dfcb098` - feat: add all Textual built-in themes to settings dropdown
+5. `b9da9ec` - fix: watch theme changes to persist any theme selection
+6. `ff6b2d0` - fix: theme persistence with proper prefix handling
+7. `115c4c5` - docs: update CHANGELOG with theme prefix fix
+8. `638f7f0` - docs: update documentation for Phase 6 completion and theme support
+9. `2e392ea` - docs: add comprehensive user manual (USER.md)
+
+**Branch:** `phase-6-enhanced-ux`
+**PR:** #9 - https://github.com/agileguy/logview/pull/9
+**Status:** Open, awaiting CI and review
+
+**Issues Resolved:**
+- Theme persistence not working from command palette
+- InvalidThemeError when using custom Textual themes
+- Config file being wiped when changing themes
+- Settings modal only showing dark/light themes
+
+**Phase 6 Deliverables Status:**
+- ✅ Help modal with keyboard shortcuts
+- ✅ Search within results (/ key, n/N navigation)
+- ✅ Export logs to JSON/JSONL
+- ✅ Filter presets (save, load, delete)
+- ✅ Settings modal (theme, timestamp, width, metadata)
+- ✅ Enhanced status bar (adapter info, active filters)
+- ✅ Custom theme support (12 themes)
+- ✅ Theme persistence (all sources)
+- ✅ Comprehensive user manual
+
+**Next:** Phase 7 (Additional Sources) or production deployment
+
+---
+
+## 2025-12-14: Phase 6 - Settings Modal
+
+**Changes:**
+- Implemented settings modal for configuring UI preferences
+  - `s` key opens settings dialog
+  - Theme selection (dark/light) with immediate application
+  - Timestamp format configuration (multiple presets)
+  - Max message width setting
+  - Show metadata toggle
+  - Settings persist to config.json
+
+**Files Added:**
+- `src/logview/ui/screens/settings.py` - Settings modal implementation
+- `tests/ui/test_settings_modal.py` - 11 tests for settings functionality
+
+**Files Modified:**
+- `src/logview/app.py` - Added settings binding and action
+- `src/logview/ui/screens/help.py` - Added s keybinding to help
+
+**Tests:** 376 passed, 38 skipped
+
+---
+
+## 2025-12-14: Phase 6 - Filter Presets
+
+**Changes:**
+- Added filter preset support to FilterModal
+  - Load preset from dropdown (applies time range, severity, text search)
+  - Save current filter settings as named preset
+  - Delete unused presets
+  - Presets stored in config.json and persist across sessions
+- Wired presets to app.py with save/delete callbacks
+- Auto-generated preset names from settings (e.g., "last-1-hour-error")
+
+**Files Added:**
+- `tests/ui/test_filter_presets.py` - 6 tests for preset functionality
+
+**Files Modified:**
+- `src/logview/ui/screens/filter.py` - Preset dropdown, save/delete buttons, load logic
+- `src/logview/app.py` - Preset save/delete callbacks, wiring to FilterModal
+
+**Tests:** 365 passed, 38 skipped
+
+---
+
+## 2025-12-14: Phase 6 - Export Logs to JSON/JSONL
+
+**Changes:**
+- Implemented export modal for saving logs to file
+  - `e` key opens export dialog
+  - Choice of JSON (pretty-printed) or JSONL format
+  - Default filename with timestamp (e.g., `logs_syslog_20251214_103000.json`)
+  - Exports visible (filtered) logs if search is active
+  - Success notification with output path
+- Added get_visible_entries() method to LogList
+
+**Files Added:**
+- `src/logview/ui/screens/export.py` - Export modal with format selection
+- `tests/ui/test_export.py` - 7 unit tests for export functionality
+
+**Files Modified:**
+- `src/logview/app.py` - Added export binding and action
+- `src/logview/ui/widgets/log_list.py` - Added get_visible_entries()
+
+**Tests:** 359 passed, 38 skipped
+
+---
+
+## 2025-12-14: Phase 6 - Search Within Results
+
+**Changes:**
+- Implemented search within already-loaded log entries
+  - Search bar appears at bottom on `/` key, hides on Escape
+  - Case-insensitive text search filters displayed entries
+  - Real-time filtering as user types
+  - Match count displayed (e.g., "3/10 matches")
+  - Navigate matches with `n` (next) and `N` (previous)
+- Added LogList search methods: search(), clear_search(), next_match(), prev_match()
+- Updated help modal to document n/N keybindings
+
+**Files Added:**
+- `tests/ui/test_search.py` - 10 UI tests for search feature
+
+**Files Modified:**
+- `src/logview/app.py` - Search bar UI, actions, event handlers
+- `src/logview/ui/widgets/log_list.py` - Search filtering and navigation
+- `src/logview/ui/screens/help.py` - Added n/N keybindings
+
+**Tests:** 352 passed, 38 skipped
+
+---
+
+## 2025-12-14: Phase 6 - Help Modal Implementation
+
+**Changes:**
+- Implemented styled Help Modal with keyboard shortcuts reference
+  - Three sections: Navigation, Actions, General
+  - Scrollable content using VerticalScroll
+  - Close button and Escape/? key bindings
+  - CSS styling with theme variables
+- Wired up help modal to main app (`?` keybinding)
+
+**Files Added:**
+- `tests/ui/test_help_modal.py` - 8 UI tests for help modal
+
+**Files Modified:**
+- `src/logview/ui/screens/help.py` - Complete rewrite from placeholder to styled modal
+- `src/logview/app.py` - Import HelpModal, update action_show_help()
+
+**Tests:** All tests passing
+
+---
+
 ## 2025-12-14: Phase 5 - GKE Integration (Complete)
 
 **Changes:**

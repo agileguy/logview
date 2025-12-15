@@ -71,9 +71,13 @@ class FilterPreset(BaseModel):
 
 
 class UISettings(BaseModel):
-    """UI preference settings."""
+    """UI preference settings.
 
-    theme: Literal["dark", "light"] = "dark"
+    Note: theme can be any Textual theme name (e.g., "dark", "light",
+    "catppuccin-mocha", etc.). The "textual-" prefix is added automatically.
+    """
+
+    theme: str = "dark"
     timestamp_format: str = "%Y-%m-%d %H:%M:%S"
     max_message_width: int = 80
     show_metadata: bool = False
