@@ -1,0 +1,342 @@
+#!/usr/bin/env bash
+
+# LogView Installation Script
+# This script installs LogView TUI log viewer with automatic platform detection
+# Usage: curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh | bash
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Configuration
+MIN_PYTHON_VERSION="3.11"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/logview"
+INSTALL_METHOD=""
+WITH_GCP=false
+UNINSTALL=false
+
+# Print colored output
+info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+
+success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+warning() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+
+error() {
+    echo -e "${RED}✗${NC} $1" >&2
+}
+
+# Parse command line arguments
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --with-gcp)
+                WITH_GCP=true
+                shift
+                ;;
+            --method)
+                INSTALL_METHOD="$2"
+                shift 2
+                ;;
+            --uninstall)
+                UNINSTALL=true
+                shift
+                ;;
+            --help)
+                show_help
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+}
+
+show_help() {
+    cat << EOF
+LogView Installation Script
+
+Usage:
+    curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh | bash
+    ./install.sh [OPTIONS]
+
+Options:
+    --with-gcp        Install with GCP/GKE support
+    --method METHOD   Force installation method (pip or pipx)
+    --uninstall       Uninstall LogView
+    --help            Show this help message
+
+Examples:
+    # Quick install
+    curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh | bash
+
+    # Install with GCP support
+    curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh | bash -s -- --with-gcp
+
+    # Force pipx installation
+    ./install.sh --method pipx
+
+    # Uninstall
+    ./install.sh --uninstall
+EOF
+}
+
+# Detect operating system
+detect_os() {
+    case "$(uname -s)" in
+        Linux*)
+            OS="linux"
+            ;;
+        Darwin*)
+            OS="macos"
+            ;;
+        *)
+            error "Unsupported operating system: $(uname -s)"
+            info "LogView supports Linux and macOS"
+            exit 1
+            ;;
+    esac
+}
+
+# Check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Get Python version
+get_python_version() {
+    if command_exists python3; then
+        python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))'
+    else
+        echo "0.0"
+    fi
+}
+
+# Compare version numbers
+version_ge() {
+    printf '%s\n%s\n' "$2" "$1" | sort -V -C
+}
+
+# Check Python installation
+check_python() {
+    info "Checking Python installation..."
+
+    if ! command_exists python3; then
+        error "Python 3 is not installed"
+        info "Please install Python 3.11 or higher:"
+        if [[ "$OS" == "macos" ]]; then
+            info "  brew install python@3.11"
+        else
+            info "  sudo apt-get install python3.11  # Debian/Ubuntu"
+            info "  sudo dnf install python3.11      # Fedora"
+        fi
+        exit 1
+    fi
+
+    local python_version
+    python_version=$(get_python_version)
+
+    if ! version_ge "$python_version" "$MIN_PYTHON_VERSION"; then
+        error "Python $python_version is installed, but LogView requires Python $MIN_PYTHON_VERSION or higher"
+        exit 1
+    fi
+
+    success "Found Python $python_version"
+}
+
+# Determine installation method
+determine_install_method() {
+    if [[ -n "$INSTALL_METHOD" ]]; then
+        case "$INSTALL_METHOD" in
+            pip|pipx)
+                info "Using forced installation method: $INSTALL_METHOD"
+                return
+                ;;
+            *)
+                error "Invalid installation method: $INSTALL_METHOD"
+                info "Valid methods: pip, pipx"
+                exit 1
+                ;;
+        esac
+    fi
+
+    # Prefer pipx if available
+    if command_exists pipx; then
+        INSTALL_METHOD="pipx"
+        info "Found pipx - using isolated environment installation"
+    elif command_exists pip3 || command_exists pip; then
+        INSTALL_METHOD="pip"
+        warning "pipx not found - using pip installation"
+        info "For isolated installation, install pipx:"
+        info "  python3 -m pip install --user pipx"
+        info "  python3 -m pipx ensurepath"
+    else
+        error "Neither pip nor pipx found"
+        exit 1
+    fi
+}
+
+# Install LogView
+install_logview() {
+    info "Installing LogView..."
+
+    local package="logview"
+    if [[ "$WITH_GCP" == true ]]; then
+        package="logview[all]"
+        info "Installing with GCP/GKE support"
+    fi
+
+    case "$INSTALL_METHOD" in
+        pipx)
+            if pipx install "$package"; then
+                success "LogView installed via pipx"
+            else
+                error "Installation failed"
+                exit 1
+            fi
+            ;;
+        pip)
+            if command_exists pip3; then
+                PIP_CMD="pip3"
+            else
+                PIP_CMD="pip"
+            fi
+
+            if $PIP_CMD install --user "$package"; then
+                success "LogView installed via pip"
+            else
+                error "Installation failed"
+                exit 1
+            fi
+            ;;
+    esac
+}
+
+# Create configuration directory
+create_config_dir() {
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        info "Creating configuration directory: $CONFIG_DIR"
+        mkdir -p "$CONFIG_DIR"
+        success "Configuration directory created"
+    else
+        info "Configuration directory already exists: $CONFIG_DIR"
+    fi
+}
+
+# Verify installation
+verify_installation() {
+    info "Verifying installation..."
+
+    if command_exists logview; then
+        success "LogView installed successfully!"
+        info "Run 'logview' to start the application"
+    else
+        warning "LogView command not found in PATH"
+        info "You may need to add the installation directory to your PATH"
+
+        if [[ "$INSTALL_METHOD" == "pip" ]]; then
+            local user_base
+            user_base=$(python3 -m site --user-base)
+            info "Add this to your ~/.bashrc or ~/.zshrc:"
+            info "  export PATH=\"\$PATH:$user_base/bin\""
+        elif [[ "$INSTALL_METHOD" == "pipx" ]]; then
+            info "Run: pipx ensurepath"
+        fi
+
+        warning "You may need to restart your shell or run: source ~/.bashrc"
+    fi
+}
+
+# Uninstall LogView
+uninstall_logview() {
+    info "Uninstalling LogView..."
+
+    local uninstalled=false
+
+    # Try pipx first
+    if command_exists pipx; then
+        if pipx list | grep -q logview; then
+            pipx uninstall logview
+            success "LogView removed via pipx"
+            uninstalled=true
+        fi
+    fi
+
+    # Try pip
+    if [[ "$uninstalled" == false ]]; then
+        if command_exists pip3; then
+            PIP_CMD="pip3"
+        elif command_exists pip; then
+            PIP_CMD="pip"
+        fi
+
+        if [[ -n "$PIP_CMD" ]]; then
+            if $PIP_CMD show logview >/dev/null 2>&1; then
+                $PIP_CMD uninstall -y logview
+                success "LogView removed via pip"
+                uninstalled=true
+            fi
+        fi
+    fi
+
+    if [[ "$uninstalled" == false ]]; then
+        warning "LogView installation not found"
+    fi
+
+    # Ask about config directory
+    if [[ -d "$CONFIG_DIR" ]]; then
+        warning "Configuration directory still exists: $CONFIG_DIR"
+        info "Remove it manually if you want to delete all configuration:"
+        info "  rm -rf $CONFIG_DIR"
+    fi
+
+    success "Uninstallation complete"
+}
+
+# Main installation flow
+main() {
+    echo ""
+    info "LogView Installation Script"
+    echo ""
+
+    parse_args "$@"
+
+    if [[ "$UNINSTALL" == true ]]; then
+        uninstall_logview
+        exit 0
+    fi
+
+    detect_os
+    check_python
+    determine_install_method
+    install_logview
+    create_config_dir
+    verify_installation
+
+    echo ""
+    success "Installation complete!"
+    echo ""
+    info "Next steps:"
+    info "  1. Run 'logview' to start the application"
+    info "  2. Press '?' for help and keyboard shortcuts"
+    info "  3. Configure contexts in $CONFIG_DIR/config.json"
+    echo ""
+    info "Documentation: https://github.com/agileguy/logview"
+    echo ""
+}
+
+main "$@"
