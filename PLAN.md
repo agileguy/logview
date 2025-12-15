@@ -565,18 +565,20 @@ labels."k8s-pod/app"="my-app"  -- pod labels
 
 ---
 
-### Phase 6: Enhanced UX
+### Phase 6: Enhanced UX ✅ COMPLETE
 **Goal:** Polish and power-user features.
 
 **Deliverables:**
-- [ ] Filter presets (save/load common filters)
-- [ ] Search within current results (/ key)
-- [ ] Copy log entry to clipboard
-- [ ] Export visible logs to JSON file
-- [ ] Keyboard shortcut help modal
-- [ ] Color themes (light/dark via Textual CSS)
-- [ ] Responsive layout (terminal resize handling)
-- [ ] Mouse support (optional scrolling, clicking)
+- [x] Filter presets (save/load common filters)
+- [x] Search within current results (/ key with debouncing)
+- [x] Copy log entry to clipboard
+- [x] Export visible logs to JSON/JSONL file
+- [x] Keyboard shortcut help modal
+- [x] Settings modal with theme selection
+- [x] Color themes (12 built-in Textual themes)
+- [x] Theme persistence to config file
+- [x] Responsive layout (terminal resize handling)
+- [x] Mouse support (optional scrolling, clicking)
 
 **Testing strategy:**
 - End-to-end tests with Textual pilot
@@ -587,9 +589,102 @@ labels."k8s-pod/app"="my-app"  -- pod labels
 - Resize handling works without crashes
 - Theme switching works
 
+**Completed:** 2024-12 - Full implementation with 396 tests passing
+
 ---
 
-### Phase 7: Additional Sources (Future)
+### Phase 7: Productionization
+**Goal:** Make LogView easy to install and distribute with professional packaging.
+
+**Deliverables:**
+- [ ] Wheel packaging configuration
+  - Entry point for `logview` command
+  - Package metadata (description, license, classifiers)
+  - Include package data files
+- [ ] curl-able install.sh script
+  - Platform detection (Linux, macOS)
+  - Python version check (3.11+)
+  - pipx installation (isolated environment)
+  - Fallback to pip if pipx unavailable
+  - Config directory creation (~/.config/logview/)
+  - Optional PATH modification
+  - Verification step
+- [ ] Installation documentation
+  - Quick install (one-liner curl | bash)
+  - Alternative methods (pip, pipx, from source)
+  - System requirements
+  - Troubleshooting guide
+- [ ] Distribution preparation
+  - Build script for wheel generation
+  - Version management automation
+  - Checksum generation for releases
+- [ ] Uninstall documentation
+  - Clean removal instructions
+  - Config file cleanup guidance
+
+**Installation Methods:**
+
+**Method 1: Quick Install (Recommended)**
+```bash
+curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh | bash
+```
+
+**Method 2: pipx (Isolated)**
+```bash
+pipx install logview
+```
+
+**Method 3: pip (Global/Virtual Environment)**
+```bash
+pip install logview
+# With GCP/GKE support
+pip install logview[all]
+```
+
+**Method 4: From Source**
+```bash
+git clone https://github.com/agileguy/logview.git
+cd logview
+pip install -e ".[dev]"
+```
+
+**install.sh Script Features:**
+- Detects OS and architecture
+- Checks Python 3.11+ availability
+- Prefers pipx for isolated installation
+- Creates config directory structure
+- Provides clear success/error messages
+- Idempotent (safe to run multiple times)
+- Supports flags:
+  - `--with-gcp`: Install with GCP/GKE extras
+  - `--method pip|pipx`: Force installation method
+  - `--uninstall`: Remove LogView
+
+**Wheel Package Configuration:**
+- Proper entry points in pyproject.toml
+- Package data inclusion (themes, example configs)
+- Correct metadata (homepage, repository, documentation)
+- License and classifiers for PyPI
+- Minimal but complete dependencies
+
+**Testing Strategy:**
+- Test install.sh on Ubuntu, Debian, Fedora, macOS
+- Verify wheel builds correctly
+- Test installation in fresh virtualenv
+- Verify entry point works after install
+- Test uninstall leaves system clean
+
+**Exit Criteria:**
+- One-liner curl install works on Linux and macOS
+- Wheel builds without errors
+- `logview` command available after install
+- Installation creates config directory
+- Documentation covers all install methods
+- Uninstall removes all traces
+
+---
+
+### Phase 8: Additional Sources (Future)
 **Goal:** Extensibility proven with more sources.
 
 **Potential adapters:**
