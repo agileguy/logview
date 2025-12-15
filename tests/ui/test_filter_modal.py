@@ -117,6 +117,17 @@ class TestFilterModal:
             clear_button = any("Clear" in str(b.label) for b in buttons)
             assert clear_button
 
+    @pytest.mark.asyncio
+    async def test_modal_has_source_filter_input(self) -> None:
+        """Test that the modal has a source filter input."""
+        app = LogViewApp()
+        async with app.run_test() as pilot:
+            app.push_screen(FilterModal())
+            await pilot.pause()
+
+            source_input = app.screen.query_one("#source-filter")
+            assert source_input is not None
+
 
 class TestFilterModalWithCurrentFilter:
     """Tests for FilterModal with pre-existing filter."""
@@ -127,6 +138,7 @@ class TestFilterModalWithCurrentFilter:
         return Filter(
             severity=Severity.ERROR,
             text_search="database",
+            source_filter="api-server",
             limit=500,
         )
 
@@ -168,6 +180,20 @@ class TestFilterModalWithCurrentFilter:
 
             limit_input = app.screen.query_one("#limit-input", Input)
             assert limit_input.value == "500"
+
+    @pytest.mark.asyncio
+    async def test_modal_populates_source_filter(self, current_filter: Filter) -> None:
+        """Test that source filter is pre-populated."""
+        app = LogViewApp()
+        async with app.run_test() as pilot:
+            modal = FilterModal(current_filter)
+            app.push_screen(modal)
+            await pilot.pause()
+
+            from textual.widgets import Input
+
+            source_input = app.screen.query_one("#source-filter", Input)
+            assert source_input.value == "api-server"
 
 
 class TestFilterModalReturnsValue:

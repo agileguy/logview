@@ -187,6 +187,15 @@ class FilterModal(ModalScreen[Filter | None]):
                 value=initial_search,
             )
 
+            # Source filter section
+            yield Label("Source Filter:", classes="filter-label")
+            initial_source = self._current_filter.source_filter or ""
+            yield Input(
+                placeholder="Filter by source name (substring)...",
+                id="source-filter",
+                value=initial_source,
+            )
+
             # Limit section
             yield Label("Result Limit:", classes="filter-label")
             with Horizontal():
@@ -266,6 +275,10 @@ class FilterModal(ModalScreen[Filter | None]):
         text_input = self.query_one("#text-search", Input)
         text_search = text_input.value.strip() if text_input.value.strip() else None
 
+        # Get source filter
+        source_input = self.query_one("#source-filter", Input)
+        source_filter = source_input.value.strip() if source_input.value.strip() else None
+
         # Get limit
         limit_input = self.query_one("#limit-input", Input)
         try:
@@ -283,6 +296,7 @@ class FilterModal(ModalScreen[Filter | None]):
             time_range=time_range,
             severity=severity,
             text_search=text_search,
+            source_filter=source_filter,
             limit=limit,
         )
 
@@ -291,6 +305,7 @@ class FilterModal(ModalScreen[Filter | None]):
         self.query_one("#time-select", Select).value = "0"
         self.query_one("#severity-select", Select).value = "0"
         self.query_one("#text-search", Input).value = ""
+        self.query_one("#source-filter", Input).value = ""
         self.query_one("#limit-input", Input).value = "1000"
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
