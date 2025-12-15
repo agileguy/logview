@@ -236,11 +236,14 @@ main() {
     echo ""
     info "Next steps:"
     info "  1. Review dist/ artifacts"
-    info "  2. Test installation: pip install dist/logview-${version}-py3-none-any.whl"
+    info "  2. Test local installation: pip install dist/logview-${version}-py3-none-any.whl"
     info "  3. Update RELEASE_NOTES.md with changes"
     info "  4. Create git tag: git tag v${version}"
     info "  5. Push tag: git push origin v${version}"
-    info "  6. Create GitHub release with dist/ artifacts"
+    info "  6. Upload to PyPI: twine upload dist/*"
+    info "  7. Test install.sh AFTER PyPI publication:"
+    info "     curl -fsSL https://raw.githubusercontent.com/agileguy/logview/v${version}/install.sh | bash"
+    info "  8. Create GitHub release with dist/ artifacts and RELEASE_NOTES.md"
     echo ""
 }
 

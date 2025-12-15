@@ -29,6 +29,18 @@ jobs:
       - name: Run ruff
         run: ruff check src/ tests/
 
+  shellcheck:
+    name: Shell Script Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          shellcheck install.sh build.sh
+
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
@@ -106,13 +118,14 @@ jobs:
 
   all-checks:
     name: All Checks Pass
-    needs: [lint, typecheck, test]
+    needs: [lint, shellcheck, typecheck, test]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Check all jobs passed
         run: |
           if [[ "${{ needs.lint.result }}" != "success" ]] || \
+             [[ "${{ needs.shellcheck.result }}" != "success" ]] || \
              [[ "${{ needs.typecheck.result }}" != "success" ]] || \
              [[ "${{ needs.test.result }}" != "success" ]]; then
             echo "One or more checks failed"

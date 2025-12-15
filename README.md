@@ -18,10 +18,23 @@ A testable, responsive log viewer TUI with pluggable log source contexts.
 
 ## Installation
 
+> **⚠️ Not Yet Published**: LogView is not yet published to PyPI. The `pip` and `pipx` installation methods below will not work until the first release is published. For now, use the "From Source" method.
+
 ### Quick Install (Recommended)
+
+**One-line install** (after PyPI publication):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh | bash
+```
+
+**Two-step install** (for security-conscious users):
+
+```bash
+# Download and inspect the script first
+curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh -o install.sh
+less install.sh  # Review the script
+bash install.sh
 ```
 
 This will:
@@ -34,6 +47,8 @@ This will:
 
 #### Using pipx (Isolated Environment)
 
+> **Note**: Requires PyPI publication
+
 ```bash
 pipx install logview
 
@@ -42,6 +57,8 @@ pipx install logview[all]
 ```
 
 #### Using pip
+
+> **Note**: Requires PyPI publication
 
 ```bash
 pip install logview
@@ -63,6 +80,21 @@ pip install -e ".[dev]"
 - **Python**: 3.11 or higher
 - **Operating System**: Linux or macOS
 - **Optional**: pipx (recommended for isolated installation)
+
+### Checksum Verification
+
+For security-conscious users, verify package integrity using checksums:
+
+```bash
+# After downloading the wheel from GitHub releases
+# Download SHA256SUMS file
+curl -fsSL https://github.com/agileguy/logview/releases/download/vX.Y.Z/SHA256SUMS -o SHA256SUMS
+
+# Verify the checksum
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+Expected output: `logview-X.Y.Z-py3-none-any.whl: OK`
 
 ### Uninstall
 
