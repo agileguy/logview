@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-12-15
+
+### Added
+- **Source Filtering**: Filter log entries by source name
+  - New `source_filter` field in Filter model
+  - Case-insensitive substring match on source field
+  - Input widget in FilterModal for source filtering
+  - Works with all log sources (GCP, GKE, syslog, logfile, discovered logs)
+  - Example use cases:
+    - Filter GKE logs to specific pods: `source_filter="api-server"`
+    - Filter syslog to specific service: `source_filter="nginx"`
+    - Filter discovered logs to specific file: `source_filter="app.log"`
+  - Combine with other filters (text search, severity, time range)
+
+### Tests
+- Unit tests for source filtering logic (`test_matches_filter_source_filter`)
+- UI tests for FilterModal source filter input
+- All 463 tests passing
+
 ## [0.6.0] - 2025-12-14
 
 ### Added

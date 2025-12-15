@@ -1,5 +1,64 @@
 # LogView Action Log
 
+## 2025-12-15: Phase 8.5 Complete - Source Filtering (PR #12)
+
+**Summary:**
+Implemented Phase 8.5: Source Filtering - enabling users to filter log entries by source name. New `source_filter` field added to Filter model with case-insensitive substring matching. Fully integrated into FilterModal UI with comprehensive testing.
+
+**Changes:**
+
+**Model Layer:**
+- Added `source_filter: str | None` field to Filter dataclass (`src/logview/domain/models.py`)
+- Implemented source filtering in `LogEntry.matches_filter()` method
+- Case-insensitive substring match on source field
+- Example: `source="api-server-abc123"` matches `source_filter="api-server"`
+
+**UI Layer:**
+- Added source filter Input widget to FilterModal (`src/logview/ui/screens/filter.py`)
+- Label: "Source Filter:"
+- Placeholder: "Filter by source name (substring)..."
+- Pre-populates from current filter's `source_filter` value
+- Included in `_build_filter()` method to create Filter object
+- Cleared in `_clear_form()` when Clear button clicked
+
+**Use Cases:**
+- Filter GKE logs to specific pods: `source_filter="api-server"`
+- Filter syslog to specific service: `source_filter="nginx"`
+- Filter discovered logs to specific file: `source_filter="app.log"`
+- Combine with other filters: source="worker" AND message contains "error"
+
+**Testing:**
+- **Unit tests** (22/22 passing):
+  - `test_default_filter`: verify source_filter defaults to None
+  - `test_matches_filter_source_filter`: basic substring matching
+  - `test_matches_filter_source_filter_case_insensitive`: case sensitivity
+- **UI tests** (17/17 passing):
+  - `test_modal_has_source_filter_input`: verify input exists
+  - `test_modal_populates_source_filter`: verify pre-population
+- All 463 tests passing (38 skipped integration tests)
+
+**Quality Checks:**
+- mypy: Success (no type errors)
+- ruff: All checks passed
+
+**Files Modified:**
+- `src/logview/domain/models.py` - Add source_filter field, implement filtering
+- `src/logview/ui/screens/filter.py` - Add source filter input, wire up UI
+- `tests/unit/test_models.py` - Add source filter unit tests
+- `tests/ui/test_filter_modal.py` - Add source filter UI tests
+- `PLAN.md` - Add Phase 8.5 design (124 lines), mark as ✅ COMPLETE
+- `README.md` - Update features list to include source filter
+- `VERSION` - Bumped to 0.7.0
+- `CHANGELOG.md` - Added 0.7.0 release notes
+
+**Implementation Steps:**
+1. **Commit 92c117f**: Add Phase 8.5 design to PLAN.md
+2. **Commit 2860f2f**: Add source_filter to Filter model with unit tests
+3. **Commit 54097d3**: Add source filter UI to FilterModal with UI tests
+4. **Commit ee68a00**: Update documentation, mark phase complete
+
+---
+
 ## 2025-12-14: Search Debouncing and Code Quality Improvements
 
 **Summary:**

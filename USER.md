@@ -1,6 +1,6 @@
 # LogView User Manual
 
-**Version 0.6.0**
+**Version 0.7.0**
 
 A comprehensive guide to using LogView, a terminal-based log viewer with support for multiple log sources including local files, syslog, GCP Cloud Logging, and Google Kubernetes Engine (GKE).
 
@@ -35,7 +35,7 @@ LogView is a terminal user interface (TUI) application that lets you view and se
 
 - **Multiple log sources**: Local files, syslog, GCP Cloud Logging, GKE clusters
 - **Smart format detection**: Automatically recognizes plain text, JSON Lines, and syslog formats
-- **Powerful filtering**: Filter by time range, severity, text search, and source-specific fields
+- **Powerful filtering**: Filter by time range, severity, text search, source name, and source-specific fields
 - **Search within results**: Find specific entries in already-loaded logs
 - **Export capabilities**: Save filtered logs to JSON or JSONL files
 - **Filter presets**: Save and reuse common filter configurations
@@ -408,6 +408,25 @@ Search for specific text in log messages:
 
 **Example**: Search for "connection" to find connection-related logs.
 
+#### Source Filter
+
+Filter logs by source name:
+
+- Case-insensitive substring match
+- Matches anywhere in the source field
+- Works with all log sources (GCP, GKE, syslog, logfile, discovered logs)
+- Combine with other filters for precise results
+
+**Examples**:
+- `api-server` - Find logs from API server pods
+- `nginx` - Find logs from nginx services
+- `app.log` - Find logs from specific log files
+
+**Use cases**:
+- **GKE**: Filter to specific pod names (e.g., `api-server` matches `api-server-abc123`)
+- **Syslog**: Filter to specific services (e.g., `nginx` matches nginx entries)
+- **Discovered logs**: Filter to specific log files (e.g., `app.log` matches `/var/log/myapp/app.log`)
+
 #### Result Limit
 
 Limit the number of entries returned:
@@ -478,16 +497,22 @@ In the filter modal, click the **Clear** button or press its shortcut to reset a
 **Find specific pod logs**:
 1. Press `c` to switch to GKE context
 2. Press `f`
-3. Namespace: `default`
-4. Pod: `api-server-*`
+3. Source Filter: `api-server`
+4. Namespace: `default`
 5. Apply
 
 **Debug recent API issues**:
 1. Press `f`
 2. Time Range: Last 5 minutes
-3. Text Search: `api`
+3. Source Filter: `api`
 4. Severity: DEBUG
 5. Apply
+
+**Filter to specific service logs**:
+1. Press `f`
+2. Source Filter: `nginx`
+3. Severity: WARN
+4. Apply
 
 ---
 
@@ -711,7 +736,7 @@ cat export.jsonl | jq -c 'select(.severity == "ERROR")'
 | Shortcut | Action |
 |----------|--------|
 | `c` | Change context (switch log source) |
-| `f` | Open filter editor |
+| `f` | Open filter editor (source, time, severity, text) |
 | `r` | Refresh logs |
 | `/` | Search within results |
 | `n` | Next search match |
@@ -1145,6 +1170,7 @@ A: Not in version 0.6.0. Keybinding customization is planned for future releases
       "name": "string",
       "severity": "DEBUG|INFO|WARN|ERROR|CRITICAL",
       "time_range_minutes": "number",
+      "source_filter": "string",
       "namespace": "string",
       "pod": "string",
       "text_search": "string"
@@ -1265,7 +1291,7 @@ Full reference: https://strftime.org/
 ```json
 {
   "name": "API Debug",
-  "pod": "api-server-*",
+  "source_filter": "api-server",
   "severity": "DEBUG",
   "namespace": "default"
 }
@@ -1284,8 +1310,8 @@ Full reference: https://strftime.org/
 ```json
 {
   "name": "DB Connection",
+  "source_filter": "db-proxy",
   "text_search": "connection",
-  "pod": "db-*",
   "severity": "WARN"
 }
 ```
