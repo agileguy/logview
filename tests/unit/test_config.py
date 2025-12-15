@@ -72,6 +72,38 @@ class TestConfigSchema:
         assert preset.name == "errors"
         assert preset.time_range_minutes == 60
 
+    def test_filter_preset_with_source_filter(self) -> None:
+        """Test filter preset model with source_filter field."""
+        preset = FilterPreset(
+            name="api-errors",
+            severity="ERROR",
+            time_range_minutes=60,
+            source_filter="api-server",
+            namespace="production",
+        )
+        assert preset.name == "api-errors"
+        assert preset.source_filter == "api-server"
+        assert preset.time_range_minutes == 60
+
+    def test_filter_preset_serialization_with_source_filter(self) -> None:
+        """Test that source_filter is preserved during serialization/deserialization."""
+        preset = FilterPreset(
+            name="test-preset",
+            source_filter="test-source",
+            severity="WARN",
+            text_search="error",
+        )
+
+        # Serialize to dict
+        preset_dict = preset.model_dump()
+        assert preset_dict["source_filter"] == "test-source"
+
+        # Deserialize back to model
+        restored = FilterPreset.model_validate(preset_dict)
+        assert restored.source_filter == "test-source"
+        assert restored.name == "test-preset"
+        assert restored.severity == "WARN"
+
     def test_ui_settings_defaults(self) -> None:
         """Test UI settings defaults."""
         settings = UISettings()
@@ -160,6 +192,36 @@ class TestConfigLoader:
             path = Path(tmpdir) / "subdir" / "nested" / "config.json"
             save_config(config, path)
             assert path.exists()
+
+    def test_filter_preset_roundtrip_with_source_filter(self) -> None:
+        """Test that source_filter in preset is preserved through save/load cycle."""
+        config = Config(
+            presets=[
+                FilterPreset(
+                    name="api-logs",
+                    source_filter="api-server",
+                    severity="INFO",
+                    time_range_minutes=30,
+                )
+            ]
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "config.json"
+            save_config(config, path)
+
+            # Verify it's in the JSON file
+            with open(path) as f:
+                data = json.load(f)
+                assert data["presets"][0]["source_filter"] == "api-server"
+
+            # Load and verify
+            loaded = load_config(path)
+            assert len(loaded.presets) == 1
+            assert loaded.presets[0].name == "api-logs"
+            assert loaded.presets[0].source_filter == "api-server"
+            assert loaded.presets[0].severity == "INFO"
+            assert loaded.presets[0].time_range_minutes == 30
 
 
 class TestConfigValidation:

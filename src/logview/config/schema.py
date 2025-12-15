@@ -65,6 +65,7 @@ class FilterPreset(BaseModel):
     name: str
     severity: str | None = None
     time_range_minutes: int | None = None
+    source_filter: str | None = None
     namespace: str | None = None
     pod: str | None = None
     text_search: str | None = None
