@@ -938,7 +938,7 @@ pip install -e ".[dev]"
 
 ---
 
-### Phase 8.5: Source Filtering
+### Phase 8.5: Source Filtering ✅ COMPLETE
 **Goal:** Enable filtering of log entries by source name for better log analysis.
 
 **Motivation:**
@@ -958,13 +958,13 @@ When viewing logs from multiple sources (e.g., different pods, services, or log 
 - NOT autocomplete (keep UI simple)
 
 **Deliverables:**
-- [ ] Add `source_filter` field to Filter model
-- [ ] Update `LogEntry.matches_filter()` to check source filtering
-- [ ] Add source filter Input widget to FilterModal
-- [ ] Update FilterModal to populate/read source filter
-- [ ] Unit tests for source filtering logic
-- [ ] UI tests for filter modal with source filter
-- [ ] Update documentation (README, help modal)
+- [x] Add `source_filter` field to Filter model
+- [x] Update `LogEntry.matches_filter()` to check source filtering
+- [x] Add source filter Input widget to FilterModal
+- [x] Update FilterModal to populate/read source filter
+- [x] Unit tests for source filtering logic
+- [x] UI tests for filter modal with source filter
+- [x] Update documentation (README, help modal)
 
 **Implementation Details:**
 
@@ -1044,13 +1044,13 @@ def test_source_filter_applies_correctly():
 - Example in docs showing source filtering
 
 **Exit Criteria:**
-- [ ] Filter model has source_filter field
-- [ ] LogEntry.matches_filter() checks source_filter
-- [ ] FilterModal has source filter input
-- [ ] All unit tests pass
-- [ ] UI tests verify source filter behavior
-- [ ] Documentation updated
-- [ ] Manual testing confirms filtering works as expected
+- [x] Filter model has source_filter field
+- [x] LogEntry.matches_filter() checks source_filter
+- [x] FilterModal has source filter input
+- [x] All unit tests pass
+- [x] UI tests verify source filter behavior
+- [x] Documentation updated
+- [x] Manual testing confirms filtering works as expected
 
 **Implementation Steps:**
 1. Add source_filter to Filter model with tests

@@ -10,7 +10,7 @@ A testable, responsive log viewer TUI with pluggable log source contexts.
 - **Format auto-detection**: Automatically detects plain text, JSON Lines, and syslog formats
 - **Log discovery**: Scan directories to find log files
 - **Tree-based context switcher**: Organized view with configured sources at root, discovered logs in collapsible folder
-- **Flexible filtering**: Time range, severity, text search, and source-specific fields
+- **Flexible filtering**: Time range, severity, text search, source filter, and source-specific fields
 - **Memory efficient**: Batch processing and heap-based selection for large log files
 - **Application logging**: Configurable rotating file handler for debugging
 - **Keyboard-first**: Full functionality without mouse
