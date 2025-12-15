@@ -111,10 +111,19 @@ ruff check --fix src/ tests/
 ### Pre-Push Checklist
 Run this sequence before every push/PR:
 
+**IMPORTANT: Run all quality checks in the background for efficiency**
+
 ```bash
-# All three MUST pass
-pytest && mypy src/ && ruff check src/ tests/
+# Run all checks in the background using the Bash tool
+# Use run_in_background: true parameter for each command
+# Then use TaskOutput to collect results
 ```
+
+Claude should:
+1. Run pytest, mypy, and ruff in parallel using background Bash calls
+2. Continue working while tests run
+3. Use TaskOutput to check results before pushing
+4. Fix any issues and repeat if checks fail
 
 If any check fails, fix the issues before pushing.
 
@@ -202,14 +211,20 @@ Maintain >70% coverage during local development; CI threshold is adjusted for en
 
 1. **Check CI status** after pushing:
    ```bash
+   # Run in background to avoid blocking
    gh pr checks <PR_NUMBER>
    ```
+
+   **Use background execution:**
+   - Run `gh pr checks` with `run_in_background: true`
+   - Continue with other work while waiting
+   - Use TaskOutput to retrieve results when needed
 
 2. **Fix any failing checks immediately** - do not leave PRs with red CI:
    - Read the failure logs: `gh run view <RUN_ID> --log-failed`
    - Fix the issue locally
    - Push the fix
-   - Verify CI passes
+   - Verify CI passes (run checks in background)
 
 3. **Do not consider work complete until all checks pass**
 
@@ -243,6 +258,12 @@ Maintain >70% coverage during local development; CI threshold is adjusted for en
    - If new comments appear, fix them and push again
    - **Continue this cycle until a push yields ZERO new comments**
    - This is MANDATORY - do not stop until the cycle completes with no comments
+
+   **Use background execution for efficiency:**
+   - Run `gh pr checks` in background after pushing
+   - Run comment count checks in background: `gh api ... | jq 'length'`
+   - Use TaskOutput to retrieve results while working on fixes
+   - Continue fixing bugs while CI and Cursor reviews run
 
 7. **Only mark PR as ready** after:
    - All CI checks pass

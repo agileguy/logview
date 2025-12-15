@@ -18,18 +18,96 @@ A testable, responsive log viewer TUI with pluggable log source contexts.
 
 ## Installation
 
+> **⚠️ Not Yet Published**: LogView is not yet published to PyPI. The `pip` and `pipx` installation methods below will not work until the first release is published. For now, use the "From Source" method.
+
+### Quick Install (Recommended)
+
+**One-line install** (after PyPI publication):
+
 ```bash
-# Using uv (recommended)
-uv pip install -e .
+curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh | bash
+```
 
-# Or with pip
-pip install -e .
+**Two-step install** (for security-conscious users):
 
-# With optional GCP/GKE support
-pip install -e ".[all]"
+```bash
+# Download and inspect the script first
+curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh -o install.sh
+less install.sh  # Review the script
+bash install.sh
+```
 
-# Development dependencies
+This will:
+- Check Python 3.11+ is installed
+- Install LogView using pipx (isolated environment) or pip
+- Create config directory at `~/.config/logview/`
+- Verify the installation
+
+### Alternative Methods
+
+#### Using pipx (Isolated Environment)
+
+> **Note**: Requires PyPI publication
+
+```bash
+pipx install logview
+
+# With GCP/GKE support
+pipx install logview[all]
+```
+
+#### Using pip
+
+> **Note**: Requires PyPI publication
+
+```bash
+pip install logview
+
+# With GCP/GKE support
+pip install logview[all]
+```
+
+#### From Source (Development)
+
+```bash
+git clone https://github.com/agileguy/logview.git
+cd logview
 pip install -e ".[dev]"
+```
+
+### System Requirements
+
+- **Python**: 3.11 or higher
+- **Operating System**: Linux or macOS
+- **Optional**: pipx (recommended for isolated installation)
+
+### Checksum Verification
+
+For security-conscious users, verify package integrity using checksums:
+
+```bash
+# After downloading the wheel from GitHub releases
+# Download SHA256SUMS file
+curl -fsSL https://github.com/agileguy/logview/releases/download/vX.Y.Z/SHA256SUMS -o SHA256SUMS
+
+# Verify the checksum
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+Expected output: `logview-X.Y.Z-py3-none-any.whl: OK`
+
+### Uninstall
+
+```bash
+# Via the install script
+curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh | bash -s -- --uninstall
+
+# Or manually
+pipx uninstall logview  # if installed with pipx
+pip uninstall logview   # if installed with pip
+
+# Remove configuration (optional)
+rm -rf ~/.config/logview
 ```
 
 ## Usage
@@ -152,7 +230,7 @@ To use GCP Cloud Logging as a log source:
 
 1. **Install with GCP support**:
    ```bash
-   pip install -e ".[gcp]"
+   pipx install logview[all]  # or pip install logview[all]
    ```
 
 2. **Authenticate with GCP**:
@@ -186,7 +264,7 @@ with Kubernetes-specific resource filters.
 
 1. **Install with GCP support** (same as GCP Cloud Logging):
    ```bash
-   pip install -e ".[gcp]"
+   pipx install logview[all]  # or pip install logview[all]
    ```
 
 2. **Authenticate with GCP**:
@@ -317,8 +395,9 @@ This project is under active development. See [PLAN.md](PLAN.md) for the roadmap
 - [x] Phase 3: Application Logs (logfile adapter with format auto-detection)
 - [x] Phase 4: GCP Cloud Logging
 - [x] Phase 5: GKE Integration
-- [x] Phase 6: Enhanced UX (help, search, export, filter presets)
-- [ ] Phase 7: Extended format support
+- [x] Phase 6: Enhanced UX (help, search, export, filter presets, settings)
+- [x] Phase 7: Productionization (install.sh, wheel packaging)
+- [ ] Phase 8: Additional Sources (AWS CloudWatch, Azure Monitor, Elasticsearch, etc.)
 
 ## License
 
