@@ -233,6 +233,29 @@ determine_install_method() {
 install_logview() {
     info "Installing LogView..."
 
+    # Check for existing installations
+    local existing_method=""
+    if command_exists pipx && pipx list --short 2>/dev/null | grep -q "^logview$"; then
+        existing_method="pipx"
+    elif command_exists pip3 && pip3 show logview >/dev/null 2>&1; then
+        existing_method="pip"
+    elif command_exists pip && pip show logview >/dev/null 2>&1; then
+        existing_method="pip"
+    fi
+
+    if [[ -n "$existing_method" ]]; then
+        warning "LogView is already installed via $existing_method"
+        if [[ "$existing_method" != "$INSTALL_METHOD" ]]; then
+            error "Cannot install via $INSTALL_METHOD when already installed via $existing_method"
+            info "To switch installation methods, first uninstall:"
+            info "  $0 --uninstall"
+            info "Then install again with your preferred method"
+            exit 1
+        else
+            info "Reinstalling LogView via $INSTALL_METHOD..."
+        fi
+    fi
+
     local package="logview"
     if [[ "$WITH_GCP" == true ]]; then
         package="logview[all]"
