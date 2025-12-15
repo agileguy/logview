@@ -49,9 +49,15 @@ python -m logview
 | `↑/↓` | Navigate log entries |
 | `Enter` | View log details |
 | `c` | Change context |
-| `f` | Open filter |
-| `/` | Search |
+| `f` | Open filter (with preset support) |
+| `/` | Search within results |
+| `n/N` | Next/previous search match |
+| `e` | Export visible logs to JSON/JSONL |
+| `s` | Settings (theme, timestamp format) |
 | `?` | Help |
+| `r` | Refresh logs |
+| `Ctrl+T` | Toggle dark/light mode |
+| `Ctrl+P` | Command palette (change theme, run actions) |
 | `q` | Quit |
 
 ## Configuration
@@ -86,12 +92,32 @@ Create `~/.config/logview/config.json`:
     }
   ],
   "ui": {
-    "theme": "dark"
+    "theme": "dark",
+    "timestamp_format": "%Y-%m-%d %H:%M:%S",
+    "max_message_width": 80,
+    "show_metadata": false
   }
 }
 ```
 
 See `configs/example.json` for a complete example.
+
+### Themes
+
+LogView supports 12 built-in themes that can be changed via the settings modal (`s` key) or the command palette (`Ctrl+P`):
+
+- **Base themes**: dark (default), light, ansi
+- **Custom themes**: catppuccin-latte, catppuccin-mocha, dracula, flexoki, gruvbox, monokai, nord, solarized-light, tokyo-night
+
+Theme changes persist automatically to your config file. You can also toggle between dark and light mode with `Ctrl+T`.
+
+**Settings Modal (`s` key)**:
+- Theme selection (dropdown with all available themes)
+- Timestamp format (common presets or custom format string)
+- Max message width for wrapping
+- Show/hide metadata in log list
+
+All settings changes are saved immediately to your config file.
 
 ### Application Logging
 
@@ -275,6 +301,13 @@ mypy src/
 ruff check src/ tests/
 ```
 
+## Documentation
+
+- **[USER.md](USER.md)**: Comprehensive user manual with detailed guides, workflows, and troubleshooting
+- **[PLAN.md](PLAN.md)**: Project roadmap and architecture documentation
+- **[CHANGELOG.md](CHANGELOG.md)**: Detailed version history and changes
+- **[ACTIONS.md](ACTIONS.md)**: Development activity log
+
 ## Project Status
 
 This project is under active development. See [PLAN.md](PLAN.md) for the roadmap.
@@ -284,7 +317,7 @@ This project is under active development. See [PLAN.md](PLAN.md) for the roadmap
 - [x] Phase 3: Application Logs (logfile adapter with format auto-detection)
 - [x] Phase 4: GCP Cloud Logging
 - [x] Phase 5: GKE Integration
-- [ ] Phase 6: File watching & Enhanced UX
+- [x] Phase 6: Enhanced UX (help, search, export, filter presets)
 - [ ] Phase 7: Extended format support
 
 ## License

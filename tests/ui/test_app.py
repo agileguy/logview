@@ -182,3 +182,19 @@ class TestThemePersistence:
             assert config_path.exists()
             saved_config = json.loads(config_path.read_text())
             assert saved_config["ui"]["theme"] == "light"
+
+    @pytest.mark.asyncio
+    async def test_direct_theme_change_persists(self, config_file: Path) -> None:
+        """Test that directly setting theme (like command palette) persists to config."""
+        app = LogViewApp(config_path=config_file)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            # Directly set theme (simulates Textual's command palette theme picker)
+            # Custom themes like catppuccin-mocha don't use "textual-" prefix
+            app.theme = "catppuccin-mocha"
+            await pilot.pause()
+
+            # Verify config file was updated
+            saved_config = json.loads(config_file.read_text())
+            assert saved_config["ui"]["theme"] == "catppuccin-mocha"

@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from textual.app import App, ComposeResult
-from textual.widgets import Footer, Header
+from textual.containers import Horizontal
+from textual.timer import Timer
+from textual.widgets import Footer, Header, Input, Label
 
 from logview.adapters.base import LogSource
 from logview.adapters.discovery import DiscoveredLog, discover_logs
@@ -29,10 +31,16 @@ from logview.config.schema import (
 from logview.domain.models import Filter
 from logview.ui.screens.context import ContextModal
 from logview.ui.screens.detail import DetailModal
+from logview.ui.screens.export import ExportModal
 from logview.ui.screens.filter import FilterModal
+from logview.ui.screens.help import HelpModal
+from logview.ui.screens.settings import SettingsModal
 from logview.ui.widgets.log_list import LogList
 
 logger = get_logger("app")
+
+# Theme name prefix for Textual built-in themes
+TEXTUAL_PREFIX = "textual-"
 
 if TYPE_CHECKING:
     pass
@@ -50,8 +58,45 @@ class LogViewApp(App[None]):
         ("f", "show_filter", "Filter"),
         ("r", "refresh", "Refresh"),
         ("?", "show_help", "Help"),
-        ("/", "search", "Search"),
+        ("slash", "search", "Search"),
+        ("n", "next_match", "Next"),
+        ("N", "prev_match", "Prev"),
+        ("e", "export", "Export"),
+        ("s", "show_settings", "Settings"),
     ]
+
+    DEFAULT_CSS = """
+    #search-bar {
+        dock: bottom;
+        height: 3;
+        display: none;
+        background: $surface;
+        border-top: solid $primary;
+        padding: 0 1;
+        layer: search-layer;
+    }
+
+    #search-bar.visible {
+        display: block;
+    }
+
+    #search-bar Label {
+        width: auto;
+        padding: 1 1;
+        color: $primary;
+        text-style: bold;
+    }
+
+    #search-bar Input {
+        width: 1fr;
+    }
+
+    #search-results {
+        width: auto;
+        padding: 1 1;
+        color: $text-muted;
+    }
+    """
 
     def __init__(self, config_path: Path | None = None) -> None:
         """Initialize the application.
@@ -68,11 +113,17 @@ class LogViewApp(App[None]):
         self._active_source: LogSource | None = None
         self._current_filter: Filter = Filter(limit=100)
         self._registered_paths: set[Path] = set()  # Track registered file paths to avoid duplicates
+        self._loading_theme: bool = False  # Flag to prevent saving during theme load
+        self._search_timer: Timer | None = None  # Timer for search input debouncing
 
     def compose(self) -> ComposeResult:
         """Compose the application layout."""
         yield Header()
         yield LogList(id="log-list")
+        with Horizontal(id="search-bar"):
+            yield Label("Search:")
+            yield Input(placeholder="Type to search...", id="search-input")
+            yield Label("", id="search-results")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -102,29 +153,68 @@ class LogViewApp(App[None]):
     def _apply_ui_settings(self) -> None:
         """Apply UI settings from configuration."""
         if self._config:
-            # Apply theme from config (dark mode is default in Textual)
-            self.theme = "textual-dark" if self._config.ui.theme == "dark" else "textual-light"
+            # Apply theme from config
+            # Only add "textual-" prefix for base themes (dark, light, ansi)
+            # Custom themes (catppuccin-mocha, dracula, etc.) use their names as-is
+            theme_name = self._config.ui.theme
+            if theme_name.startswith(TEXTUAL_PREFIX):
+                logger.warning(f"Unexpected prefix in config theme: {theme_name}")
+                theme_name = theme_name[len(TEXTUAL_PREFIX):]
+            if theme_name in ("dark", "light", "ansi"):
+                theme_name = f"{TEXTUAL_PREFIX}{theme_name}"
+
+            # Set flag to prevent watch_theme from saving during startup
+            self._loading_theme = True
+            try:
+                self.theme = theme_name
+            finally:
+                self._loading_theme = False
+
+    def watch_theme(self, theme: str) -> None:
+        """Watch for theme changes and persist to config.
+
+        This catches theme changes from:
+        - Textual's command palette theme picker
+        - Our settings modal
+        - action_toggle_dark
+        - Any other source
+        """
+        # Don't save during theme loading or if config not loaded yet
+        if self._loading_theme or self._config is None:
+            return
+
+        # Save the theme change
+        self._save_theme_preference()
 
     def action_toggle_dark(self) -> None:
         """Toggle dark mode and save the preference to config."""
         # Call parent implementation to actually toggle
+        # watch_theme will automatically save the change
         super().action_toggle_dark()
-
-        # Save the new preference (theme is now "textual-dark" or "textual-light")
-        self._save_theme_preference()
 
     def _save_theme_preference(self) -> None:
         """Save current theme preference to config file."""
         # Ensure we have a config to save
         if self._config is None:
-            self._config = Config()
+            # Load existing config from disk to avoid losing settings
+            try:
+                self._config = load_config(self._config_path)
+            except (OSError, ValueError) as e:
+                # If loading fails (file error, JSON error, validation error), create new config
+                logger.warning("Failed to load config, creating new: %s", e)
+                self._config = Config()
 
-        # Map Textual theme name to our config value
-        is_dark = self.theme == "textual-dark"
-        self._config.ui.theme = "dark" if is_dark else "light"
+        # Save the theme name, stripping "textual-" prefix if present
+        # This allows saving both built-in themes (dark/light) and custom themes
+        theme_name = self.theme
+        if theme_name.startswith(TEXTUAL_PREFIX):
+            theme_name = theme_name[len(TEXTUAL_PREFIX):]  # Remove prefix
+        self._config.ui.theme = theme_name
+
         try:
             save_config(self._config, self._config_path)
-        except Exception as e:
+        except OSError as e:
+            logger.error("Failed to save theme preference: %s", e)
             self.notify(f"Failed to save theme preference: {e}", severity="warning")
 
     def _register_sources_from_config(self) -> None:
@@ -334,7 +424,7 @@ class LogViewApp(App[None]):
         log_list.set_source(source)
         log_list.set_filter(self._current_filter)
         self.call_later(log_list.refresh_logs)
-        self.sub_title = source.name
+        self._update_status_bar()
 
     def set_filter(self, log_filter: Filter) -> None:
         """Set the current filter and refresh.
@@ -346,6 +436,109 @@ class LogViewApp(App[None]):
         log_list = self.query_one("#log-list", LogList)
         log_list.set_filter(log_filter)
         self.call_later(log_list.refresh_logs)
+        self._update_status_bar()
+
+    def _update_status_bar(self) -> None:
+        """Update the status bar with adapter info and filter details."""
+        if not self._active_source:
+            self.sub_title = ""
+            return
+
+        # Build adapter info
+        adapter_info = self._get_adapter_info(self._active_source)
+
+        # Build filter info
+        filter_info = self._get_filter_info(self._current_filter)
+
+        # Combine into status bar text
+        if filter_info:
+            self.sub_title = f"{adapter_info} | {filter_info}"
+        else:
+            self.sub_title = adapter_info
+
+    def _get_adapter_info(self, source: LogSource) -> str:
+        """Get adapter type and metadata for status bar.
+
+        Args:
+            source: The log source to get info from.
+
+        Returns:
+            Formatted string with adapter type and relevant metadata.
+        """
+        # Check for source_type property (GCP, GKE)
+        if hasattr(source, "source_type"):
+            source_type = source.source_type.upper()
+
+            if source_type == "GCP":
+                # GCP: show project
+                if hasattr(source, "project_id"):
+                    return f"GCP: {source.project_id}"
+                return "GCP"
+
+            elif source_type == "GKE":
+                # GKE: show cluster and project
+                if hasattr(source, "cluster") and hasattr(source, "project_id"):
+                    cluster = source.cluster
+                    project = source.project_id
+                    return f"GKE: {cluster} ({project})"
+                elif hasattr(source, "cluster"):
+                    return f"GKE: {source.cluster}"
+                return "GKE"
+
+        # Check for other adapter types using isinstance
+        if isinstance(source, SyslogLogSource):
+            return f"Syslog: {source._path.name}"
+        elif isinstance(source, LogFileSource):
+            return f"LogFile: {source._name}"
+        elif isinstance(source, MockLogSource):
+            return "Mock (testing)"
+
+        # Fallback to name
+        return source.name
+
+    def _get_filter_info(self, log_filter: Filter) -> str:
+        """Get filter information for status bar.
+
+        Args:
+            log_filter: The filter to format.
+
+        Returns:
+            Formatted string with filter details, or empty if no filters.
+        """
+        parts = []
+
+        # Severity filter
+        if log_filter.severity:
+            parts.append(f"severity>={log_filter.severity.value}")
+
+        # Text search
+        if log_filter.text_search:
+            # Truncate long search terms
+            search = log_filter.text_search
+            if len(search) > 20:
+                search = search[:17] + "..."
+            parts.append(f'text="{search}"')
+
+        # Field filters
+        for key, value in log_filter.fields.items():
+            # Truncate long values
+            display_value = value
+            if len(display_value) > 15:
+                display_value = display_value[:12] + "..."
+            parts.append(f"{key}={display_value}")
+
+        # Time range
+        if log_filter.time_range:
+            parts.append("time_range")
+
+        # Limit (only show if not default)
+        if log_filter.limit != 100:
+            parts.append(f"limit={log_filter.limit}")
+
+        if not parts:
+            return ""
+
+        return "Filters: " + ", ".join(parts)
 
     def action_show_context(self) -> None:
         """Show the context selector modal."""
@@ -395,10 +588,60 @@ class LogViewApp(App[None]):
                 self.set_filter(new_filter)
                 self.notify("Filter applied")
 
+        # Get presets from config
+        presets = self._config.presets if self._config else []
+
         self.push_screen(
-            FilterModal(self._current_filter),
+            FilterModal(
+                self._current_filter,
+                presets=presets,
+                on_save_preset=self._save_preset,
+                on_delete_preset=self._delete_preset,
+            ),
             handle_filter,
         )
+
+    def _save_preset(self, preset: Any) -> None:
+        """Save a filter preset to config.
+
+        Args:
+            preset: The FilterPreset to save.
+        """
+        if self._config is None:
+            self._config = Config()
+
+        # Check if preset with same name exists
+        existing_idx = next(
+            (i for i, p in enumerate(self._config.presets) if p.name == preset.name),
+            None,
+        )
+        if existing_idx is not None:
+            self._config.presets[existing_idx] = preset
+        else:
+            self._config.presets.append(preset)
+
+        try:
+            save_config(self._config, self._config_path)
+            logger.info("Saved preset: %s", preset.name)
+        except Exception as e:
+            self.notify(f"Failed to save preset: {e}", severity="error")
+
+    def _delete_preset(self, name: str) -> None:
+        """Delete a filter preset from config.
+
+        Args:
+            name: Name of the preset to delete.
+        """
+        if self._config is None:
+            return
+
+        self._config.presets = [p for p in self._config.presets if p.name != name]
+
+        try:
+            save_config(self._config, self._config_path)
+            logger.info("Deleted preset: %s", name)
+        except Exception as e:
+            self.notify(f"Failed to delete preset: {e}", severity="error")
 
     def action_refresh(self) -> None:
         """Refresh the log list."""
@@ -417,13 +660,159 @@ class LogViewApp(App[None]):
 
     def action_show_help(self) -> None:
         """Show the help modal."""
-        # TODO: Implement in later phase
-        self.notify("Help not yet implemented")
+        self.push_screen(HelpModal())
+
+    def action_show_settings(self) -> None:
+        """Show the settings modal."""
+        if self._config is None:
+            # Load existing config from disk to avoid losing settings
+            try:
+                self._config = load_config(self._config_path)
+            except (OSError, ValueError) as e:
+                # If loading fails (file error, JSON error, validation error), create new config
+                logger.warning("Failed to load config, creating new: %s", e)
+                self._config = Config()
+
+        def handle_save(new_settings: Any) -> None:
+            if self._config:
+                self._config.ui = new_settings
+                try:
+                    save_config(self._config, self._config_path)
+                    # Apply theme change immediately
+                    # Set flag to prevent watch_theme from double-saving
+                    self._loading_theme = True
+                    try:
+                        theme_name = new_settings.theme
+                        # Only add "textual-" prefix for base themes (dark, light, ansi)
+                        # Custom themes (catppuccin-mocha, dracula, etc.) use names as-is
+                        if theme_name.startswith(TEXTUAL_PREFIX):
+                            logger.warning(f"Unexpected prefix in config theme: {theme_name}")
+                            theme_name = theme_name[len(TEXTUAL_PREFIX):]
+                        if theme_name in ("dark", "light", "ansi"):
+                            theme_name = f"{TEXTUAL_PREFIX}{theme_name}"
+                        self.theme = theme_name
+                    finally:
+                        self._loading_theme = False
+                    self.notify("Settings saved")
+                except OSError as e:
+                    logger.error("Failed to save settings: %s", e)
+                    self.notify(f"Failed to save settings: {e}", severity="error")
+
+        self.push_screen(
+            SettingsModal(self._config.ui, handle_save),
+            lambda result: None,  # Ignore dismiss result
+        )
+
+    def action_export(self) -> None:
+        """Export visible logs to file."""
+        log_list = self.query_one("#log-list", LogList)
+        entries = log_list.get_visible_entries()
+
+        if not entries:
+            self.notify("No entries to export")
+            return
+
+        source_name = self._active_source.name if self._active_source else "logs"
+
+        def handle_export(result: Any) -> None:
+            if result:
+                self.notify(f"Exported to {result}")
+
+        self.push_screen(ExportModal(entries, source_name), handle_export)
 
     def action_search(self) -> None:
         """Show the search input."""
-        # TODO: Implement in Phase 5
-        self.notify("Search not yet implemented")
+        search_bar = self.query_one("#search-bar")
+        search_input = self.query_one("#search-input", Input)
+
+        # Toggle search bar visibility
+        if "visible" in search_bar.classes:
+            self._hide_search_bar()
+        else:
+            search_bar.add_class("visible")
+            search_input.focus()
+
+    def _hide_search_bar(self) -> None:
+        """Hide the search bar and clear search."""
+        search_bar = self.query_one("#search-bar")
+        search_input = self.query_one("#search-input", Input)
+        search_results = self.query_one("#search-results", Label)
+
+        search_bar.remove_class("visible")
+        search_input.value = ""
+        search_results.update("")
+
+        # Clear search in log list
+        log_list = self.query_one("#log-list", LogList)
+        log_list.clear_search()
+        log_list.focus()
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Handle search input changes with 150ms debounce."""
+        if event.input.id == "search-input":
+            # Cancel existing timer if present
+            if self._search_timer is not None:
+                self._search_timer.stop()
+
+            # Set new timer to execute search after 150ms
+            self._search_timer = self.set_timer(
+                0.15,  # 150ms delay in seconds
+                lambda: self._execute_search(event.value),
+            )
+
+    def _execute_search(self, search_text: str) -> None:
+        """Execute the actual search operation.
+
+        Args:
+            search_text: The text to search for.
+        """
+        log_list = self.query_one("#log-list", LogList)
+        log_list.search(search_text)
+        self._search_timer = None  # Clear timer reference
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle search input submission (Enter key)."""
+        if event.input.id == "search-input":
+            # Move focus to log list to allow navigation
+            log_list = self.query_one("#log-list", LogList)
+            log_list.focus()
+
+    def on_log_list_search_results_changed(
+        self, event: LogList.SearchResultsChanged
+    ) -> None:
+        """Handle search results update."""
+        search_results = self.query_one("#search-results", Label)
+        if event.match_count > 0:
+            search_results.update(f"{event.current_match}/{event.match_count} matches")
+        elif self.query_one("#search-input", Input).value:
+            search_results.update("No matches")
+        else:
+            search_results.update("")
+
+    def action_next_match(self) -> None:
+        """Move to next search match."""
+        log_list = self.query_one("#log-list", LogList)
+        if log_list.is_searching():
+            log_list.next_match()
+        else:
+            self.notify("No active search (press / to search)")
+
+    def action_prev_match(self) -> None:
+        """Move to previous search match."""
+        log_list = self.query_one("#log-list", LogList)
+        if log_list.is_searching():
+            log_list.prev_match()
+        else:
+            self.notify("No active search (press / to search)")
+
+    def on_key(self, event: Any) -> None:
+        """Handle key events for search bar escape."""
+        # Check if search bar is visible and Escape is pressed
+        search_bar = self.query_one("#search-bar")
+        if "visible" in search_bar.classes and event.key == "escape":
+            self._hide_search_bar()
+            event.prevent_default()
+            event.stop()
 
     def on_log_list_entry_selected(self, event: LogList.EntrySelected) -> None:
         """Handle log entry selection from the list."""

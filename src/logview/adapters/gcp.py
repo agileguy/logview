@@ -426,6 +426,16 @@ class GCPLogSource:
             return self._custom_name
         return f"GCP: {self._project_id}"
 
+    @property
+    def project_id(self) -> str:
+        """Get the GCP project ID."""
+        return self._project_id
+
+    @property
+    def source_type(self) -> str:
+        """Get the source type identifier."""
+        return "gcp"
+
     async def fetch(self, log_filter: Filter) -> AsyncIterator[LogEntry]:
         """Fetch logs from GCP Cloud Logging.
 

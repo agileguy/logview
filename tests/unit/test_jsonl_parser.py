@@ -176,6 +176,86 @@ class TestParseJsonlLine:
 
         assert result.raw == line
 
+    def test_handles_datetime_object(self) -> None:
+        """Test that datetime objects are passed through."""
+        from datetime import datetime
+
+        from logview.adapters.jsonl_parser import _parse_timestamp
+
+        dt = datetime(2025, 1, 15, 10, 30, 0)
+        result = _parse_timestamp(dt)
+
+        assert result == dt
+
+    def test_parses_unix_timestamp_nanoseconds(self) -> None:
+        """Test parsing of Unix timestamps in nanoseconds."""
+        # 1737800000000000000 nanoseconds = 2025-01-25 09:06:40
+        line = '{"timestamp": 1737800000000000000, "message": "test"}'
+        result = parse_jsonl_line(line)
+
+        assert result.timestamp is not None
+        assert result.timestamp.year == 2025
+        assert result.timestamp.month == 1
+
+    def test_parses_unix_timestamp_microseconds(self) -> None:
+        """Test parsing of Unix timestamps in microseconds."""
+        # 1737800000000000 microseconds = 2025-01-25 09:06:40
+        line = '{"timestamp": 1737800000000000, "message": "test"}'
+        result = parse_jsonl_line(line)
+
+        assert result.timestamp is not None
+        assert result.timestamp.year == 2025
+        assert result.timestamp.month == 1
+
+    def test_handles_invalid_unix_timestamp(self) -> None:
+        """Test handling of invalid Unix timestamps."""
+        from datetime import datetime
+
+        from logview.adapters.jsonl_parser import _parse_timestamp
+
+        # Extremely large value that will cause overflow
+        result = _parse_timestamp(1e20)
+
+        # Should return current time as fallback
+        assert isinstance(result, datetime)
+        assert result.year >= 2025
+
+    def test_parses_alternative_date_formats(self) -> None:
+        """Test parsing of alternative date format strings."""
+        test_cases = [
+            ('{"timestamp": "2025-01-15 10:30:00", "message": "test"}', 2025, 1, 15),
+            ('{"timestamp": "2025-01-15 10:30:00.123456", "message": "test"}', 2025, 1, 15),
+            ('{"timestamp": "2025/01/15 10:30:00", "message": "test"}', 2025, 1, 15),
+            ('{"timestamp": "15/Jan/2025:10:30:00", "message": "test"}', 2025, 1, 15),
+        ]
+
+        for line, year, month, day in test_cases:
+            result = parse_jsonl_line(line)
+            assert result.timestamp is not None
+            assert result.timestamp.year == year
+            assert result.timestamp.month == month
+            assert result.timestamp.day == day
+
+    def test_raises_on_unparseable_timestamp(self) -> None:
+        """Test that unparseable timestamps raise ValueError."""
+        import pytest
+
+        from logview.adapters.jsonl_parser import _parse_timestamp
+
+        # Invalid timestamp value
+        with pytest.raises(ValueError, match="Cannot parse timestamp"):
+            _parse_timestamp({"invalid": "object"})
+
+    def test_case_insensitive_field_lookup(self) -> None:
+        """Test that field lookup is case-insensitive."""
+        # Test with uppercase MESSAGE field
+        line = '{"MESSAGE": "test message", "LEVEL": "info"}'
+        result = parse_jsonl_line(line)
+
+        assert result.message == "test message"
+        # Severity is normalized to uppercase
+        assert result.severity == "INFO"
+
 
 class TestIsJsonlFormat:
     """Tests for is_jsonl_format function."""
