@@ -204,7 +204,7 @@ class TestGKEFilterBuilding:
             project="test-project",
             cluster="my-cluster",
         )
-        assert 'resource.labels.namespace_name=~"^kube\\-"' in filter_str
+        assert 'resource.labels.namespace_name=~"^kube\\\\-"' in filter_str
 
     def test_pod_filter(self) -> None:
         """Test pod name filter."""
@@ -222,7 +222,7 @@ class TestGKEFilterBuilding:
             project="test-project",
             cluster="my-cluster",
         )
-        assert 'resource.labels.pod_name=~"^api\\-server\\-"' in filter_str
+        assert 'resource.labels.pod_name=~"^api\\\\-server\\\\-"' in filter_str
 
     def test_container_filter(self) -> None:
         """Test container name filter."""
@@ -298,7 +298,7 @@ class TestGKEFilterBuilding:
         )
         assert 'resource.type="k8s_container"' in filter_str
         assert 'resource.labels.namespace_name="default"' in filter_str
-        assert 'resource.labels.pod_name=~"^api\\-"' in filter_str
+        assert 'resource.labels.pod_name=~"^api\\\\-"' in filter_str
         assert "severity >= WARNING" in filter_str
         assert "textPayload:" in filter_str
 
@@ -887,7 +887,9 @@ class TestGKESourceFiltering:
             cluster="test-cluster",
         )
         assert 'resource.labels.namespace_name="default"' in filter_str
-        assert 'resource.labels.pod_name=~"^api\\-server"' in filter_str
+        # After fix: re.escape() first, then Cloud Logging escaping
+        # api-server -> api\-server (regex) -> api\\-server (Cloud Logging)
+        assert 'resource.labels.pod_name=~"^api\\\\-server"' in filter_str
         assert needs_client is True  # Added wildcard for substring
 
     def test_source_filter_namespace_pod_explicit_wildcard(self) -> None:
@@ -899,7 +901,9 @@ class TestGKESourceFiltering:
             cluster="test-cluster",
         )
         assert 'resource.labels.namespace_name="default"' in filter_str
-        assert 'resource.labels.pod_name=~"^api\\-"' in filter_str
+        # After fix: re.escape() first, then Cloud Logging escaping
+        # api- -> api\- (regex) -> api\\- (Cloud Logging)
+        assert 'resource.labels.pod_name=~"^api\\\\-"' in filter_str
         assert needs_client is False  # Explicit wildcard, no client-side needed
 
     def test_source_filter_pod_only(self) -> None:

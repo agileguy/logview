@@ -148,11 +148,12 @@ def _build_wildcard_filter(
                 f"Invalid {field_name} pattern '{pattern}': "
                 f"only trailing wildcards are allowed (e.g., 'prefix-*')"
             )
-        # Quote escaping must happen BEFORE re.escape() because re.escape() only handles
-        # regex metacharacters, not Cloud Logging string delimiters. The backslashes from
-        # re.escape() are intentional regex syntax and should not be further escaped.
-        safe_prefix = prefix.replace('"', '\\"')
-        return f'{label_name}=~"^{re.escape(safe_prefix)}"'
+        # Escape for regex first, then for Cloud Logging string literal
+        # 1. re.escape() handles regex metacharacters (., *, +, ?, etc.)
+        # 2. Then escape backslashes and quotes for Cloud Logging string literal syntax
+        regex_escaped = re.escape(prefix)
+        escaped_prefix = regex_escaped.replace("\\", "\\\\").replace('"', '\\"')
+        return f'{label_name}=~"^{escaped_prefix}"'
     elif "*" in pattern:
         raise GKEInvalidFilterError(
             f"Invalid {field_name} pattern '{pattern}': "
@@ -671,7 +672,9 @@ class GKELogSource:
 
             remaining = log_filter.limit
             while remaining > 0:
-                current_batch_size = min(batch_size, remaining)
+                # Request extra entries when client-side filtering is active to reduce round-trips
+                buffer_size = 50 if client_side_needed else 0
+                current_batch_size = min(batch_size, remaining + buffer_size)
                 batch = await loop.run_in_executor(
                     None,
                     functools.partial(
@@ -691,8 +694,8 @@ class GKELogSource:
                         log_entry = _parse_gke_log_entry(entry, self._cluster)
 
                         # Apply client-side filtering if needed
-                        # Server-side filtering already applied most filters, but source_filter
-                        # may need client-side fallback for cluster-level sources or exact substring matching
+                        # Server-side OR filter covers namespace and pod labels, but we still need
+                        # client-side for cluster-level sources (no labels) or exact substring matching
                         if client_side_needed:
                             if not log_entry.matches_filter(log_filter):
                                 logger.debug("Client-side filtered out: %s", log_entry.source)

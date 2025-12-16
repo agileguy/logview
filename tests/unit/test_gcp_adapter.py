@@ -644,8 +644,10 @@ class TestGCPSourceFiltering:
         """Test special characters are properly escaped in OR filter."""
         log_filter = Filter(source_filter="api-server.prod")
         filter_str, needs_client = _build_filter(log_filter)
-        # re.escape() will escape the dot and dash
-        assert "api\\-server\\.prod" in filter_str
+        # re.escape() escapes regex metacharacters (dot, dash)
+        # Then we escape backslashes and quotes for Cloud Logging string syntax
+        # Result: api\-server\.prod becomes api\\-server\\.prod in the filter
+        assert "api\\\\-server\\\\.prod" in filter_str
         assert "OR" in filter_str
         assert needs_client is True  # Auto-added wildcard - need client-side for exact matching
 

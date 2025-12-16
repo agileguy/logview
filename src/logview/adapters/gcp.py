@@ -203,9 +203,11 @@ def _build_source_filter_gcp(source_filter: str) -> tuple[str, bool]:
         return ("", True)
 
     # Escape for Cloud Logging filter syntax and regex
-    # Order matters: escape for Cloud Logging first, then for regex
-    safe_prefix = prefix.replace("\\", "\\\\").replace('"', '\\"')
-    escaped_prefix = re.escape(safe_prefix)
+    # Order matters: escape for regex first, then for Cloud Logging
+    # 1. re.escape() handles regex metacharacters (., *, +, ?, etc.)
+    # 2. Then escape backslashes and quotes for Cloud Logging string literal syntax
+    regex_escaped = re.escape(prefix)
+    escaped_prefix = regex_escaped.replace("\\", "\\\\").replace('"', '\\"')
 
     # Build OR filter covering all possible GCP source labels
     # GCP source can come from: pod_name, instance_id, function_name, or project_id
@@ -566,7 +568,9 @@ class GCPLogSource:
             remaining = log_filter.limit
             while remaining > 0:
                 # Fetch a batch in the executor (blocking API call)
-                current_batch_size = min(batch_size, remaining)
+                # Request extra entries when client-side filtering is active to reduce round-trips
+                buffer_size = 50 if client_side_needed else 0
+                current_batch_size = min(batch_size, remaining + buffer_size)
                 # Use functools.partial to capture values and avoid type inference issues
                 batch = await loop.run_in_executor(
                     None,
@@ -589,8 +593,8 @@ class GCPLogSource:
                         log_entry = _parse_log_entry(entry, self._project_id)
 
                         # Apply client-side filtering if needed
-                        # Server-side filtering already applied most filters, but source_filter
-                        # needs client-side fallback for non-pod sources (instance_id, function_name, project_id)
+                        # Server-side OR filter covers all source labels (pod, instance, function, project),
+                        # but we still need client-side for exact substring matching when we auto-added wildcards
                         if client_side_needed:
                             if not log_entry.matches_filter(log_filter):
                                 logger.debug("Client-side filtered out: %s", log_entry.source)
