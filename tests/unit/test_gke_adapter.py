@@ -674,6 +674,58 @@ class TestGKELogSource:
 
         assert client.last_resource_names == ["projects/my-project-123"]
 
+    @pytest.mark.asyncio
+    async def test_fetch_applies_source_filter(self) -> None:
+        """Test fetch applies source_filter client-side."""
+        entries = [
+            MockGKELogEntry(
+                text_payload="API log",
+                resource=MockResource(labels={
+                    "project_id": "test-project",
+                    "cluster_name": "test-cluster",
+                    "namespace_name": "default",
+                    "pod_name": "api-server-abc123",
+                    "container_name": "app",
+                }),
+            ),
+            MockGKELogEntry(
+                text_payload="Worker log",
+                resource=MockResource(labels={
+                    "project_id": "test-project",
+                    "cluster_name": "test-cluster",
+                    "namespace_name": "default",
+                    "pod_name": "worker-def456",
+                    "container_name": "app",
+                }),
+            ),
+            MockGKELogEntry(
+                text_payload="Another API log",
+                resource=MockResource(labels={
+                    "project_id": "test-project",
+                    "cluster_name": "test-cluster",
+                    "namespace_name": "production",
+                    "pod_name": "api-gateway-xyz789",
+                    "container_name": "app",
+                }),
+            ),
+        ]
+        client = MockLoggingClient(entries=entries)
+        source = GKELogSource(
+            project_id="test-project",
+            cluster="test-cluster",
+            client=client,
+        )
+
+        # Filter by source containing "api"
+        results = []
+        async for entry in source.fetch(Filter(source_filter="api", limit=10)):
+            results.append(entry)
+
+        # Should only get entries with "api" in source (default/api-server and production/api-gateway)
+        assert len(results) == 2
+        assert "api" in results[0].source.lower()
+        assert "api" in results[1].source.lower()
+
     def test_validate_filter_valid(self) -> None:
         """Test validate_filter with valid filter."""
         client = MockLoggingClient()

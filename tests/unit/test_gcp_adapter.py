@@ -452,6 +452,35 @@ class TestGCPLogSource:
 
         assert client.last_resource_names == ["projects/my-project-123"]
 
+    @pytest.mark.asyncio
+    async def test_fetch_applies_source_filter(self) -> None:
+        """Test fetch applies source_filter client-side."""
+        entries = [
+            MockLogEntry(
+                text_payload="Log from instance 1",
+                resource=MockResource(labels={"instance_id": "web-server-001"}),
+            ),
+            MockLogEntry(
+                text_payload="Log from instance 2",
+                resource=MockResource(labels={"instance_id": "api-server-002"}),
+            ),
+            MockLogEntry(
+                text_payload="Log from instance 3",
+                resource=MockResource(labels={"instance_id": "worker-003"}),
+            ),
+        ]
+        client = MockLoggingClient(entries=entries)
+        source = GCPLogSource(project_id="test-project", client=client)
+
+        # Filter by source containing "api"
+        results = []
+        async for entry in source.fetch(Filter(source_filter="api", limit=10)):
+            results.append(entry)
+
+        # Should only get entries with "api" in source
+        assert len(results) == 1
+        assert "api" in results[0].source.lower()
+
     def test_validate_filter_valid(self) -> None:
         """Test validate_filter with valid filter."""
         client = MockLoggingClient()

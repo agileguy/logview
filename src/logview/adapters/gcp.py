@@ -505,8 +505,10 @@ class GCPLogSource:
                 for entry in batch:
                     try:
                         log_entry = _parse_log_entry(entry, self._project_id)
-                        yield log_entry
-                        count += 1
+                        # Apply client-side filtering (e.g., source_filter)
+                        if log_entry.matches_filter(log_filter):
+                            yield log_entry
+                            count += 1
                     except Exception as e:
                         # Skip entries that fail to parse
                         parse_errors += 1
