@@ -19,6 +19,7 @@ from logview.adapters.context_detector import (
     merge_contexts,
 )
 from logview.adapters.discovery import DiscoveredLog, discover_logs
+from logview.adapters.docker import DOCKER_AVAILABLE, DockerLogSource
 from logview.adapters.gcp import GCP_AVAILABLE, GCPLogSource
 from logview.adapters.gke import GKELogSource
 from logview.adapters.logfile import LogFileSource
@@ -28,6 +29,7 @@ from logview.config.loader import load_config, save_config
 from logview.config.logging import get_logger, setup_logging
 from logview.config.schema import (
     Config,
+    DockerContext,
     GCPContext,
     GKEContext,
     LogFileContext,
@@ -327,7 +329,7 @@ class LogViewApp(App[None]):
 
     def _create_source_from_context(
         self,
-        context: MockContext | SyslogContext | GCPContext | GKEContext | LogFileContext,
+        context: MockContext | SyslogContext | GCPContext | GKEContext | LogFileContext | DockerContext,
     ) -> LogSource | None:
         """Create a log source from a config context.
 
@@ -386,6 +388,18 @@ class LogViewApp(App[None]):
                 location=context.location,
                 default_namespace=context.default_namespace,
                 name=context.name,
+            )
+        elif isinstance(context, DockerContext):
+            if not DOCKER_AVAILABLE:
+                self.notify(
+                    "Docker support requires: pip install logview[docker]",
+                    severity="warning",
+                )
+                return None
+            return DockerLogSource(  # type: ignore[return-value]
+                container=context.container,
+                name=context.name,
+                docker_host=context.docker_host,
             )
         else:
             self.notify(f"Source type '{context.type}' not yet implemented", severity="warning")

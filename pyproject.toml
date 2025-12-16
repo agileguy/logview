@@ -38,6 +38,7 @@ Changelog = "https://github.com/agileguy/logview/blob/main/CHANGELOG.md"
 [project.optional-dependencies]
 gcp = ["google-cloud-logging>=3.0.0"]
 gke = ["kubernetes>=28.0.0"]
+docker = ["docker>=5.0.0"]
 detection = [
     "google-cloud-resource-manager>=1.12.0",
     "google-cloud-container>=2.42.0",
@@ -45,6 +46,7 @@ detection = [
 all = [
     "google-cloud-logging>=3.0.0",
     "kubernetes>=28.0.0",
+    "docker>=5.0.0",
     "google-cloud-resource-manager>=1.12.0",
     "google-cloud-container>=2.42.0",
 ]
@@ -93,6 +95,7 @@ module = [
     "google.cloud.*",
     "google.api_core.*",
     "kubernetes.*",
+    "docker.*",
 ]
 ignore_missing_imports = true
 

@@ -46,6 +46,16 @@
       "path": "/var/log/syslog"
     },
     {
+      "name": "docker-nginx",
+      "type": "docker",
+      "container": "nginx"
+    },
+    {
+      "name": "docker-postgres",
+      "type": "docker",
+      "container": "postgres"
+    },
+    {
       "name": "testing",
       "type": "mock",
       "seed": 42

@@ -1,5 +1,80 @@
 # LogView Action Log
 
+## 2025-12-15: Docker Container Log Support Implementation
+
+**Summary:**
+Implemented comprehensive Docker container log support as a new log source adapter. Follows GCP adapter pattern with optional dependency, rich metadata extraction, and comprehensive test coverage.
+
+**Implementation:**
+- **Adapter**: `src/logview/adapters/docker.py`
+  - `DockerLogSource` class implementing `LogSource` protocol
+  - Optional dependency handling (`pip install logview[docker]`)
+  - Supports JSON and plain text Docker log formats
+  - Automatic severity inference from log messages
+  - Rich container metadata extraction (image, labels, status)
+  - Works with running and stopped containers
+  - Support for local and remote Docker daemons
+  - Custom error hierarchy (DockerNotInstalledError, DockerDaemonError, etc.)
+  - Client protocol for testability (`DockerClientProtocol`)
+
+- **Configuration**: `src/logview/config/schema.py`
+  - Added `DockerContext` Pydantic model
+  - Fields: `name`, `type`, `container`, `docker_host` (optional)
+  - Updated `Context` union type to include DockerContext
+
+- **Integration**: `src/logview/app.py`
+  - Added Docker imports (`DOCKER_AVAILABLE`, `DockerLogSource`)
+  - Updated `_create_source_from_context()` to handle DockerContext
+  - Displays helpful message if docker package not installed
+
+- **Testing**:
+  - Unit tests: `tests/unit/test_docker_adapter.py` (30+ test cases)
+    - Severity inference, timestamp parsing, log line parsing
+    - Container resolution and metadata caching
+    - Error handling (daemon unreachable, container not found)
+    - Filtering (time range, text search, severity)
+  - Integration tests: `tests/integration/test_docker.py` (14 test cases)
+    - Real Docker container creation and log fetching
+    - End-to-end scenarios with filtering
+    - Auto-skips if Docker not available
+
+- **Documentation**:
+  - `DOCKER.md`: Comprehensive implementation plan
+  - `README.md`: Docker setup section, installation options, configuration examples
+  - `CHANGELOG.md`: Added Docker support to [Unreleased]
+
+**Features:**
+- Supports both JSON and plain text log formats from Docker
+- Automatically infers severity from log messages (ERROR, WARN, INFO, DEBUG)
+- Extracts container metadata: ID, name, image, labels, status
+- Time range filtering via Docker `--since` and `--until`
+- Client-side filtering for text search and severity
+- Graceful error handling when Docker unavailable
+- Optional dependency pattern (consistent with GCP/GKE)
+
+**Files Changed:**
+- `DOCKER.md` (new): 475-line implementation plan
+- `src/logview/adapters/docker.py` (new): 526 lines
+- `src/logview/config/schema.py`: Added DockerContext
+- `src/logview/app.py`: Docker integration
+- `tests/unit/test_docker_adapter.py` (new): 515 lines, 30+ tests
+- `tests/integration/test_docker.py` (new): 366 lines, 14 tests
+- `README.md`: Docker setup section
+- `CHANGELOG.md`: Docker support entry
+
+**Commits:**
+- `bb0bdbc`: docs: add comprehensive Docker logs implementation plan
+- `75b1c6d`: feat: implement Docker log adapter and configuration schema
+- `14c25f1`: test: add comprehensive unit tests for Docker adapter
+- `03c6e50`: feat: integrate Docker adapter into main application
+- `81b5750`: test: add comprehensive integration tests for Docker adapter
+
+**Next Steps:**
+- Run quality checks (pytest, mypy, ruff)
+- Create PR for Docker support
+
+---
+
 ## 2025-12-15: Server-Side Source Filtering Complete (v0.8.0)
 
 **Summary:**

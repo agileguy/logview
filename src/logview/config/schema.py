@@ -53,8 +53,17 @@ class LogFileContext(BaseModel):
     format: Literal["auto", "plain", "syslog", "jsonl"] = "auto"
 
 
+class DockerContext(BaseModel):
+    """Docker container log source configuration."""
+
+    name: str
+    type: Literal["docker"]
+    container: str
+    docker_host: str | None = None
+
+
 Context = Annotated[
-    GKEContext | GCPContext | SyslogContext | MockContext | LogFileContext,
+    GKEContext | GCPContext | SyslogContext | MockContext | LogFileContext | DockerContext,
     Field(discriminator="type"),
 ]
 
