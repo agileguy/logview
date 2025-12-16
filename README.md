@@ -6,7 +6,7 @@ A testable, responsive log viewer TUI with pluggable log source contexts.
 
 ## Features
 
-- **Multiple log sources**: Local log files, syslog, GCP Cloud Logging, GKE, and more
+- **Multiple log sources**: Local log files, syslog, Docker containers, GCP Cloud Logging, GKE, and more
 - **Format auto-detection**: Automatically detects plain text, JSON Lines, and syslog formats
 - **Log discovery**: Scan directories to find log files
 - **Tree-based context switcher**: Organized view with configured sources at root, discovered logs in collapsible folder
@@ -70,6 +70,9 @@ pip install logview[gcp]
 
 # With GKE support
 pip install logview[gke]
+
+# With Docker support
+pip install logview[docker]
 
 # With context detection (auto-discover GCP/GKE)
 pip install logview[detection]
@@ -169,6 +172,11 @@ Create `~/.config/logview/config.json`:
       "path": "/var/log/syslog"
     },
     {
+      "name": "docker-nginx",
+      "type": "docker",
+      "container": "nginx"
+    },
+    {
       "name": "gcp-logs",
       "type": "gcp",
       "project": "my-project",
@@ -234,6 +242,53 @@ LogView logs its own activity to help with debugging. Configure logging in your 
 To view logs while running:
 ```bash
 tail -f ~/.config/logview/logview.log
+```
+
+### Docker Container Logs Setup
+
+To view logs from Docker containers:
+
+1. **Install with Docker support**:
+   ```bash
+   pipx install logview[docker]  # or pip install logview[docker]
+   ```
+
+2. **Ensure Docker is running**:
+   ```bash
+   docker info  # Should connect successfully
+   ```
+
+3. **Add a Docker context to your config**:
+   ```json
+   {
+     "name": "nginx-container",
+     "type": "docker",
+     "container": "nginx"
+   }
+   ```
+
+**Requirements**:
+- The `docker` Python package (installed with `.[docker]`)
+- Docker daemon running and accessible
+- User has permission to access Docker (member of `docker` group or root)
+
+**Optional fields**:
+- `docker_host`: Custom Docker daemon URL (e.g., `"tcp://192.168.1.100:2375"` for remote Docker)
+
+**Features**:
+- Supports both JSON and plain text log formats
+- Automatically infers severity from log messages (ERROR, WARN, INFO, DEBUG)
+- Extracts rich container metadata (image, labels, status)
+- Works with running and stopped containers
+
+**Example with remote Docker daemon**:
+```json
+{
+  "name": "remote-app",
+  "type": "docker",
+  "container": "my-app",
+  "docker_host": "tcp://192.168.1.100:2375"
+}
 ```
 
 ### GCP Cloud Logging Setup

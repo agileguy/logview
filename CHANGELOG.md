@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Docker Container Log Support**: View logs from Docker containers
+  - New `DockerLogSource` adapter implementing LogSource protocol
+  - Optional dependency: `pip install logview[docker]`
+  - Supports both JSON and plain text Docker log formats
+  - Automatic severity inference from log messages
+  - Rich container metadata extraction (image, labels, status)
+  - Works with running and stopped containers
+  - Local and remote Docker daemon support
+  - Time range filtering via Docker `--since` and `--until` parameters
+  - Client-side filtering for text search and severity
+  - New `DockerContext` configuration schema
+  - Comprehensive unit tests (30+ test cases)
+  - Integration tests with real Docker containers (14 test cases)
+  - Documentation in README.md and DOCKER.md
+
 ## [0.8.0] - 2025-12-15
 
 ### Added
