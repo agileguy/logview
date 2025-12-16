@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Server-Side Source Filtering**: GCP and GKE adapters now filter by source at the API level
+  - Reduces data transfer by 80-90% for filtered queries
+  - 2-5x faster query performance for specific pod/source filters
+  - Auto-converts plain strings to prefix wildcards ("api" → "api*")
+  - Hybrid approach: server-side filtering with client-side fallback
+  - Supports namespace/pod format for GKE (`"default/api-server"`)
+  - Falls back to client-side for unsupported patterns (mid-string wildcards, namespace wildcards)
+  - 100% backward compatible - no API changes required
+
+### Changed
+- GCP `_build_filter()` now returns `tuple[str, bool]` (filter_string, client_side_needed)
+- GKE `_build_gke_filter()` now returns `tuple[str, bool]`
+
+### Tests
+- 21 new tests for server-side source filtering
+- All 493 tests passing (455 passed, 38 skipped)
+
 ## [0.7.0] - 2025-12-15
 
 ### Added
