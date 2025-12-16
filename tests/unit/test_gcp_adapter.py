@@ -144,12 +144,12 @@ class TestFilterBuilding:
 
     def test_empty_filter(self) -> None:
         """Test building empty filter."""
-        filter_str = _build_filter(Filter())
+        filter_str, _ = _build_filter(Filter())
         assert filter_str == ""
 
     def test_severity_filter(self) -> None:
         """Test building severity filter."""
-        filter_str = _build_filter(Filter(severity=Severity.ERROR))
+        filter_str, _ = _build_filter(Filter(severity=Severity.ERROR))
         assert "severity >= ERROR" in filter_str
 
     def test_time_range_filter(self) -> None:
@@ -157,7 +157,7 @@ class TestFilterBuilding:
         start = datetime(2024, 1, 1, 0, 0, 0)
         end = datetime(2024, 1, 2, 0, 0, 0)
         time_range = TimeRange(start=start, end=end)
-        filter_str = _build_filter(Filter(time_range=time_range))
+        filter_str, _ = _build_filter(Filter(time_range=time_range))
         assert 'timestamp >= "2024-01-01T00:00:00Z"' in filter_str
         assert 'timestamp <= "2024-01-02T00:00:00Z"' in filter_str
 
@@ -166,7 +166,7 @@ class TestFilterBuilding:
         start = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
         end = datetime(2024, 1, 2, 0, 0, 0, tzinfo=UTC)
         time_range = TimeRange(start=start, end=end)
-        filter_str = _build_filter(Filter(time_range=time_range))
+        filter_str, _ = _build_filter(Filter(time_range=time_range))
         # Should use the existing timezone offset, not append extra Z
         assert 'timestamp >= "2024-01-01T00:00:00+00:00"' in filter_str
         assert 'timestamp <= "2024-01-02T00:00:00+00:00"' in filter_str
@@ -175,23 +175,23 @@ class TestFilterBuilding:
 
     def test_text_search_filter(self) -> None:
         """Test building text search filter with parentheses for correct AND/OR precedence."""
-        filter_str = _build_filter(Filter(text_search="error"))
+        filter_str, _ = _build_filter(Filter(text_search="error"))
         # Verify parentheses wrap the OR expression
         assert '(textPayload:"error" OR jsonPayload:"error")' in filter_str
 
     def test_text_search_escapes_quotes(self) -> None:
         """Test that quotes in text search are escaped."""
-        filter_str = _build_filter(Filter(text_search='test "quoted"'))
+        filter_str, _ = _build_filter(Filter(text_search='test "quoted"'))
         assert 'textPayload:"test \\"quoted\\""' in filter_str
 
     def test_log_name_filter(self) -> None:
         """Test building log name filter."""
-        filter_str = _build_filter(Filter(), log_name="my-log")
+        filter_str, _ = _build_filter(Filter(), log_name="my-log")
         assert 'logName="my-log"' in filter_str
 
     def test_resource_type_filter(self) -> None:
         """Test building resource type filter."""
-        filter_str = _build_filter(Filter(), resource_type="gce_instance")
+        filter_str, _ = _build_filter(Filter(), resource_type="gce_instance")
         assert 'resource.type="gce_instance"' in filter_str
 
     def test_combined_filters(self) -> None:
@@ -203,7 +203,7 @@ class TestFilterBuilding:
             severity=Severity.WARN,
             text_search="error",
         )
-        filter_str = _build_filter(
+        filter_str, _ = _build_filter(
             log_filter,
             log_name="my-log",
             resource_type="gce_instance",
@@ -220,20 +220,20 @@ class TestFilterBuilding:
         log_filter = Filter(
             fields={"log_name": "custom-log", "resource_type": "k8s_container"}
         )
-        filter_str = _build_filter(log_filter)
+        filter_str, _ = _build_filter(log_filter)
         assert 'logName="custom-log"' in filter_str
         assert 'resource.type="k8s_container"' in filter_str
 
     def test_text_search_escapes_backslashes(self) -> None:
         """Test that backslashes in text search are escaped before quotes."""
         # Backslash followed by quote: test\"data
-        filter_str = _build_filter(Filter(text_search='test\\"data'))
+        filter_str, _ = _build_filter(Filter(text_search='test\\"data'))
         # Should produce: test\\"data (backslash escaped, then quote escaped)
         assert 'textPayload:"test\\\\\\"data"' in filter_str
 
     def test_text_search_escapes_backslash_only(self) -> None:
         """Test that lone backslashes are escaped."""
-        filter_str = _build_filter(Filter(text_search="path\\to\\file"))
+        filter_str, _ = _build_filter(Filter(text_search="path\\to\\file"))
         # Each backslash should be doubled
         assert 'textPayload:"path\\\\to\\\\file"' in filter_str
 
@@ -243,7 +243,7 @@ class TestFilterBuilding:
             fields={"log_name": "field-log", "resource_type": "field-resource"}
         )
         # When parameters are provided, they take precedence and fields are skipped
-        filter_str = _build_filter(log_filter, log_name="param-log", resource_type="param-resource")
+        filter_str, _ = _build_filter(log_filter, log_name="param-log", resource_type="param-resource")
         # Should only have param values, not field values (which would cause duplicate conditions)
         assert filter_str.count('logName=') == 1
         assert filter_str.count('resource.type=') == 1

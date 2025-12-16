@@ -188,13 +188,13 @@ def _build_source_filter_gcp(source_filter: str) -> tuple[str, bool]:
         logger.debug("Source filter contains '/', using client-side filtering only")
         return ("", True)
 
-    # Convert to prefix wildcard if not already
-    pattern = source_filter if source_filter.endswith("*") else source_filter + "*"
-
-    # Validate wildcard position (only trailing wildcards supported)
-    if "*" in pattern and not pattern.endswith("*"):
+    # Validate wildcard position BEFORE converting (only trailing wildcards supported)
+    if "*" in source_filter and not source_filter.endswith("*"):
         logger.debug("Mid-string wildcard detected, using client-side filtering only")
         return ("", True)
+
+    # Convert to prefix wildcard if not already
+    pattern = source_filter if source_filter.endswith("*") else source_filter + "*"
 
     # Build filter for pod_name (most common source)
     prefix = pattern[:-1]  # Remove trailing *

@@ -178,7 +178,7 @@ class TestGKEFilterBuilding:
 
     def test_basic_filter(self) -> None:
         """Test basic GKE filter with required fields."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(),
             project="test-project",
             cluster="my-cluster",
@@ -189,7 +189,7 @@ class TestGKEFilterBuilding:
 
     def test_namespace_filter(self) -> None:
         """Test namespace filter from default_namespace."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(),
             project="test-project",
             cluster="my-cluster",
@@ -199,7 +199,7 @@ class TestGKEFilterBuilding:
 
     def test_namespace_wildcard_filter(self) -> None:
         """Test namespace filter with wildcard."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"namespace": "kube-*"}),
             project="test-project",
             cluster="my-cluster",
@@ -208,7 +208,7 @@ class TestGKEFilterBuilding:
 
     def test_pod_filter(self) -> None:
         """Test pod name filter."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"pod": "api-server-abc123"}),
             project="test-project",
             cluster="my-cluster",
@@ -217,7 +217,7 @@ class TestGKEFilterBuilding:
 
     def test_pod_wildcard_filter(self) -> None:
         """Test pod name filter with wildcard."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"pod": "api-server-*"}),
             project="test-project",
             cluster="my-cluster",
@@ -226,7 +226,7 @@ class TestGKEFilterBuilding:
 
     def test_container_filter(self) -> None:
         """Test container name filter."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"container": "nginx"}),
             project="test-project",
             cluster="my-cluster",
@@ -235,7 +235,7 @@ class TestGKEFilterBuilding:
 
     def test_labels_filter(self) -> None:
         """Test pod labels filter."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"labels": "app=nginx,env=prod"}),
             project="test-project",
             cluster="my-cluster",
@@ -245,7 +245,7 @@ class TestGKEFilterBuilding:
 
     def test_location_filter(self) -> None:
         """Test location/zone filter."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(),
             project="test-project",
             cluster="my-cluster",
@@ -255,7 +255,7 @@ class TestGKEFilterBuilding:
 
     def test_severity_filter(self) -> None:
         """Test severity filter."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(severity=Severity.ERROR),
             project="test-project",
             cluster="my-cluster",
@@ -267,7 +267,7 @@ class TestGKEFilterBuilding:
         start = datetime(2024, 1, 1, 0, 0, 0)
         end = datetime(2024, 1, 2, 0, 0, 0)
         time_range = TimeRange(start=start, end=end)
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(time_range=time_range),
             project="test-project",
             cluster="my-cluster",
@@ -277,7 +277,7 @@ class TestGKEFilterBuilding:
 
     def test_text_search_filter(self) -> None:
         """Test text search filter."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(text_search="error"),
             project="test-project",
             cluster="my-cluster",
@@ -286,7 +286,7 @@ class TestGKEFilterBuilding:
 
     def test_combined_filters(self) -> None:
         """Test combined filters."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(
                 severity=Severity.WARN,
                 text_search="connection",
@@ -354,7 +354,7 @@ class TestGKEFilterBuilding:
 
     def test_labels_invalid_pair_ignored(self) -> None:
         """Test that label pairs without = are ignored."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"labels": "app=nginx,invalid-label,env=prod"}),
             project="test-project",
             cluster="my-cluster",
@@ -367,7 +367,7 @@ class TestGKEFilterBuilding:
 
     def test_labels_empty_key_ignored(self) -> None:
         """Test that empty label keys are ignored."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"labels": "=value,app=nginx"}),
             project="test-project",
             cluster="my-cluster",
@@ -379,7 +379,7 @@ class TestGKEFilterBuilding:
 
     def test_empty_text_search_ignored(self) -> None:
         """Test that empty/whitespace text search is ignored."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(text_search="   "),
             project="test-project",
             cluster="my-cluster",
@@ -390,7 +390,7 @@ class TestGKEFilterBuilding:
 
     def test_labels_trailing_comma_handled(self) -> None:
         """Test that trailing commas in labels are handled."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"labels": "app=nginx,"}),
             project="test-project",
             cluster="my-cluster",
@@ -399,7 +399,7 @@ class TestGKEFilterBuilding:
 
     def test_labels_special_chars_escaped(self) -> None:
         """Test that special characters in label values are escaped."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"labels": 'app="quoted",path=back\\slash'}),
             project="test-project",
             cluster="my-cluster",
