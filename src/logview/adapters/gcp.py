@@ -189,8 +189,12 @@ def _build_source_filter_gcp(source_filter: str) -> tuple[str, bool]:
         return ("", True)
 
     # Validate wildcard position BEFORE converting (only trailing wildcards supported)
+    # Leading wildcards (*api) or mid-string wildcards (api-*-server) not supported
     if "*" in source_filter and not source_filter.endswith("*"):
         logger.debug("Mid-string wildcard detected, using client-side filtering only")
+        return ("", True)
+    if source_filter.startswith("*"):
+        logger.debug("Leading wildcard detected, using client-side filtering only")
         return ("", True)
 
     # Convert to prefix wildcard if not already
@@ -592,13 +596,12 @@ class GCPLogSource:
                     try:
                         log_entry = _parse_log_entry(entry, self._project_id)
 
-                        # Apply client-side filtering if needed
-                        # Server-side OR filter covers all source labels (pod, instance, function, project),
-                        # but we still need client-side for exact substring matching when we auto-added wildcards
-                        if client_side_needed:
-                            if not log_entry.matches_filter(log_filter):
-                                logger.debug("Client-side filtered out: %s", log_entry.source)
-                                continue
+                        # Apply client-side filtering as a safety net
+                        # Server-side filters handle most cases, but we use matches_filter() to ensure
+                        # correctness for all filter types (especially source_filter substring matching)
+                        if not log_entry.matches_filter(log_filter):
+                            logger.debug("Client-side filtered out: %s", log_entry.source)
+                            continue
 
                         yield log_entry
                         count += 1

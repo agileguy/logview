@@ -227,11 +227,17 @@ def _build_source_filter_gke(source_filter: str) -> tuple[list[str], bool]:
         # Pod-only format - match on namespace OR pod using OR operator
         # Source could be: "namespace/pod", "pod", or "cluster"
         # Using OR covers entries where namespace OR pod matches the pattern
-        pattern = source_filter if source_filter.endswith("*") else source_filter + "*"
 
-        if "*" in pattern and not pattern.endswith("*"):
+        # Validate wildcard position BEFORE converting (only trailing wildcards supported)
+        # Leading wildcards (*api) or mid-string wildcards (api-*-server) not supported
+        if "*" in source_filter and not source_filter.endswith("*"):
             logger.debug("Mid-string wildcard in pod, using client-side filtering only")
             return ([], True)
+        if source_filter.startswith("*"):
+            logger.debug("Leading wildcard in pod, using client-side filtering only")
+            return ([], True)
+
+        pattern = source_filter if source_filter.endswith("*") else source_filter + "*"
 
         try:
             # Build filters for both namespace and pod labels
@@ -692,13 +698,12 @@ class GKELogSource:
                     try:
                         log_entry = _parse_gke_log_entry(entry, self._cluster)
 
-                        # Apply client-side filtering if needed
-                        # Server-side OR filter covers namespace and pod labels, but we still need
-                        # client-side for cluster-level sources (no labels) or exact substring matching
-                        if client_side_needed:
-                            if not log_entry.matches_filter(log_filter):
-                                logger.debug("Client-side filtered out: %s", log_entry.source)
-                                continue
+                        # Apply client-side filtering as a safety net
+                        # Server-side filters handle most cases, but we use matches_filter() to ensure
+                        # correctness for all filter types (especially source_filter substring matching)
+                        if not log_entry.matches_filter(log_filter):
+                            logger.debug("Client-side filtered out: %s", log_entry.source)
+                            continue
 
                         yield log_entry
                         count += 1
