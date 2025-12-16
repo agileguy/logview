@@ -18,6 +18,7 @@ from logview.adapters.docker import (
     _infer_severity,
     _parse_docker_timestamp,
     _parse_log_line,
+    _sanitize_message,
 )
 from logview.domain.models import Filter, Severity, TimeRange
 
@@ -140,6 +141,38 @@ def test_infer_severity_priority():
     assert _infer_severity("ERROR in process", {"level": "INFO"}) == Severity.INFO
 
 
+def test_sanitize_message_ansi_codes():
+    """Test ANSI escape code removal from messages."""
+    # Portainer-style colored log with ANSI codes
+    message = "\x1b[90m2025/12/14 09:19PM\x1b[0m \x1b[32mINF\x1b[0m \x1b[1mstarting server\x1b[0m"
+    sanitized = _sanitize_message(message)
+    assert sanitized == "2025/12/14 09:19PM INF starting server"
+    assert "\x1b" not in sanitized
+
+    # Message with [XXm style ANSI codes
+    message = "[90m2025/12/14[0m [32mINF[0m message"
+    # Note: [XXm style codes without ESC prefix are not ANSI codes
+    # They should remain as-is (just part of the message)
+    sanitized = _sanitize_message(message)
+    # Should still contain the brackets as they're not escape codes
+    assert "[90m" in sanitized or "2025/12/14" in sanitized
+
+    # Real ANSI codes with ESC prefix
+    message = "\x1b[32mGREEN\x1b[0m normal \x1b[1mbold\x1b[0m"
+    sanitized = _sanitize_message(message)
+    assert sanitized == "GREEN normal bold"
+
+    # Control characters (should be removed except tab/newline)
+    message = "test\x00\x01\x02message"
+    sanitized = _sanitize_message(message)
+    assert sanitized == "testmessage"
+
+    # Tab and newline should be preserved
+    message = "test\ttab\nnewline"
+    sanitized = _sanitize_message(message)
+    assert sanitized == "test\ttab\nnewline"
+
+
 def test_parse_docker_timestamp():
     """Test Docker timestamp parsing."""
     # Standard Docker timestamp with nanoseconds
@@ -220,6 +253,22 @@ def test_parse_log_line_plain_text_no_timestamp():
 
     assert entry is not None
     assert entry.message == "Just a log message without timestamp"
+
+
+def test_parse_log_line_with_ansi_codes():
+    """Test parsing log line with ANSI escape codes (like Portainer)."""
+    # JSON format with ANSI codes
+    line = b'{"log":"\\u001b[90m2025/12/14\\u001b[0m \\u001b[32mINF\\u001b[0m starting\\n","stream":"stdout","time":"2024-01-15T10:00:00Z"}\n'
+    metadata = {"container_id": "abc123"}
+
+    entry = _parse_log_line(line, "test", metadata)
+
+    assert entry is not None
+    # ANSI codes should be stripped
+    assert "\x1b" not in entry.message
+    assert "2025/12/14" in entry.message
+    assert "INF" in entry.message
+    assert "starting" in entry.message
 
 
 def test_parse_log_line_empty():

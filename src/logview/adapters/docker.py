@@ -28,7 +28,7 @@ DOCKER_AVAILABLE = False
 _docker_module: Any = None
 
 try:
-    import docker  # type: ignore[import-untyped]
+    import docker
 
     DOCKER_AVAILABLE = True
     _docker_module = docker
@@ -138,6 +138,27 @@ def _infer_severity(message: str, json_log: dict[str, Any] | None = None) -> Sev
     return Severity.INFO
 
 
+def _sanitize_message(message: str) -> str:
+    """Remove ANSI escape codes and control characters from message.
+
+    Args:
+        message: The log message.
+
+    Returns:
+        Sanitized message with ANSI codes removed.
+    """
+    # Remove ANSI escape sequences
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    message = ansi_escape.sub("", message)
+
+    # Remove other control characters except tab and newline
+    message = "".join(
+        char if char in ("\t", "\n") or (ord(char) >= 32) else "" for char in message
+    )
+
+    return message
+
+
 def _parse_docker_timestamp(timestamp_str: str) -> datetime:
     """Parse Docker timestamp to datetime.
 
@@ -199,6 +220,9 @@ def _parse_log_line(
             message = log_obj.get("log", "").rstrip("\n")
             stream = log_obj.get("stream", "stdout")
 
+            # Sanitize message to remove ANSI codes
+            message = _sanitize_message(message)
+
             timestamp = _parse_docker_timestamp(timestamp_str) if timestamp_str else datetime.now()
             severity = _infer_severity(message, log_obj)
 
@@ -227,6 +251,9 @@ def _parse_log_line(
         else:
             timestamp = datetime.now()
             message = line_str
+
+        # Sanitize message to remove ANSI codes
+        message = _sanitize_message(message)
 
         severity = _infer_severity(message)
 
