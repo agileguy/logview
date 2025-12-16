@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-12-15
+
 ### Added
 - **Server-Side Source Filtering with OR Operators**: GCP and GKE adapters now use Cloud Logging OR syntax to filter across all source labels
   - **GCP**: Filters on `(pod_name OR instance_id OR function_name OR project_id)` - covers ALL GCP source types
@@ -214,7 +216,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions CI pipeline
 - Comprehensive test suite (pytest, mypy, ruff)
 
-[Unreleased]: https://github.com/agileguy/logview/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/agileguy/logview/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/agileguy/logview/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/agileguy/logview/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/agileguy/logview/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/agileguy/logview/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/agileguy/logview/compare/v0.3.0...v0.4.0

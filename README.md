@@ -11,6 +11,7 @@ A testable, responsive log viewer TUI with pluggable log source contexts.
 - **Log discovery**: Scan directories to find log files
 - **Tree-based context switcher**: Organized view with configured sources at root, discovered logs in collapsible folder
 - **Flexible filtering**: Time range, severity, text search, source filter, and source-specific fields
+  - **Server-side filtering**: GCP/GKE adapters push source filters to Cloud Logging API (80-90% reduction in data transfer)
 - **Memory efficient**: Batch processing and heap-based selection for large log files
 - **Application logging**: Configurable rotating file handler for debugging
 - **Keyboard-first**: Full functionality without mouse

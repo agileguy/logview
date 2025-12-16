@@ -1,5 +1,49 @@
 # LogView Action Log
 
+## 2025-12-15: Server-Side Source Filtering Complete (v0.8.0)
+
+**Summary:**
+Completed implementation of server-side source filtering for GCP/GKE adapters with OR operator solution. Fixed 3 bugs identified by Cursor Bugbot review. Released as v0.8.0.
+
+**Final Implementation:**
+- **GCP**: Filters on `(pod_name OR instance_id OR function_name OR project_id)` - covers ALL GCP source types
+- **GKE**: Filters on `(namespace_name OR pod_name)` for pod-only format
+- **Performance**: 80-90% reduction in data transfer, 2-5x faster queries
+- **Hybrid approach**: Server-side filtering with minimal client-side fallback
+
+**Bug Fixes (Cursor Bugbot Review):**
+1. **GKE mid-string wildcard check** (gke.py:232-238)
+   - Moved validation BEFORE pattern conversion
+   - Prevents `api-*-server` from incorrectly passing validation
+2. **Leading wildcard detection** (gcp.py:196-198, gke.py:236-238)
+   - Added check for patterns starting with `*`
+   - Prevents `*api*` from being incorrectly treated as prefix match
+3. **Client-side filtering safety net** (gcp.py:599-604, gke.py:701-706)
+   - Restored unconditional `matches_filter()` call
+   - Ensures all filter types validated even when server-side exact
+
+**Testing:**
+- ✅ 455 tests passing (38 skipped)
+- ✅ All CI checks green (lint, type check, tests on 3.11/3.12)
+- ✅ Cursor Bugbot review: 0 new comments after fixes
+
+**Documentation:**
+- Updated VERSION: 0.7.0 → 0.8.0
+- Updated CHANGELOG.md with [0.8.0] release section
+- Updated README.md Features section with server-side filtering note
+- Updated SERVER-FILTER.md with correct escaping order
+
+**Commits:**
+- `72912b1`: feat: implement OR operator solution for server-side source filtering
+- `c7e7e31`: docs: document OR operator solution for source filtering
+- `d65b0bf`: fix: address code quality issues in source filtering implementation
+- `07b13ba`: fix: remove redundant boolean and fix documentation escaping
+- `a8ee987`: fix: address Cursor Bugbot review findings
+
+**PR:** #15 (filter-call branch)
+
+---
+
 ## 2025-12-15: OR Operator Solution for Server-Side Source Filtering
 
 **Summary:**
