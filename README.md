@@ -86,7 +86,7 @@ pip install logview[all]
 ```bash
 git clone https://github.com/agileguy/logview.git
 cd logview
-pip install -e ".[dev]"
+pip install -e ".[all]"
 ```
 
 ### System Requirements
