@@ -164,11 +164,61 @@ def _validate_project_id(project: str) -> None:
     logger.debug("Project ID validated: %s", project)
 
 
+def _build_source_filter_gcp(source_filter: str) -> tuple[str, bool]:
+    """Build GCP resource label filter for source_filter.
+
+    Converts source_filter to a Cloud Logging resource label filter that targets
+    the pod_name label (most common source). Falls back to client-side filtering
+    for unsupported patterns.
+
+    Args:
+        source_filter: Source filter value (e.g., "api-server", "api-*")
+
+    Returns:
+        Tuple of (filter_string, client_side_needed):
+        - filter_string: Cloud Logging filter string for pod_name, or empty string
+        - client_side_needed: Always True since we need client-side fallback for
+          non-pod sources (instance_id, function_name, project_id)
+    """
+    if not source_filter:
+        return ("", False)
+
+    # Slash invalid for GCP (that's GKE namespace/pod format)
+    if "/" in source_filter:
+        logger.debug("Source filter contains '/', using client-side filtering only")
+        return ("", True)
+
+    # Convert to prefix wildcard if not already
+    pattern = source_filter if source_filter.endswith("*") else source_filter + "*"
+
+    # Validate wildcard position (only trailing wildcards supported)
+    if "*" in pattern and not pattern.endswith("*"):
+        logger.debug("Mid-string wildcard detected, using client-side filtering only")
+        return ("", True)
+
+    # Build filter for pod_name (most common source)
+    prefix = pattern[:-1]  # Remove trailing *
+    if not prefix:
+        logger.debug("Wildcard-only pattern, using client-side filtering only")
+        return ("", True)
+
+    # Escape for Cloud Logging filter syntax
+    # First escape backslashes and quotes for Cloud Logging, then escape for regex
+    safe_prefix = prefix.replace("\\", "\\\\").replace('"', '\\"')
+    escaped_prefix = re.escape(safe_prefix)
+    filter_str = f'resource.labels.pod_name=~"^{escaped_prefix}"'
+
+    logger.debug("Built server-side filter: %s (client-side fallback enabled)", filter_str)
+
+    # Client-side still needed for non-pod sources (instance_id, function_name, project_id)
+    return (filter_str, True)
+
+
 def _build_filter(
     log_filter: Filter,
     log_name: str | None = None,
     resource_type: str | None = None,
-) -> str:
+) -> tuple[str, bool]:
     """Build a Cloud Logging filter string.
 
     Args:
@@ -177,7 +227,9 @@ def _build_filter(
         resource_type: Optional resource type to filter by.
 
     Returns:
-        Cloud Logging filter string.
+        Tuple of (filter_string, client_side_needed):
+        - filter_string: Cloud Logging filter string
+        - client_side_needed: Whether client-side filtering is needed for source_filter
     """
     parts: list[str] = []
 
@@ -224,7 +276,15 @@ def _build_filter(
             elif key == "resource_type" and value and not resource_type:
                 parts.append(f'resource.type="{value}"')
 
-    return " AND ".join(parts) if parts else ""
+    # Source filter (server-side when possible, with client-side fallback)
+    client_side_needed = False
+    if log_filter.source_filter:
+        source_filter_str, needs_client = _build_source_filter_gcp(log_filter.source_filter)
+        if source_filter_str:
+            parts.append(source_filter_str)
+        client_side_needed = needs_client
+
+    return (" AND ".join(parts) if parts else "", client_side_needed)
 
 
 def _parse_log_entry(entry: Any, project: str) -> LogEntry:
@@ -454,13 +514,17 @@ class GCPLogSource:
         logger.info("Fetching logs from GCP project: %s (limit: %d)", self._project_id, log_filter.limit)
         client = self._get_client()
 
-        # Build the filter string
-        filter_str = _build_filter(
+        # Build the filter string (server-side filtering)
+        filter_str, client_side_needed = _build_filter(
             log_filter,
             log_name=self._log_name,
             resource_type=self._resource_type,
         )
-        logger.debug("GCP filter string: %s", filter_str or "(empty)")
+        logger.debug(
+            "GCP filter: %s, client-side filtering needed: %s",
+            filter_str or "(empty)",
+            client_side_needed
+        )
 
         # Fetch entries in batches to reduce memory usage
         count = 0
@@ -505,10 +569,17 @@ class GCPLogSource:
                 for entry in batch:
                     try:
                         log_entry = _parse_log_entry(entry, self._project_id)
-                        # Apply client-side filtering (e.g., source_filter)
-                        if log_entry.matches_filter(log_filter):
-                            yield log_entry
-                            count += 1
+
+                        # Apply client-side filtering if needed
+                        # Server-side filtering already applied most filters, but source_filter
+                        # needs client-side fallback for non-pod sources (instance_id, function_name, project_id)
+                        if client_side_needed:
+                            if not log_entry.matches_filter(log_filter):
+                                logger.debug("Client-side filtered out: %s", log_entry.source)
+                                continue
+
+                        yield log_entry
+                        count += 1
                     except Exception as e:
                         # Skip entries that fail to parse
                         parse_errors += 1
