@@ -18,6 +18,7 @@ from logview.adapters.gcp import (
     GCPProjectNotFoundError,
     GCPQuotaExceededError,
     _build_filter,
+    _build_source_filter_gcp,
     _parse_log_entry,
     _validate_project_id,
 )
@@ -143,12 +144,12 @@ class TestFilterBuilding:
 
     def test_empty_filter(self) -> None:
         """Test building empty filter."""
-        filter_str = _build_filter(Filter())
+        filter_str, _ = _build_filter(Filter())
         assert filter_str == ""
 
     def test_severity_filter(self) -> None:
         """Test building severity filter."""
-        filter_str = _build_filter(Filter(severity=Severity.ERROR))
+        filter_str, _ = _build_filter(Filter(severity=Severity.ERROR))
         assert "severity >= ERROR" in filter_str
 
     def test_time_range_filter(self) -> None:
@@ -156,7 +157,7 @@ class TestFilterBuilding:
         start = datetime(2024, 1, 1, 0, 0, 0)
         end = datetime(2024, 1, 2, 0, 0, 0)
         time_range = TimeRange(start=start, end=end)
-        filter_str = _build_filter(Filter(time_range=time_range))
+        filter_str, _ = _build_filter(Filter(time_range=time_range))
         assert 'timestamp >= "2024-01-01T00:00:00Z"' in filter_str
         assert 'timestamp <= "2024-01-02T00:00:00Z"' in filter_str
 
@@ -165,7 +166,7 @@ class TestFilterBuilding:
         start = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
         end = datetime(2024, 1, 2, 0, 0, 0, tzinfo=UTC)
         time_range = TimeRange(start=start, end=end)
-        filter_str = _build_filter(Filter(time_range=time_range))
+        filter_str, _ = _build_filter(Filter(time_range=time_range))
         # Should use the existing timezone offset, not append extra Z
         assert 'timestamp >= "2024-01-01T00:00:00+00:00"' in filter_str
         assert 'timestamp <= "2024-01-02T00:00:00+00:00"' in filter_str
@@ -174,23 +175,23 @@ class TestFilterBuilding:
 
     def test_text_search_filter(self) -> None:
         """Test building text search filter with parentheses for correct AND/OR precedence."""
-        filter_str = _build_filter(Filter(text_search="error"))
+        filter_str, _ = _build_filter(Filter(text_search="error"))
         # Verify parentheses wrap the OR expression
         assert '(textPayload:"error" OR jsonPayload:"error")' in filter_str
 
     def test_text_search_escapes_quotes(self) -> None:
         """Test that quotes in text search are escaped."""
-        filter_str = _build_filter(Filter(text_search='test "quoted"'))
+        filter_str, _ = _build_filter(Filter(text_search='test "quoted"'))
         assert 'textPayload:"test \\"quoted\\""' in filter_str
 
     def test_log_name_filter(self) -> None:
         """Test building log name filter."""
-        filter_str = _build_filter(Filter(), log_name="my-log")
+        filter_str, _ = _build_filter(Filter(), log_name="my-log")
         assert 'logName="my-log"' in filter_str
 
     def test_resource_type_filter(self) -> None:
         """Test building resource type filter."""
-        filter_str = _build_filter(Filter(), resource_type="gce_instance")
+        filter_str, _ = _build_filter(Filter(), resource_type="gce_instance")
         assert 'resource.type="gce_instance"' in filter_str
 
     def test_combined_filters(self) -> None:
@@ -202,7 +203,7 @@ class TestFilterBuilding:
             severity=Severity.WARN,
             text_search="error",
         )
-        filter_str = _build_filter(
+        filter_str, _ = _build_filter(
             log_filter,
             log_name="my-log",
             resource_type="gce_instance",
@@ -219,20 +220,20 @@ class TestFilterBuilding:
         log_filter = Filter(
             fields={"log_name": "custom-log", "resource_type": "k8s_container"}
         )
-        filter_str = _build_filter(log_filter)
+        filter_str, _ = _build_filter(log_filter)
         assert 'logName="custom-log"' in filter_str
         assert 'resource.type="k8s_container"' in filter_str
 
     def test_text_search_escapes_backslashes(self) -> None:
         """Test that backslashes in text search are escaped before quotes."""
         # Backslash followed by quote: test\"data
-        filter_str = _build_filter(Filter(text_search='test\\"data'))
+        filter_str, _ = _build_filter(Filter(text_search='test\\"data'))
         # Should produce: test\\"data (backslash escaped, then quote escaped)
         assert 'textPayload:"test\\\\\\"data"' in filter_str
 
     def test_text_search_escapes_backslash_only(self) -> None:
         """Test that lone backslashes are escaped."""
-        filter_str = _build_filter(Filter(text_search="path\\to\\file"))
+        filter_str, _ = _build_filter(Filter(text_search="path\\to\\file"))
         # Each backslash should be doubled
         assert 'textPayload:"path\\\\to\\\\file"' in filter_str
 
@@ -242,7 +243,7 @@ class TestFilterBuilding:
             fields={"log_name": "field-log", "resource_type": "field-resource"}
         )
         # When parameters are provided, they take precedence and fields are skipped
-        filter_str = _build_filter(log_filter, log_name="param-log", resource_type="param-resource")
+        filter_str, _ = _build_filter(log_filter, log_name="param-log", resource_type="param-resource")
         # Should only have param values, not field values (which would cause duplicate conditions)
         assert filter_str.count('logName=') == 1
         assert filter_str.count('resource.type=') == 1
@@ -589,3 +590,122 @@ class TestGCPNotInstalled:
         client = MockLoggingClient()
         source = GCPLogSource(project_id="test-project-id", client=client)
         assert source.name == "GCP: test-project-id"
+
+
+class TestGCPSourceFiltering:
+    """Tests for server-side source filtering in GCP adapter."""
+
+    def test_source_filter_plain_string(self) -> None:
+        """Test plain string uses OR across all source labels."""
+        log_filter = Filter(source_filter="api")
+        filter_str, needs_client = _build_filter(log_filter)
+        # Should have OR filter covering all source labels
+        assert "OR" in filter_str
+        assert "pod_name" in filter_str
+        assert "instance_id" in filter_str
+        assert "function_name" in filter_str
+        assert "project_id" in filter_str
+        assert needs_client is True  # Auto-added wildcard - need client-side for exact matching
+
+    def test_source_filter_explicit_wildcard(self) -> None:
+        """Test explicit wildcard with OR across all source labels."""
+        log_filter = Filter(source_filter="api-*")
+        filter_str, needs_client = _build_filter(log_filter)
+        # Should have OR filter covering all source labels
+        assert "OR" in filter_str
+        assert "pod_name" in filter_str
+        assert "instance_id" in filter_str
+        assert "function_name" in filter_str
+        assert "project_id" in filter_str
+        assert needs_client is False  # Explicit wildcard - server-side handles completely
+
+    def test_source_filter_with_slash_falls_back(self) -> None:
+        """Test namespace/pod format falls back to client-side."""
+        log_filter = Filter(source_filter="default/api")
+        filter_str, needs_client = _build_filter(log_filter)
+        assert "pod_name" not in filter_str
+        assert needs_client is True
+
+    def test_source_filter_mid_wildcard_falls_back(self) -> None:
+        """Test mid-string wildcard falls back to client-side."""
+        log_filter = Filter(source_filter="api-*-server")
+        filter_str, needs_client = _build_filter(log_filter)
+        assert "pod_name" not in filter_str
+        assert needs_client is True
+
+    def test_source_filter_wildcard_only_falls_back(self) -> None:
+        """Test wildcard-only pattern falls back to client-side."""
+        log_filter = Filter(source_filter="*")
+        filter_str, needs_client = _build_filter(log_filter)
+        assert "pod_name" not in filter_str
+        assert needs_client is True
+
+    def test_source_filter_escapes_special_chars(self) -> None:
+        """Test special characters are properly escaped in OR filter."""
+        log_filter = Filter(source_filter="api-server.prod")
+        filter_str, needs_client = _build_filter(log_filter)
+        # re.escape() escapes regex metacharacters (dot, dash)
+        # Then we escape backslashes and quotes for Cloud Logging string syntax
+        # Result: api\-server\.prod becomes api\\-server\\.prod in the filter
+        assert "api\\\\-server\\\\.prod" in filter_str
+        assert "OR" in filter_str
+        assert needs_client is True  # Auto-added wildcard - need client-side for exact matching
+
+    def test_no_source_filter_returns_false(self) -> None:
+        """Test no source filter returns client_side_needed=False."""
+        log_filter = Filter()
+        filter_str, needs_client = _build_filter(log_filter)
+        assert needs_client is False
+
+    def test_build_source_filter_gcp_empty(self) -> None:
+        """Test _build_source_filter_gcp with empty string."""
+        filter_str, needs_client = _build_source_filter_gcp("")
+        assert filter_str == ""
+        assert needs_client is False
+
+    @pytest.mark.asyncio
+    async def test_fetch_with_source_filter_includes_in_api_call(self) -> None:
+        """Test source_filter uses OR across all source labels in API call."""
+        client = MockLoggingClient(entries=[])
+        source = GCPLogSource(project_id="test-project", client=client)
+
+        async for _ in source.fetch(Filter(source_filter="api", limit=10)):
+            pass
+
+        # Verify OR filter with all source labels
+        assert "OR" in client.last_filter
+        assert "pod_name" in client.last_filter
+        assert "instance_id" in client.last_filter
+        assert "function_name" in client.last_filter
+        assert "project_id" in client.last_filter
+
+    @pytest.mark.asyncio
+    async def test_hybrid_filtering_non_pod_sources(self) -> None:
+        """Test OR filter covers all source types, client-side confirms exact match."""
+        entries = [
+            MockLogEntry(
+                text_payload="pod log",
+                resource=MockResource(labels={"pod_name": "api-server"}),
+            ),
+            MockLogEntry(
+                text_payload="instance log",
+                resource=MockResource(labels={"instance_id": "api-vm-001"}),
+            ),
+            MockLogEntry(
+                text_payload="function log",
+                resource=MockResource(labels={"function_name": "worker"}),
+            ),
+        ]
+        client = MockLoggingClient(entries=entries)
+        source = GCPLogSource(project_id="test-project", client=client)
+
+        results = []
+        async for entry in source.fetch(Filter(source_filter="api", limit=10)):
+            results.append(entry)
+
+        # OR filter matches pod_name=~"^api" OR instance_id=~"^api" (both match)
+        # function_name="worker" doesn't match "^api" pattern
+        # Client-side confirms exact substring match for auto-added wildcard
+        assert len(results) == 2  # pod + instance, not function
+        sources = [r.source.lower() for r in results]
+        assert any("api" in s for s in sources)

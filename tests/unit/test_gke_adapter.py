@@ -15,6 +15,7 @@ from logview.adapters.gke import (
     GKEInvalidFilterError,
     GKELogSource,
     _build_gke_filter,
+    _build_source_filter_gke,
     _parse_gke_log_entry,
     _validate_cluster_name,
     _validate_namespace,
@@ -177,7 +178,7 @@ class TestGKEFilterBuilding:
 
     def test_basic_filter(self) -> None:
         """Test basic GKE filter with required fields."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(),
             project="test-project",
             cluster="my-cluster",
@@ -188,7 +189,7 @@ class TestGKEFilterBuilding:
 
     def test_namespace_filter(self) -> None:
         """Test namespace filter from default_namespace."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(),
             project="test-project",
             cluster="my-cluster",
@@ -198,16 +199,16 @@ class TestGKEFilterBuilding:
 
     def test_namespace_wildcard_filter(self) -> None:
         """Test namespace filter with wildcard."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"namespace": "kube-*"}),
             project="test-project",
             cluster="my-cluster",
         )
-        assert 'resource.labels.namespace_name=~"^kube\\-"' in filter_str
+        assert 'resource.labels.namespace_name=~"^kube\\\\-"' in filter_str
 
     def test_pod_filter(self) -> None:
         """Test pod name filter."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"pod": "api-server-abc123"}),
             project="test-project",
             cluster="my-cluster",
@@ -216,16 +217,16 @@ class TestGKEFilterBuilding:
 
     def test_pod_wildcard_filter(self) -> None:
         """Test pod name filter with wildcard."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"pod": "api-server-*"}),
             project="test-project",
             cluster="my-cluster",
         )
-        assert 'resource.labels.pod_name=~"^api\\-server\\-"' in filter_str
+        assert 'resource.labels.pod_name=~"^api\\\\-server\\\\-"' in filter_str
 
     def test_container_filter(self) -> None:
         """Test container name filter."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"container": "nginx"}),
             project="test-project",
             cluster="my-cluster",
@@ -234,7 +235,7 @@ class TestGKEFilterBuilding:
 
     def test_labels_filter(self) -> None:
         """Test pod labels filter."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"labels": "app=nginx,env=prod"}),
             project="test-project",
             cluster="my-cluster",
@@ -244,7 +245,7 @@ class TestGKEFilterBuilding:
 
     def test_location_filter(self) -> None:
         """Test location/zone filter."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(),
             project="test-project",
             cluster="my-cluster",
@@ -254,7 +255,7 @@ class TestGKEFilterBuilding:
 
     def test_severity_filter(self) -> None:
         """Test severity filter."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(severity=Severity.ERROR),
             project="test-project",
             cluster="my-cluster",
@@ -266,7 +267,7 @@ class TestGKEFilterBuilding:
         start = datetime(2024, 1, 1, 0, 0, 0)
         end = datetime(2024, 1, 2, 0, 0, 0)
         time_range = TimeRange(start=start, end=end)
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(time_range=time_range),
             project="test-project",
             cluster="my-cluster",
@@ -276,7 +277,7 @@ class TestGKEFilterBuilding:
 
     def test_text_search_filter(self) -> None:
         """Test text search filter."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(text_search="error"),
             project="test-project",
             cluster="my-cluster",
@@ -285,7 +286,7 @@ class TestGKEFilterBuilding:
 
     def test_combined_filters(self) -> None:
         """Test combined filters."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(
                 severity=Severity.WARN,
                 text_search="connection",
@@ -297,7 +298,7 @@ class TestGKEFilterBuilding:
         )
         assert 'resource.type="k8s_container"' in filter_str
         assert 'resource.labels.namespace_name="default"' in filter_str
-        assert 'resource.labels.pod_name=~"^api\\-"' in filter_str
+        assert 'resource.labels.pod_name=~"^api\\\\-"' in filter_str
         assert "severity >= WARNING" in filter_str
         assert "textPayload:" in filter_str
 
@@ -353,7 +354,7 @@ class TestGKEFilterBuilding:
 
     def test_labels_invalid_pair_ignored(self) -> None:
         """Test that label pairs without = are ignored."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"labels": "app=nginx,invalid-label,env=prod"}),
             project="test-project",
             cluster="my-cluster",
@@ -366,7 +367,7 @@ class TestGKEFilterBuilding:
 
     def test_labels_empty_key_ignored(self) -> None:
         """Test that empty label keys are ignored."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"labels": "=value,app=nginx"}),
             project="test-project",
             cluster="my-cluster",
@@ -378,7 +379,7 @@ class TestGKEFilterBuilding:
 
     def test_empty_text_search_ignored(self) -> None:
         """Test that empty/whitespace text search is ignored."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(text_search="   "),
             project="test-project",
             cluster="my-cluster",
@@ -389,7 +390,7 @@ class TestGKEFilterBuilding:
 
     def test_labels_trailing_comma_handled(self) -> None:
         """Test that trailing commas in labels are handled."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"labels": "app=nginx,"}),
             project="test-project",
             cluster="my-cluster",
@@ -398,7 +399,7 @@ class TestGKEFilterBuilding:
 
     def test_labels_special_chars_escaped(self) -> None:
         """Test that special characters in label values are escaped."""
-        filter_str = _build_gke_filter(
+        filter_str, _ = _build_gke_filter(
             Filter(fields={"labels": 'app="quoted",path=back\\slash'}),
             project="test-project",
             cluster="my-cluster",
@@ -872,3 +873,171 @@ class TestGKENotInstalled:
             client=client,
         )
         assert source.name == "GKE: my-cluster"
+
+
+class TestGKESourceFiltering:
+    """Tests for server-side source filtering in GKE adapter."""
+
+    def test_source_filter_namespace_pod(self) -> None:
+        """Test namespace/pod format."""
+        log_filter = Filter(source_filter="default/api-server")
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        assert 'resource.labels.namespace_name="default"' in filter_str
+        # After fix: re.escape() first, then Cloud Logging escaping
+        # api-server -> api\-server (regex) -> api\\-server (Cloud Logging)
+        assert 'resource.labels.pod_name=~"^api\\\\-server"' in filter_str
+        assert needs_client is True  # Added wildcard for substring
+
+    def test_source_filter_namespace_pod_explicit_wildcard(self) -> None:
+        """Test namespace/pod format with explicit wildcard."""
+        log_filter = Filter(source_filter="default/api-*")
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        assert 'resource.labels.namespace_name="default"' in filter_str
+        # After fix: re.escape() first, then Cloud Logging escaping
+        # api- -> api\- (regex) -> api\\- (Cloud Logging)
+        assert 'resource.labels.pod_name=~"^api\\\\-"' in filter_str
+        assert needs_client is False  # Explicit wildcard, no client-side needed
+
+    def test_source_filter_pod_only(self) -> None:
+        """Test pod-only format uses OR for namespace and pod."""
+        log_filter = Filter(source_filter="api")
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        # Should have OR filter matching namespace OR pod
+        assert "OR" in filter_str
+        assert "namespace_name" in filter_str
+        assert "pod_name" in filter_str
+        assert needs_client is True  # Need client-side for cluster sources
+
+    def test_source_filter_pod_only_explicit_wildcard(self) -> None:
+        """Test pod-only format with explicit wildcard uses OR."""
+        log_filter = Filter(source_filter="api-*")
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        # Should have OR filter matching namespace OR pod
+        assert "OR" in filter_str
+        assert "namespace_name" in filter_str
+        assert "pod_name" in filter_str
+        assert needs_client is True  # Always need client-side for cluster sources
+
+    def test_source_filter_wildcard_in_namespace_falls_back(self) -> None:
+        """Test wildcard in namespace falls back."""
+        log_filter = Filter(source_filter="prod-*/api")
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        assert "namespace_name" not in filter_str or 'resource.labels.namespace_name=' not in filter_str
+        assert needs_client is True
+
+    def test_source_filter_mid_wildcard_falls_back(self) -> None:
+        """Test mid-string wildcard falls back."""
+        log_filter = Filter(source_filter="api-*-server")
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        # Should not add source filter
+        assert needs_client is True
+
+    def test_no_source_filter_returns_false(self) -> None:
+        """Test no source filter returns client_side_needed=False."""
+        log_filter = Filter()
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        assert needs_client is False
+
+    def test_build_source_filter_gke_empty(self) -> None:
+        """Test _build_source_filter_gke with empty string."""
+        parts, needs_client = _build_source_filter_gke("")
+        assert parts == []
+        assert needs_client is False
+
+    def test_build_source_filter_gke_namespace_slash_pod(self) -> None:
+        """Test _build_source_filter_gke with namespace/pod format."""
+        parts, needs_client = _build_source_filter_gke("kube-system/coredns-*")
+        # Namespace/pod format doesn't use OR - it's AND between namespace and pod
+        assert len(parts) == 2
+        assert 'resource.labels.namespace_name="kube-system"' in parts
+        assert any("coredns" in p for p in parts)
+        assert needs_client is False  # Explicit wildcard, no exact match needed
+
+    @pytest.mark.asyncio
+    async def test_fetch_with_source_filter_includes_in_api_call(self) -> None:
+        """Test source_filter uses namespace AND pod in API call for slash format."""
+        client = MockLoggingClient(entries=[])
+        source = GKELogSource(
+            project_id="test-project",
+            cluster="test-cluster",
+            client=client,
+        )
+
+        async for _ in source.fetch(Filter(source_filter="default/api", limit=10)):
+            pass
+
+        # Namespace/pod format uses AND
+        assert 'resource.labels.namespace_name="default"' in client.last_filter
+        assert 'resource.labels.pod_name=~"^api"' in client.last_filter
+
+    @pytest.mark.asyncio
+    async def test_hybrid_filtering_cluster_sources(self) -> None:
+        """Test client-side handles cluster-level sources."""
+        entries = [
+            MockGKELogEntry(
+                text_payload="pod log",
+                resource=MockResource(
+                    labels={
+                        "project_id": "test-project",
+                        "cluster_name": "test-cluster",
+                        "namespace_name": "default",
+                        "pod_name": "api-server-abc123",
+                        "container_name": "app",
+                    }
+                ),
+            ),
+            MockGKELogEntry(
+                text_payload="different pod",
+                resource=MockResource(
+                    labels={
+                        "project_id": "test-project",
+                        "cluster_name": "test-cluster",
+                        "namespace_name": "default",
+                        "pod_name": "worker-def456",
+                        "container_name": "app",
+                    }
+                ),
+            ),
+        ]
+        client = MockLoggingClient(entries=entries)
+        source = GKELogSource(
+            project_id="test-project",
+            cluster="test-cluster",
+            client=client,
+        )
+
+        results = []
+        async for entry in source.fetch(Filter(source_filter="api", limit=10)):
+            results.append(entry)
+
+        # Only the api-server pod should match
+        assert len(results) == 1
+        assert "api" in results[0].source.lower()

@@ -148,11 +148,12 @@ def _build_wildcard_filter(
                 f"Invalid {field_name} pattern '{pattern}': "
                 f"only trailing wildcards are allowed (e.g., 'prefix-*')"
             )
-        # Quote escaping must happen BEFORE re.escape() because re.escape() only handles
-        # regex metacharacters, not Cloud Logging string delimiters. The backslashes from
-        # re.escape() are intentional regex syntax and should not be further escaped.
-        safe_prefix = prefix.replace('"', '\\"')
-        return f'{label_name}=~"^{re.escape(safe_prefix)}"'
+        # Escape for regex first, then for Cloud Logging string literal
+        # 1. re.escape() handles regex metacharacters (., *, +, ?, etc.)
+        # 2. Then escape backslashes and quotes for Cloud Logging string literal syntax
+        regex_escaped = re.escape(prefix)
+        escaped_prefix = regex_escaped.replace("\\", "\\\\").replace('"', '\\"')
+        return f'{label_name}=~"^{escaped_prefix}"'
     elif "*" in pattern:
         raise GKEInvalidFilterError(
             f"Invalid {field_name} pattern '{pattern}': "
@@ -163,13 +164,107 @@ def _build_wildcard_filter(
         return f'{label_name}="{escaped}"'
 
 
+def _build_source_filter_gke(source_filter: str) -> tuple[list[str], bool]:
+    """Build GKE resource label filters for source_filter using OR for broad matching.
+
+    Converts source_filter to Cloud Logging filters for GKE logs. For pod-only format,
+    uses OR to match entries where EITHER namespace OR pod matches the pattern, covering
+    most cases server-side.
+
+    Args:
+        source_filter: Source filter value (e.g., "default/api-server", "api-*")
+
+    Returns:
+        Tuple of (filter_parts, client_side_needed):
+        - filter_parts: List of Cloud Logging filter strings (may include OR conditions)
+        - client_side_needed: True if client-side fallback needed (cluster sources, exact matching)
+    """
+    if not source_filter:
+        return ([], False)
+
+    parts: list[str] = []
+    client_side_needed = False
+
+    if "/" in source_filter:
+        # Namespace/pod format
+        ns_pod = source_filter.split("/", 1)
+        namespace, pod = ns_pod[0], ns_pod[1]
+
+        # Wildcard in namespace is problematic with AND logic
+        if "*" in namespace:
+            logger.debug("Wildcard in namespace, using client-side filtering only")
+            return ([], True)
+
+        # Exact namespace
+        parts.append(f'resource.labels.namespace_name="{_escape_filter_value(namespace)}"')
+
+        # Pod with optional wildcard
+        if "*" in pod:
+            if not pod.endswith("*"):
+                logger.debug("Mid-string wildcard in pod, using client-side filtering only")
+                return ([], True)
+            try:
+                pod_filter = _build_wildcard_filter("pod", pod, "resource.labels.pod_name")
+                parts.append(pod_filter)
+                # Explicit wildcard - server-side handles it completely
+                client_side_needed = False
+            except GKEInvalidFilterError:
+                logger.debug("Invalid pod filter pattern, using client-side filtering only")
+                return ([], True)
+        else:
+            # Convert to prefix wildcard for server-side matching
+            try:
+                pod_filter = _build_wildcard_filter("pod", pod + "*", "resource.labels.pod_name")
+                parts.append(pod_filter)
+                # Need client-side for exact substring matching
+                client_side_needed = True
+            except GKEInvalidFilterError:
+                logger.debug("Invalid pod filter pattern, using client-side filtering only")
+                return ([], True)
+
+        return (parts, client_side_needed)
+    else:
+        # Pod-only format - match on namespace OR pod using OR operator
+        # Source could be: "namespace/pod", "pod", or "cluster"
+        # Using OR covers entries where namespace OR pod matches the pattern
+
+        # Validate wildcard position BEFORE converting (only trailing wildcards supported)
+        # Leading wildcards (*api) or mid-string wildcards (api-*-server) not supported
+        if "*" in source_filter and not source_filter.endswith("*"):
+            logger.debug("Mid-string wildcard in pod, using client-side filtering only")
+            return ([], True)
+        if source_filter.startswith("*"):
+            logger.debug("Leading wildcard in pod, using client-side filtering only")
+            return ([], True)
+
+        pattern = source_filter if source_filter.endswith("*") else source_filter + "*"
+
+        try:
+            # Build filters for both namespace and pod labels
+            namespace_filter = _build_wildcard_filter("namespace", pattern, "resource.labels.namespace_name")
+            pod_filter = _build_wildcard_filter("pod", pattern, "resource.labels.pod_name")
+
+            # Wrap in OR to match either label
+            or_filter = f"({namespace_filter} OR {pod_filter})"
+            parts.append(or_filter)
+
+            # Always need client-side for cluster-level sources (no namespace/pod labels)
+            # Server-side OR filter only matches entries with namespace_name or pod_name labels
+            client_side_needed = True
+        except GKEInvalidFilterError:
+            logger.debug("Invalid pod filter pattern, using client-side filtering only")
+            return ([], True)
+
+        return (parts, client_side_needed)
+
+
 def _build_gke_filter(
     log_filter: Filter,
     project: str,
     cluster: str,
     location: str | None = None,
     default_namespace: str | None = None,
-) -> str:
+) -> tuple[str, bool]:
     """Build a Cloud Logging filter string for GKE logs.
 
     Args:
@@ -181,7 +276,9 @@ def _build_gke_filter(
         default_namespace: Optional default namespace (used if not in log_filter.fields).
 
     Returns:
-        Cloud Logging filter string.
+        Tuple of (filter_string, client_side_needed):
+        - filter_string: Cloud Logging filter string
+        - client_side_needed: Whether client-side filtering is needed for source_filter
     """
     parts: list[str] = []
 
@@ -266,7 +363,14 @@ def _build_gke_filter(
         escaped = _escape_filter_value(log_filter.text_search)
         parts.append(f'(textPayload:"{escaped}" OR jsonPayload:"{escaped}")')
 
-    return " AND ".join(parts)
+    # Source filter (server-side when possible, with client-side fallback)
+    client_side_needed = False
+    if log_filter.source_filter:
+        source_parts, needs_client = _build_source_filter_gke(log_filter.source_filter)
+        parts.extend(source_parts)
+        client_side_needed = needs_client
+
+    return (" AND ".join(parts), client_side_needed)
 
 
 def _parse_gke_log_entry(entry: Any, cluster: str) -> LogEntry:
@@ -539,15 +643,19 @@ class GKELogSource:
         )
         client = self._get_client()
 
-        # Build the GKE-specific filter
-        filter_str = _build_gke_filter(
+        # Build the GKE-specific filter (server-side filtering)
+        filter_str, client_side_needed = _build_gke_filter(
             log_filter,
             project=self._project_id,
             cluster=self._cluster,
             location=self._location,
             default_namespace=self._namespace,
         )
-        logger.debug("GKE filter string: %s", filter_str)
+        logger.debug(
+            "GKE filter: %s, client-side filtering needed: %s",
+            filter_str,
+            client_side_needed
+        )
 
         # Fetch entries with batch processing (same pattern as GCP adapter)
         count = 0
@@ -569,7 +677,9 @@ class GKELogSource:
 
             remaining = log_filter.limit
             while remaining > 0:
-                current_batch_size = min(batch_size, remaining)
+                # Request extra entries when client-side filtering is active to reduce round-trips
+                buffer_size = 50 if client_side_needed else 0
+                current_batch_size = min(batch_size, remaining + buffer_size)
                 batch = await loop.run_in_executor(
                     None,
                     functools.partial(
@@ -587,10 +697,16 @@ class GKELogSource:
                 for entry in batch:
                     try:
                         log_entry = _parse_gke_log_entry(entry, self._cluster)
-                        # Apply client-side filtering (e.g., source_filter)
-                        if log_entry.matches_filter(log_filter):
-                            yield log_entry
-                            count += 1
+
+                        # Apply client-side filtering as a safety net
+                        # Server-side filters handle most cases, but we use matches_filter() to ensure
+                        # correctness for all filter types (especially source_filter substring matching)
+                        if not log_entry.matches_filter(log_filter):
+                            logger.debug("Client-side filtered out: %s", log_entry.source)
+                            continue
+
+                        yield log_entry
+                        count += 1
                     except Exception as e:
                         parse_errors += 1
                         logger.debug("Failed to parse GKE entry: %s", e)
