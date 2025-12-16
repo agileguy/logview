@@ -11,7 +11,7 @@ import json
 import logging
 import re
 from collections.abc import AsyncIterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 from logview.domain.models import Filter, FilterField, LogEntry, Severity
@@ -28,7 +28,7 @@ DOCKER_AVAILABLE = False
 _docker_module: Any = None
 
 try:
-    import docker
+    import docker  # type: ignore[import-untyped]
 
     DOCKER_AVAILABLE = True
     _docker_module = docker
@@ -164,7 +164,7 @@ def _parse_docker_timestamp(timestamp_str: str) -> datetime:
         # Parse as UTC
         dt = datetime.fromisoformat(timestamp_str)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
 
         # Convert to local time and remove timezone
         return dt.astimezone().replace(tzinfo=None)
