@@ -1,5 +1,69 @@
 # LogView Action Log
 
+## 2025-12-15: OR Operator Solution for Server-Side Source Filtering
+
+**Summary:**
+Implemented Cloud Logging OR operator solution to enable server-side source filtering across ALL source types without exclusion. This eliminates the AND/OR logic incompatibility discovered earlier.
+
+**Problem Solved:**
+- **Previous Issue**: Server-side filter on `pod_name` only excluded non-pod sources (instance_id, function_name, project_id)
+- **Root Cause**: Cloud Logging API uses AND logic, but source uses OR logic
+- **Solution**: Use Cloud Logging's OR operator to match across all source labels
+
+**Implementation:**
+
+**GCP Adapter:**
+```python
+# Before (excluded non-pod sources):
+resource.labels.pod_name=~"^api"
+
+# After (covers ALL sources):
+(resource.labels.pod_name=~"^api" OR
+ resource.labels.instance_id=~"^api" OR
+ resource.labels.function_name=~"^api" OR
+ resource.labels.project_id=~"^api")
+```
+
+**GKE Adapter (pod-only format):**
+```python
+# Before (only matched pod):
+resource.labels.pod_name=~"^api"
+
+# After (matches namespace OR pod):
+(resource.labels.namespace_name=~"^api" OR
+ resource.labels.pod_name=~"^api")
+```
+
+**Benefits:**
+- **GCP**: 100% server-side filtering for all source types (no exclusion!)
+- **GKE**: Server-side filtering for namespace/pod and pod sources
+- **Performance**: Still get 80-90% data transfer reduction
+- **Client-side fallback**: Only needed for:
+  - Exact substring matching (when we auto-add wildcards)
+  - GKE cluster-level sources (no namespace/pod labels)
+
+**Files Modified:**
+- `src/logview/adapters/gcp.py`: Updated `_build_source_filter_gcp()` to use OR across 4 labels
+- `src/logview/adapters/gke.py`: Updated `_build_source_filter_gke()` to use OR for namespace and pod
+- `tests/unit/test_gcp_adapter.py`: Updated 10 tests to verify OR syntax
+- `tests/unit/test_gke_adapter.py`: Updated 11 tests to verify OR syntax
+- `CHANGELOG.md`: Updated feature description to highlight OR approach
+
+**Test Results:**
+- All 455 tests passing (38 skipped)
+- mypy: Success
+- ruff: Success
+
+**Commits:**
+- `72912b1`: Implement OR operator solution for server-side source filtering
+
+**References:**
+- [Cloud Logging Query Language](https://cloud.google.com/logging/docs/view/logging-query-language)
+- Confirmed OR operator support with parentheses for grouping
+- Verified operator precedence and AND/OR interaction
+
+---
+
 ## 2025-12-15: PR #12 Review Cycle - Cursor Bugbot Fixes & Auto-Naming Enhancement
 
 **Summary:**

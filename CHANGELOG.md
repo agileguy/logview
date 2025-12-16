@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Server-Side Source Filtering**: GCP and GKE adapters now filter by source at the API level
+- **Server-Side Source Filtering with OR Operators**: GCP and GKE adapters now use Cloud Logging OR syntax to filter across all source labels
+  - **GCP**: Filters on `(pod_name OR instance_id OR function_name OR project_id)` - covers ALL GCP source types
+  - **GKE**: Filters on `(namespace_name OR pod_name)` for pod-only format - covers namespace/pod and pod sources
   - Reduces data transfer by 80-90% for filtered queries
-  - 2-5x faster query performance for specific pod/source filters
+  - 2-5x faster query performance for specific source filters
   - Auto-converts plain strings to prefix wildcards ("api" → "api*")
-  - Hybrid approach: server-side filtering with client-side fallback
+  - Minimal client-side fallback needed (only for exact substring matching and GKE cluster sources)
   - Supports namespace/pod format for GKE (`"default/api-server"`)
   - Falls back to client-side for unsupported patterns (mid-string wildcards, namespace wildcards)
   - 100% backward compatible - no API changes required
@@ -20,9 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - GCP `_build_filter()` now returns `tuple[str, bool]` (filter_string, client_side_needed)
 - GKE `_build_gke_filter()` now returns `tuple[str, bool]`
+- GCP `_build_source_filter_gcp()` uses OR across 4 source labels (eliminates non-pod source exclusion)
+- GKE `_build_source_filter_gke()` uses OR for namespace and pod labels in pod-only format
 
 ### Tests
-- 21 new tests for server-side source filtering
+- 21 new tests for server-side source filtering with OR operators
 - All 493 tests passing (455 passed, 38 skipped)
 
 ## [0.7.0] - 2025-12-15
