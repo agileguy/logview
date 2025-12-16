@@ -242,10 +242,9 @@ def _build_source_filter_gke(source_filter: str) -> tuple[list[str], bool]:
             or_filter = f"({namespace_filter} OR {pod_filter})"
             parts.append(or_filter)
 
-            # Still need client-side for:
-            # 1. Exact substring matching (if we auto-added wildcard)
-            # 2. Cluster-level sources (no namespace/pod labels)
-            client_side_needed = not source_filter.endswith("*") or True  # Always true for cluster fallback
+            # Always need client-side for cluster-level sources (no namespace/pod labels)
+            # Server-side OR filter only matches entries with namespace_name or pod_name labels
+            client_side_needed = True
         except GKEInvalidFilterError:
             logger.debug("Invalid pod filter pattern, using client-side filtering only")
             return ([], True)

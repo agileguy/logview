@@ -79,7 +79,9 @@ def _detect_gcp_source_pattern(source_filter: str) -> tuple[str, bool]:
 
     # Build regex filter for pod_name
     prefix = pattern[:-1]
-    escaped = re.escape(prefix.replace("\\", "\\\\").replace('"', '\\"'))
+    # CORRECT escaping order: re.escape() first, then Cloud Logging escaping
+    regex_escaped = re.escape(prefix)
+    escaped = regex_escaped.replace("\\", "\\\\").replace('"', '\\"')
     filter_str = f'resource.labels.pod_name=~"^{escaped}"'
 
     # Client-side still needed for instance_id, function_name fallback
@@ -170,9 +172,10 @@ def _build_source_filter_gcp(source_filter: str) -> tuple[str, bool]:
         logger.debug("Wildcard-only pattern, using client-side filtering")
         return ("", True)
 
-    # Escape for Cloud Logging
-    safe_prefix = prefix.replace("\\", "\\\\").replace('"', '\\"')
-    escaped_prefix = re.escape(safe_prefix)
+    # Escape for Cloud Logging and regex
+    # CORRECT order: re.escape() first, then Cloud Logging escaping
+    regex_escaped = re.escape(prefix)
+    escaped_prefix = regex_escaped.replace("\\", "\\\\").replace('"', '\\"')
     filter_str = f'resource.labels.pod_name=~"^{escaped_prefix}"'
 
     # Client-side still needed for non-pod sources
