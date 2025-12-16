@@ -18,6 +18,7 @@ from logview.adapters.gcp import (
     GCPProjectNotFoundError,
     GCPQuotaExceededError,
     _build_filter,
+    _build_source_filter_gcp,
     _parse_log_entry,
     _validate_project_id,
 )
@@ -589,3 +590,102 @@ class TestGCPNotInstalled:
         client = MockLoggingClient()
         source = GCPLogSource(project_id="test-project-id", client=client)
         assert source.name == "GCP: test-project-id"
+
+
+class TestGCPSourceFiltering:
+    """Tests for server-side source filtering in GCP adapter."""
+
+    def test_source_filter_plain_string(self) -> None:
+        """Test plain string converts to prefix wildcard."""
+        log_filter = Filter(source_filter="api")
+        filter_str, needs_client = _build_filter(log_filter)
+        assert 'resource.labels.pod_name=~"^api"' in filter_str
+        assert needs_client is True
+
+    def test_source_filter_explicit_wildcard(self) -> None:
+        """Test explicit wildcard preserved."""
+        log_filter = Filter(source_filter="api-*")
+        filter_str, needs_client = _build_filter(log_filter)
+        assert 'resource.labels.pod_name=~"^api\\-"' in filter_str
+        assert needs_client is True
+
+    def test_source_filter_with_slash_falls_back(self) -> None:
+        """Test namespace/pod format falls back to client-side."""
+        log_filter = Filter(source_filter="default/api")
+        filter_str, needs_client = _build_filter(log_filter)
+        assert "pod_name" not in filter_str
+        assert needs_client is True
+
+    def test_source_filter_mid_wildcard_falls_back(self) -> None:
+        """Test mid-string wildcard falls back to client-side."""
+        log_filter = Filter(source_filter="api-*-server")
+        filter_str, needs_client = _build_filter(log_filter)
+        assert "pod_name" not in filter_str
+        assert needs_client is True
+
+    def test_source_filter_wildcard_only_falls_back(self) -> None:
+        """Test wildcard-only pattern falls back to client-side."""
+        log_filter = Filter(source_filter="*")
+        filter_str, needs_client = _build_filter(log_filter)
+        assert "pod_name" not in filter_str
+        assert needs_client is True
+
+    def test_source_filter_escapes_special_chars(self) -> None:
+        """Test special characters are properly escaped."""
+        log_filter = Filter(source_filter="api-server.prod")
+        filter_str, needs_client = _build_filter(log_filter)
+        # re.escape() will escape the dot
+        assert "api\\-server\\.prod" in filter_str
+        assert needs_client is True
+
+    def test_no_source_filter_returns_false(self) -> None:
+        """Test no source filter returns client_side_needed=False."""
+        log_filter = Filter()
+        filter_str, needs_client = _build_filter(log_filter)
+        assert needs_client is False
+
+    def test_build_source_filter_gcp_empty(self) -> None:
+        """Test _build_source_filter_gcp with empty string."""
+        filter_str, needs_client = _build_source_filter_gcp("")
+        assert filter_str == ""
+        assert needs_client is False
+
+    @pytest.mark.asyncio
+    async def test_fetch_with_source_filter_includes_in_api_call(self) -> None:
+        """Test source_filter passed to API."""
+        client = MockLoggingClient(entries=[])
+        source = GCPLogSource(project_id="test-project", client=client)
+
+        async for _ in source.fetch(Filter(source_filter="api", limit=10)):
+            pass
+
+        assert 'resource.labels.pod_name=~"^api"' in client.last_filter
+
+    @pytest.mark.asyncio
+    async def test_hybrid_filtering_non_pod_sources(self) -> None:
+        """Test client-side handles instance_id, function_name."""
+        entries = [
+            MockLogEntry(
+                text_payload="pod log",
+                resource=MockResource(labels={"pod_name": "api-server"}),
+            ),
+            MockLogEntry(
+                text_payload="instance log",
+                resource=MockResource(labels={"instance_id": "api-vm-001"}),
+            ),
+            MockLogEntry(
+                text_payload="function log",
+                resource=MockResource(labels={"function_name": "worker"}),
+            ),
+        ]
+        client = MockLoggingClient(entries=entries)
+        source = GCPLogSource(project_id="test-project", client=client)
+
+        results = []
+        async for entry in source.fetch(Filter(source_filter="api", limit=10)):
+            results.append(entry)
+
+        # Server-side filters pod_name, client-side handles instance_id
+        assert len(results) == 2  # pod + instance, not function
+        sources = [r.source.lower() for r in results]
+        assert any("api" in s for s in sources)

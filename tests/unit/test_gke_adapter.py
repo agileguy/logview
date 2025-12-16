@@ -15,6 +15,7 @@ from logview.adapters.gke import (
     GKEInvalidFilterError,
     GKELogSource,
     _build_gke_filter,
+    _build_source_filter_gke,
     _parse_gke_log_entry,
     _validate_cluster_name,
     _validate_namespace,
@@ -872,3 +873,159 @@ class TestGKENotInstalled:
             client=client,
         )
         assert source.name == "GKE: my-cluster"
+
+
+class TestGKESourceFiltering:
+    """Tests for server-side source filtering in GKE adapter."""
+
+    def test_source_filter_namespace_pod(self) -> None:
+        """Test namespace/pod format."""
+        log_filter = Filter(source_filter="default/api-server")
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        assert 'resource.labels.namespace_name="default"' in filter_str
+        assert 'resource.labels.pod_name=~"^api\\-server"' in filter_str
+        assert needs_client is True  # Added wildcard for substring
+
+    def test_source_filter_namespace_pod_explicit_wildcard(self) -> None:
+        """Test namespace/pod format with explicit wildcard."""
+        log_filter = Filter(source_filter="default/api-*")
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        assert 'resource.labels.namespace_name="default"' in filter_str
+        assert 'resource.labels.pod_name=~"^api\\-"' in filter_str
+        assert needs_client is False  # Explicit wildcard, no client-side needed
+
+    def test_source_filter_pod_only(self) -> None:
+        """Test pod-only format."""
+        log_filter = Filter(source_filter="api")
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        assert 'resource.labels.pod_name=~"^api"' in filter_str
+        assert needs_client is True  # Added wildcard for prefix matching
+
+    def test_source_filter_pod_only_explicit_wildcard(self) -> None:
+        """Test pod-only format with explicit wildcard."""
+        log_filter = Filter(source_filter="api-*")
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        assert 'resource.labels.pod_name=~"^api\\-"' in filter_str
+        assert needs_client is False  # Explicit wildcard, server-side is sufficient
+
+    def test_source_filter_wildcard_in_namespace_falls_back(self) -> None:
+        """Test wildcard in namespace falls back."""
+        log_filter = Filter(source_filter="prod-*/api")
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        assert "namespace_name" not in filter_str or 'resource.labels.namespace_name=' not in filter_str
+        assert needs_client is True
+
+    def test_source_filter_mid_wildcard_falls_back(self) -> None:
+        """Test mid-string wildcard falls back."""
+        log_filter = Filter(source_filter="api-*-server")
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        # Should not add source filter
+        assert needs_client is True
+
+    def test_no_source_filter_returns_false(self) -> None:
+        """Test no source filter returns client_side_needed=False."""
+        log_filter = Filter()
+        filter_str, needs_client = _build_gke_filter(
+            log_filter,
+            project="test-project",
+            cluster="test-cluster",
+        )
+        assert needs_client is False
+
+    def test_build_source_filter_gke_empty(self) -> None:
+        """Test _build_source_filter_gke with empty string."""
+        parts, needs_client = _build_source_filter_gke("")
+        assert parts == []
+        assert needs_client is False
+
+    def test_build_source_filter_gke_namespace_slash_pod(self) -> None:
+        """Test _build_source_filter_gke with namespace/pod format."""
+        parts, needs_client = _build_source_filter_gke("kube-system/coredns-*")
+        assert len(parts) == 2
+        assert 'resource.labels.namespace_name="kube-system"' in parts
+        assert any("coredns" in p for p in parts)
+        assert needs_client is False  # Explicit wildcard
+
+    @pytest.mark.asyncio
+    async def test_fetch_with_source_filter_includes_in_api_call(self) -> None:
+        """Test source_filter passed to API."""
+        client = MockLoggingClient(entries=[])
+        source = GKELogSource(
+            project_id="test-project",
+            cluster="test-cluster",
+            client=client,
+        )
+
+        async for _ in source.fetch(Filter(source_filter="default/api", limit=10)):
+            pass
+
+        assert 'resource.labels.namespace_name="default"' in client.last_filter
+        assert 'resource.labels.pod_name=~"^api"' in client.last_filter
+
+    @pytest.mark.asyncio
+    async def test_hybrid_filtering_cluster_sources(self) -> None:
+        """Test client-side handles cluster-level sources."""
+        entries = [
+            MockGKELogEntry(
+                text_payload="pod log",
+                resource=MockResource(
+                    labels={
+                        "project_id": "test-project",
+                        "cluster_name": "test-cluster",
+                        "namespace_name": "default",
+                        "pod_name": "api-server-abc123",
+                        "container_name": "app",
+                    }
+                ),
+            ),
+            MockGKELogEntry(
+                text_payload="different pod",
+                resource=MockResource(
+                    labels={
+                        "project_id": "test-project",
+                        "cluster_name": "test-cluster",
+                        "namespace_name": "default",
+                        "pod_name": "worker-def456",
+                        "container_name": "app",
+                    }
+                ),
+            ),
+        ]
+        client = MockLoggingClient(entries=entries)
+        source = GKELogSource(
+            project_id="test-project",
+            cluster="test-cluster",
+            client=client,
+        )
+
+        results = []
+        async for entry in source.fetch(Filter(source_filter="api", limit=10)):
+            results.append(entry)
+
+        # Only the api-server pod should match
+        assert len(results) == 1
+        assert "api" in results[0].source.lower()
