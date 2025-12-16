@@ -596,18 +596,28 @@ class TestGCPSourceFiltering:
     """Tests for server-side source filtering in GCP adapter."""
 
     def test_source_filter_plain_string(self) -> None:
-        """Test plain string converts to prefix wildcard."""
+        """Test plain string uses OR across all source labels."""
         log_filter = Filter(source_filter="api")
         filter_str, needs_client = _build_filter(log_filter)
-        assert 'resource.labels.pod_name=~"^api"' in filter_str
-        assert needs_client is True
+        # Should have OR filter covering all source labels
+        assert "OR" in filter_str
+        assert "pod_name" in filter_str
+        assert "instance_id" in filter_str
+        assert "function_name" in filter_str
+        assert "project_id" in filter_str
+        assert needs_client is True  # Auto-added wildcard - need client-side for exact matching
 
     def test_source_filter_explicit_wildcard(self) -> None:
-        """Test explicit wildcard preserved."""
+        """Test explicit wildcard with OR across all source labels."""
         log_filter = Filter(source_filter="api-*")
         filter_str, needs_client = _build_filter(log_filter)
-        assert 'resource.labels.pod_name=~"^api\\-"' in filter_str
-        assert needs_client is True
+        # Should have OR filter covering all source labels
+        assert "OR" in filter_str
+        assert "pod_name" in filter_str
+        assert "instance_id" in filter_str
+        assert "function_name" in filter_str
+        assert "project_id" in filter_str
+        assert needs_client is False  # Explicit wildcard - server-side handles completely
 
     def test_source_filter_with_slash_falls_back(self) -> None:
         """Test namespace/pod format falls back to client-side."""
@@ -631,12 +641,13 @@ class TestGCPSourceFiltering:
         assert needs_client is True
 
     def test_source_filter_escapes_special_chars(self) -> None:
-        """Test special characters are properly escaped."""
+        """Test special characters are properly escaped in OR filter."""
         log_filter = Filter(source_filter="api-server.prod")
         filter_str, needs_client = _build_filter(log_filter)
-        # re.escape() will escape the dot
+        # re.escape() will escape the dot and dash
         assert "api\\-server\\.prod" in filter_str
-        assert needs_client is True
+        assert "OR" in filter_str
+        assert needs_client is True  # Auto-added wildcard - need client-side for exact matching
 
     def test_no_source_filter_returns_false(self) -> None:
         """Test no source filter returns client_side_needed=False."""
@@ -652,18 +663,23 @@ class TestGCPSourceFiltering:
 
     @pytest.mark.asyncio
     async def test_fetch_with_source_filter_includes_in_api_call(self) -> None:
-        """Test source_filter passed to API."""
+        """Test source_filter uses OR across all source labels in API call."""
         client = MockLoggingClient(entries=[])
         source = GCPLogSource(project_id="test-project", client=client)
 
         async for _ in source.fetch(Filter(source_filter="api", limit=10)):
             pass
 
-        assert 'resource.labels.pod_name=~"^api"' in client.last_filter
+        # Verify OR filter with all source labels
+        assert "OR" in client.last_filter
+        assert "pod_name" in client.last_filter
+        assert "instance_id" in client.last_filter
+        assert "function_name" in client.last_filter
+        assert "project_id" in client.last_filter
 
     @pytest.mark.asyncio
     async def test_hybrid_filtering_non_pod_sources(self) -> None:
-        """Test client-side handles instance_id, function_name."""
+        """Test OR filter covers all source types, client-side confirms exact match."""
         entries = [
             MockLogEntry(
                 text_payload="pod log",
@@ -685,7 +701,9 @@ class TestGCPSourceFiltering:
         async for entry in source.fetch(Filter(source_filter="api", limit=10)):
             results.append(entry)
 
-        # Server-side filters pod_name, client-side handles instance_id
+        # OR filter matches pod_name=~"^api" OR instance_id=~"^api" (both match)
+        # function_name="worker" doesn't match "^api" pattern
+        # Client-side confirms exact substring match for auto-added wildcard
         assert len(results) == 2  # pod + instance, not function
         sources = [r.source.lower() for r in results]
         assert any("api" in s for s in sources)

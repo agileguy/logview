@@ -903,26 +903,32 @@ class TestGKESourceFiltering:
         assert needs_client is False  # Explicit wildcard, no client-side needed
 
     def test_source_filter_pod_only(self) -> None:
-        """Test pod-only format."""
+        """Test pod-only format uses OR for namespace and pod."""
         log_filter = Filter(source_filter="api")
         filter_str, needs_client = _build_gke_filter(
             log_filter,
             project="test-project",
             cluster="test-cluster",
         )
-        assert 'resource.labels.pod_name=~"^api"' in filter_str
-        assert needs_client is True  # Added wildcard for prefix matching
+        # Should have OR filter matching namespace OR pod
+        assert "OR" in filter_str
+        assert "namespace_name" in filter_str
+        assert "pod_name" in filter_str
+        assert needs_client is True  # Need client-side for cluster sources
 
     def test_source_filter_pod_only_explicit_wildcard(self) -> None:
-        """Test pod-only format with explicit wildcard."""
+        """Test pod-only format with explicit wildcard uses OR."""
         log_filter = Filter(source_filter="api-*")
         filter_str, needs_client = _build_gke_filter(
             log_filter,
             project="test-project",
             cluster="test-cluster",
         )
-        assert 'resource.labels.pod_name=~"^api\\-"' in filter_str
-        assert needs_client is False  # Explicit wildcard, server-side is sufficient
+        # Should have OR filter matching namespace OR pod
+        assert "OR" in filter_str
+        assert "namespace_name" in filter_str
+        assert "pod_name" in filter_str
+        assert needs_client is True  # Always need client-side for cluster sources
 
     def test_source_filter_wildcard_in_namespace_falls_back(self) -> None:
         """Test wildcard in namespace falls back."""
@@ -965,14 +971,15 @@ class TestGKESourceFiltering:
     def test_build_source_filter_gke_namespace_slash_pod(self) -> None:
         """Test _build_source_filter_gke with namespace/pod format."""
         parts, needs_client = _build_source_filter_gke("kube-system/coredns-*")
+        # Namespace/pod format doesn't use OR - it's AND between namespace and pod
         assert len(parts) == 2
         assert 'resource.labels.namespace_name="kube-system"' in parts
         assert any("coredns" in p for p in parts)
-        assert needs_client is False  # Explicit wildcard
+        assert needs_client is False  # Explicit wildcard, no exact match needed
 
     @pytest.mark.asyncio
     async def test_fetch_with_source_filter_includes_in_api_call(self) -> None:
-        """Test source_filter passed to API."""
+        """Test source_filter uses namespace AND pod in API call for slash format."""
         client = MockLoggingClient(entries=[])
         source = GKELogSource(
             project_id="test-project",
@@ -983,6 +990,7 @@ class TestGKESourceFiltering:
         async for _ in source.fetch(Filter(source_filter="default/api", limit=10)):
             pass
 
+        # Namespace/pod format uses AND
         assert 'resource.labels.namespace_name="default"' in client.last_filter
         assert 'resource.labels.pod_name=~"^api"' in client.last_filter
 

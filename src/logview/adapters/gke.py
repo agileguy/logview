@@ -164,18 +164,19 @@ def _build_wildcard_filter(
 
 
 def _build_source_filter_gke(source_filter: str) -> tuple[list[str], bool]:
-    """Build GKE resource label filters for source_filter.
+    """Build GKE resource label filters for source_filter using OR for broad matching.
 
-    Converts source_filter to Cloud Logging resource label filters for GKE logs.
-    Handles both "namespace/pod" and "pod-only" formats with wildcard support.
+    Converts source_filter to Cloud Logging filters for GKE logs. For pod-only format,
+    uses OR to match entries where EITHER namespace OR pod matches the pattern, covering
+    most cases server-side.
 
     Args:
         source_filter: Source filter value (e.g., "default/api-server", "api-*")
 
     Returns:
         Tuple of (filter_parts, client_side_needed):
-        - filter_parts: List of Cloud Logging filter strings for namespace/pod
-        - client_side_needed: Whether client-side filtering is needed as fallback
+        - filter_parts: List of Cloud Logging filter strings (may include OR conditions)
+        - client_side_needed: True if client-side fallback needed (cluster sources, exact matching)
     """
     if not source_filter:
         return ([], False)
@@ -222,7 +223,9 @@ def _build_source_filter_gke(source_filter: str) -> tuple[list[str], bool]:
 
         return (parts, client_side_needed)
     else:
-        # Pod-only format
+        # Pod-only format - match on namespace OR pod using OR operator
+        # Source could be: "namespace/pod", "pod", or "cluster"
+        # Using OR covers entries where namespace OR pod matches the pattern
         pattern = source_filter if source_filter.endswith("*") else source_filter + "*"
 
         if "*" in pattern and not pattern.endswith("*"):
@@ -230,11 +233,18 @@ def _build_source_filter_gke(source_filter: str) -> tuple[list[str], bool]:
             return ([], True)
 
         try:
+            # Build filters for both namespace and pod labels
+            namespace_filter = _build_wildcard_filter("namespace", pattern, "resource.labels.namespace_name")
             pod_filter = _build_wildcard_filter("pod", pattern, "resource.labels.pod_name")
-            parts.append(pod_filter)
-            # If user provided explicit wildcard, server-side is sufficient
-            # Otherwise, we added wildcard for prefix matching and need client-side for exact match
-            client_side_needed = not source_filter.endswith("*")
+
+            # Wrap in OR to match either label
+            or_filter = f"({namespace_filter} OR {pod_filter})"
+            parts.append(or_filter)
+
+            # Still need client-side for:
+            # 1. Exact substring matching (if we auto-added wildcard)
+            # 2. Cluster-level sources (no namespace/pod labels)
+            client_side_needed = not source_filter.endswith("*") or True  # Always true for cluster fallback
         except GKEInvalidFilterError:
             logger.debug("Invalid pod filter pattern, using client-side filtering only")
             return ([], True)

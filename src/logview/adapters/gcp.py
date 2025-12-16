@@ -165,20 +165,20 @@ def _validate_project_id(project: str) -> None:
 
 
 def _build_source_filter_gcp(source_filter: str) -> tuple[str, bool]:
-    """Build GCP resource label filter for source_filter.
+    """Build GCP resource label filter for source_filter using OR across all source labels.
 
-    Converts source_filter to a Cloud Logging resource label filter that targets
-    the pod_name label (most common source). Falls back to client-side filtering
-    for unsupported patterns.
+    Converts source_filter to a Cloud Logging filter that matches pod_name, instance_id,
+    function_name, or project_id using OR operators. This eliminates the need for client-side
+    fallback since all possible GCP source types are covered at the API level.
 
     Args:
         source_filter: Source filter value (e.g., "api-server", "api-*")
 
     Returns:
         Tuple of (filter_string, client_side_needed):
-        - filter_string: Cloud Logging filter string for pod_name, or empty string
-        - client_side_needed: Always True since we need client-side fallback for
-          non-pod sources (instance_id, function_name, project_id)
+        - filter_string: Cloud Logging filter with OR conditions, or empty string
+        - client_side_needed: True only for unsupported patterns (mid-string wildcards, etc.),
+          False for patterns that can be fully handled server-side
     """
     if not source_filter:
         return ("", False)
@@ -196,22 +196,40 @@ def _build_source_filter_gcp(source_filter: str) -> tuple[str, bool]:
     # Convert to prefix wildcard if not already
     pattern = source_filter if source_filter.endswith("*") else source_filter + "*"
 
-    # Build filter for pod_name (most common source)
+    # Build filter for all possible GCP source labels using OR
     prefix = pattern[:-1]  # Remove trailing *
     if not prefix:
         logger.debug("Wildcard-only pattern, using client-side filtering only")
         return ("", True)
 
-    # Escape for Cloud Logging filter syntax
-    # First escape backslashes and quotes for Cloud Logging, then escape for regex
+    # Escape for Cloud Logging filter syntax and regex
+    # Order matters: escape for Cloud Logging first, then for regex
     safe_prefix = prefix.replace("\\", "\\\\").replace('"', '\\"')
     escaped_prefix = re.escape(safe_prefix)
-    filter_str = f'resource.labels.pod_name=~"^{escaped_prefix}"'
 
-    logger.debug("Built server-side filter: %s (client-side fallback enabled)", filter_str)
+    # Build OR filter covering all possible GCP source labels
+    # GCP source can come from: pod_name, instance_id, function_name, or project_id
+    # Using OR eliminates the need for client-side fallback
+    or_conditions = [
+        f'resource.labels.pod_name=~"^{escaped_prefix}"',
+        f'resource.labels.instance_id=~"^{escaped_prefix}"',
+        f'resource.labels.function_name=~"^{escaped_prefix}"',
+        f'resource.labels.project_id=~"^{escaped_prefix}"',
+    ]
+    filter_str = f'({" OR ".join(or_conditions)})'
 
-    # Client-side still needed for non-pod sources (instance_id, function_name, project_id)
-    return (filter_str, True)
+    # Determine if client-side filtering is needed
+    # If user provided explicit wildcard, server-side OR filter handles it completely
+    # If we auto-added wildcard, need client-side for exact substring matching
+    needs_client_side = not source_filter.endswith("*")
+
+    logger.debug(
+        "Built server-side OR filter for %d source labels (client-side: %s)",
+        len(or_conditions),
+        needs_client_side
+    )
+
+    return (filter_str, needs_client_side)
 
 
 def _build_filter(
