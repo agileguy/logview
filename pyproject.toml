@@ -1,5 +1,5 @@
 [project]
-name = "logview"
+name = "logview-ag"
 dynamic = ["version"]
 description = "A testable, responsive log viewer TUI with pluggable log source contexts"
 readme = "README.md"

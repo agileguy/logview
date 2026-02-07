@@ -68,5 +68,5 @@ jobs:
       - name: Verify PyPI upload
         run: |
           echo "✓ Package published to PyPI"
-          echo "Install with: pip install logview"
-          echo "Package URL: https://pypi.org/project/logview/"
+          echo "Install with: pip install logview-ag"
+          echo "Package URL: https://pypi.org/project/logview-ag/"

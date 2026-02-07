@@ -1,8 +1,8 @@
 # LogView
 
 [![CI](https://github.com/agileguy/logview/actions/workflows/ci.yml/badge.svg)](https://github.com/agileguy/logview/actions/workflows/ci.yml)
-[![PyPI version](https://img.shields.io/pypi/v/logview.svg)](https://pypi.org/project/logview/)
-[![Python](https://img.shields.io/pypi/pyversions/logview.svg)](https://pypi.org/project/logview/)
+[![PyPI version](https://img.shields.io/pypi/v/logview-ag.svg)](https://pypi.org/project/logview-ag/)
+[![Python](https://img.shields.io/pypi/pyversions/logview-ag.svg)](https://pypi.org/project/logview-ag/)
 
 A testable, responsive log viewer TUI with pluggable log source contexts.
 
@@ -21,38 +21,38 @@ A testable, responsive log viewer TUI with pluggable log source contexts.
 
 ## Installation
 
-[![PyPI version](https://img.shields.io/pypi/v/logview.svg)](https://pypi.org/project/logview/)
+[![PyPI version](https://img.shields.io/pypi/v/logview-ag.svg)](https://pypi.org/project/logview-ag/)
 
 ### Quick Install (Recommended)
 
 ```bash
 # Using pipx (isolated environment - recommended)
-pipx install logview
+pipx install logview-ag
 
 # Or using pip
-pip install logview
+pip install logview-ag
 ```
 
 ### With Optional Dependencies
 
 ```bash
 # Base installation (local logs only)
-pip install logview
+pip install logview-ag
 
 # With GCP Cloud Logging support
-pip install logview[gcp]
+pip install logview-ag[gcp]
 
 # With GKE support
-pip install logview[gke]
+pip install logview-ag[gke]
 
 # With Docker support
-pip install logview[docker]
+pip install logview-ag[docker]
 
 # With context detection (auto-discover GCP/GKE)
-pip install logview[detection]
+pip install logview-ag[detection]
 
 # With everything
-pip install logview[all]
+pip install logview-ag[all]
 ```
 
 #### From Source (Development)
@@ -82,7 +82,7 @@ curl -fsSL https://github.com/agileguy/logview/releases/download/vX.Y.Z/SHA256SU
 sha256sum -c SHA256SUMS --ignore-missing
 ```
 
-Expected output: `logview-X.Y.Z-py3-none-any.whl: OK`
+Expected output: `logview_ag-X.Y.Z-py3-none-any.whl: OK`
 
 ### Uninstall
 
@@ -91,8 +91,8 @@ Expected output: `logview-X.Y.Z-py3-none-any.whl: OK`
 curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh | bash -s -- --uninstall
 
 # Or manually
-pipx uninstall logview  # if installed with pipx
-pip uninstall logview   # if installed with pip
+pipx uninstall logview-ag  # if installed with pipx
+pip uninstall logview-ag   # if installed with pip
 
 # Remove configuration (optional)
 rm -rf ~/.config/logview
@@ -224,7 +224,7 @@ To view logs from Docker containers:
 
 1. **Install with Docker support**:
    ```bash
-   pipx install logview[docker]  # or pip install logview[docker]
+   pipx install logview-ag[docker]  # or pip install logview-ag[docker]
    ```
 
 2. **Ensure Docker is running**:
@@ -271,7 +271,7 @@ To use GCP Cloud Logging as a log source:
 
 1. **Install with GCP support**:
    ```bash
-   pipx install logview[all]  # or pip install logview[all]
+   pipx install logview-ag[all]  # or pip install logview-ag[all]
    ```
 
 2. **Authenticate with GCP**:
@@ -305,7 +305,7 @@ with Kubernetes-specific resource filters.
 
 1. **Install with GCP support** (same as GCP Cloud Logging):
    ```bash
-   pipx install logview[all]  # or pip install logview[all]
+   pipx install logview-ag[all]  # or pip install logview-ag[all]
    ```
 
 2. **Authenticate with GCP**:

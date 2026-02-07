@@ -4,7 +4,7 @@ GKE logs are stored in Google Cloud Logging, not the Kubernetes API.
 This adapter queries Cloud Logging with k8s-specific resource filters.
 
 Requires the google-cloud-logging package:
-    pip install logview[gcp]
+    pip install logview-ag[gcp]
 """
 
 from __future__ import annotations

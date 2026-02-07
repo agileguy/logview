@@ -365,7 +365,7 @@ class LogViewApp(App[None]):
         elif isinstance(context, GCPContext):
             if not GCP_AVAILABLE:
                 self.notify(
-                    "GCP support requires: pip install logview[gcp]",
+                    "GCP support requires: pip install logview-ag[gcp]",
                     severity="warning",
                 )
                 return None
@@ -378,7 +378,7 @@ class LogViewApp(App[None]):
         elif isinstance(context, GKEContext):
             if not GCP_AVAILABLE:
                 self.notify(
-                    "GKE support requires: pip install logview[gcp]",
+                    "GKE support requires: pip install logview-ag[gcp]",
                     severity="warning",
                 )
                 return None
@@ -392,7 +392,7 @@ class LogViewApp(App[None]):
         elif isinstance(context, DockerContext):
             if not DOCKER_AVAILABLE:
                 self.notify(
-                    "Docker support requires: pip install logview[docker]",
+                    "Docker support requires: pip install logview-ag[docker]",
                     severity="warning",
                 )
                 return None
@@ -747,7 +747,7 @@ class LogViewApp(App[None]):
         if not DETECTION_AVAILABLE:
             self.notify(
                 "Context detection requires additional dependencies.\n"
-                "Install with: pip install logview[detection]",
+                "Install with: pip install logview-ag[detection]",
                 severity="error",
                 timeout=10,
             )

@@ -1,7 +1,7 @@
 """GCP Cloud Logging adapter.
 
 Requires the google-cloud-logging package:
-    pip install logview[gcp]
+    pip install logview-ag[gcp]
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ class GCPNotInstalledError(GCPError):
     def __init__(self) -> None:
         super().__init__(
             "GCP support requires the google-cloud-logging package. "
-            "Install with: pip install logview[gcp]"
+            "Install with: pip install logview-ag[gcp]"
         )
 
 

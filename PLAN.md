@@ -892,7 +892,7 @@ pipx install logview
 ```bash
 pip install logview
 # With GCP/GKE support
-pip install logview[all]
+pip install logview-ag[all]
 ```
 
 **Method 4: From Source**

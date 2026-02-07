@@ -74,7 +74,7 @@ This follows the same pattern as `LoggingClientProtocol` in the GCP adapter, mak
 1. **Optional Docker SDK dependency**:
    - Check if `docker` package is available
    - Raise `DockerNotInstalledError` with helpful message if missing
-   - Support installation via `pip install logview[docker]`
+   - Support installation via `pip install logview-ag[docker]`
 
 2. **Container resolution**:
    - Accept container name or ID
@@ -281,7 +281,7 @@ Add to `pyproject.toml`:
 docker = ["docker>=7.0.0"]
 ```
 
-Install with: `pip install logview[docker]`
+Install with: `pip install logview-ag[docker]`
 
 ### Why Optional?
 
@@ -303,7 +303,7 @@ class DockerNotInstalledError(DockerError):
     def __init__(self):
         super().__init__(
             "Docker support requires the docker package. "
-            "Install with: pip install logview[docker]"
+            "Install with: pip install logview-ag[docker]"
         )
 
 class DockerDaemonError(DockerError):

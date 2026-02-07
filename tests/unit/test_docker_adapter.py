@@ -296,7 +296,7 @@ def test_docker_not_installed():
     with pytest.raises(DockerNotInstalledError) as exc_info:
         DockerLogSource(container="test")
 
-    assert "pip install logview[docker]" in str(exc_info.value)
+    assert "pip install logview-ag[docker]" in str(exc_info.value)
 
 
 def test_docker_log_source_init():
