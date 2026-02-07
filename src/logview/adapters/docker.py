@@ -1,7 +1,7 @@
 """Docker container log adapter.
 
 Requires the docker package:
-    pip install logview[docker]
+    pip install logview-ag[docker]
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ class DockerNotInstalledError(DockerError):
     def __init__(self) -> None:
         super().__init__(
             "Docker support requires the docker package. "
-            "Install with: pip install logview[docker]"
+            "Install with: pip install logview-ag[docker]"
         )
 
 

@@ -127,7 +127,7 @@ class DiscoveryModal(ModalScreen[list[DiscoveredContext] | None]):
                     "Ensure you have:\n"
                     "1. Run: gcloud auth application-default login\n"
                     "2. Access to at least one GCP project\n"
-                    "3. Installed detection libraries: pip install logview[detection]",
+                    "3. Installed detection libraries: pip install logview-ag[detection]",
                     classes="discovery-empty",
                 )
             else:

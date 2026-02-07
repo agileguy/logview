@@ -4,7 +4,7 @@ Automatically discovers accessible GCP projects and GKE clusters using
 Application Default Credentials (ADC).
 
 Requires optional dependencies:
-    pip install logview[detection]
+    pip install logview-ag[detection]
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ class DetectionNotInstalledError(ContextDetectionError):
     def __init__(self) -> None:
         super().__init__(
             "Context detection requires additional dependencies. "
-            "Install with: pip install logview[detection]"
+            "Install with: pip install logview-ag[detection]"
         )
 
 
