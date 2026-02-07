@@ -1,6 +1,8 @@
 # LogView
 
 [![CI](https://github.com/agileguy/logview/actions/workflows/ci.yml/badge.svg)](https://github.com/agileguy/logview/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/pypi/v/logview.svg)](https://pypi.org/project/logview/)
+[![Python](https://img.shields.io/pypi/pyversions/logview.svg)](https://pypi.org/project/logview/)
 
 A testable, responsive log viewer TUI with pluggable log source contexts.
 
@@ -19,47 +21,19 @@ A testable, responsive log viewer TUI with pluggable log source contexts.
 
 ## Installation
 
-> **⚠️ Not Yet Published**: LogView is not yet published to PyPI. The `pip` and `pipx` installation methods below will not work until the first release is published. For now, use the "From Source" method.
+[![PyPI version](https://img.shields.io/pypi/v/logview.svg)](https://pypi.org/project/logview/)
 
 ### Quick Install (Recommended)
 
-**One-line install** (after PyPI publication):
-
 ```bash
-curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh | bash
-```
-
-**Two-step install** (for security-conscious users):
-
-```bash
-# Download and inspect the script first
-curl -fsSL https://raw.githubusercontent.com/agileguy/logview/main/install.sh -o install.sh
-less install.sh  # Review the script
-bash install.sh
-```
-
-This will:
-- Check Python 3.11+ is installed
-- Install LogView using pipx (isolated environment) or pip
-- Create config directory at `~/.config/logview/`
-- Verify the installation
-
-### Alternative Methods
-
-#### Using pipx (Isolated Environment)
-
-> **Note**: Requires PyPI publication
-
-```bash
+# Using pipx (isolated environment - recommended)
 pipx install logview
 
-# With GCP/GKE support
-pipx install logview[all]
+# Or using pip
+pip install logview
 ```
 
-#### Using pip
-
-> **Note**: Requires PyPI publication
+### With Optional Dependencies
 
 ```bash
 # Base installation (local logs only)
