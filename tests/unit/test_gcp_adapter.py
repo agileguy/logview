@@ -537,7 +537,7 @@ class TestGCPErrors:
         """Test GCPNotInstalledError message."""
         error = GCPNotInstalledError()
         assert "google-cloud-logging" in str(error)
-        assert "pip install logview[gcp]" in str(error)
+        assert "pip install logview-ag[gcp]" in str(error)
 
     def test_authentication_error_default_message(self) -> None:
         """Test GCPAuthenticationError default message."""

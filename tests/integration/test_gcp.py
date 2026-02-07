@@ -1,7 +1,7 @@
 """Integration tests for GCP Cloud Logging adapter.
 
 These tests require:
-1. google-cloud-logging package installed: pip install logview[gcp]
+1. google-cloud-logging package installed: pip install logview-ag[gcp]
 2. GCP authentication configured: gcloud auth application-default login
 3. A valid GCP project with Cloud Logging API enabled
 
@@ -167,7 +167,7 @@ class TestGCPWithoutCredentials:
     def test_gcp_not_installed_error_message(self) -> None:
         """Test GCPNotInstalledError has helpful message."""
         error = GCPNotInstalledError()
-        assert "pip install logview[gcp]" in str(error)
+        assert "pip install logview-ag[gcp]" in str(error)
 
     def test_gcp_authentication_error_message(self) -> None:
         """Test GCPAuthenticationError has helpful message."""
