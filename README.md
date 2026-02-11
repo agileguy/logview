@@ -1,5 +1,9 @@
 # LogView
 
+<p align="center">
+  <img src="docs/logo.png" alt="LogView Logo" width="200">
+</p>
+
 [![CI](https://github.com/agileguy/logview/actions/workflows/ci.yml/badge.svg)](https://github.com/agileguy/logview/actions/workflows/ci.yml)
 [![PyPI version](https://img.shields.io/pypi/v/logview-ag.svg)](https://pypi.org/project/logview-ag/)
 [![Python](https://img.shields.io/pypi/pyversions/logview-ag.svg)](https://pypi.org/project/logview-ag/)
